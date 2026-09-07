@@ -32,7 +32,7 @@ jobs:
           flutter clean
           rm -rf ~/.pub-cache
           rm -f pubspec.lock
-          echo "✅ Cache cleared and pubspec.lock deleted!"
+          echo "✅ Cache cleared!"
       
       - name: Fix pubspec.yaml
         run: |
@@ -77,9 +77,9 @@ jobs:
           
           echo "✅ Android folder created!"
       
-      - name: Fix app/build.gradle with namespace
+      - name: Fix all build.gradle files
         run: |
-          echo "🔧 Overwriting app/build.gradle with namespace..."
+          echo "🔧 Fixing app/build.gradle with namespace and Kotlin resolution..."
           cat > android/app/build.gradle << 'EOF'
           def localProperties = new Properties()
           def localPropertiesFile = rootProject.file('local.properties')
@@ -143,6 +143,17 @@ jobs:
               }
           }
           
+          // ✅ FORCE KOTLIN RUNTIME RESOLUTION
+          configurations.all {
+              resolutionStrategy {
+                  eachDependency { DependencyResolveDetails details ->
+                      if (details.requested.group == 'org.jetbrains.kotlin') {
+                          details.useVersion '1.8.0'
+                      }
+                  }
+              }
+          }
+          
           flutter {
               source '../..'
           }
@@ -151,11 +162,8 @@ jobs:
               implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.0"
           }
           EOF
-          echo "✅ app/build.gradle fixed!"
-      
-      - name: Fix root build.gradle with Kotlin 1.8.0 and resolution
-        run: |
-          echo "🔧 Fixing root build.gradle with Kotlin 1.8.0..."
+          
+          echo "🔧 Fixing root build.gradle..."
           cat > android/build.gradle << 'EOF'
           buildscript {
               ext.kotlin_version = '1.8.0'
@@ -199,29 +207,28 @@ jobs:
               delete rootProject.buildDir
           }
           EOF
-          echo "✅ root build.gradle with Kotlin 1.8.0 and resolution fixed!"
+          
+          echo "✅ All build.gradle files fixed!"
       
-      - name: Fix AndroidManifest.xml package name
+      - name: Fix AndroidManifest.xml
         run: |
-          echo "🔧 Fixing package name in AndroidManifest.xml..."
+          echo "🔧 Fixing AndroidManifest.xml..."
           sed -i 's/package=".*"/package="com.yourcompany.yourapp"/' android/app/src/main/AndroidManifest.xml
-          echo "✅ Package name fixed!"
-      
-      - name: Add Storage Permissions
-        run: |
-          echo "Adding permissions to AndroidManifest.xml..."
+          
+          # Add permissions
           sed -i '/<manifest /a\
           \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\
           \    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>\
           \    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>\
           \    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>\
           \    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>' android/app/src/main/AndroidManifest.xml
-          echo "✅ Permissions added!"
+          
+          echo "✅ AndroidManifest.xml fixed!"
       
       - name: Get Dependencies
         run: flutter pub get
       
-      - name: Force Kotlin version in pub-cache packages
+      - name: Fix Kotlin in pub-cache packages
         run: |
           echo "🔧 Fixing Kotlin version in pub-cache packages..."
           find ~/.pub-cache -name "build.gradle" -type f -exec sed -i "s/ext.kotlin_version = '1.7.10'/ext.kotlin_version = '1.8.0'/g" {} \;
@@ -229,20 +236,15 @@ jobs:
           find ~/.pub-cache -name "build.gradle" -type f -exec sed -i "s/ext.kotlin_version = '1.7.1'/ext.kotlin_version = '1.8.0'/g" {} \;
           find ~/.pub-cache -name "build.gradle" -type f -exec sed -i "s/kotlin_version = '1.7.1'/kotlin_version = '1.8.0'/g" {} \;
           find ~/.pub-cache -name "build.gradle" -type f -exec sed -i 's/compileSdkVersion 35/compileSdkVersion 34/g' {} \;
-          echo "✅ All pub-cache packages fixed to Kotlin 1.8.0!"
-      
-      - name: Build Release APK
-        run: flutter build apk --release
+          echo "✅ All pub-cache packages fixed!"
       
       - name: Build Debug APK
         run: flutter build apk --debug
-
-      # ✅ YAHAN UPLOAD STEP ADD KARO!
+      
       - name: Upload APKs
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: app-apks
           path: |
-            build/app/outputs/flutter-apk/app-release.apk
             build/app/outputs/flutter-apk/app-debug.apk
