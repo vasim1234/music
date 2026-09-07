@@ -79,7 +79,7 @@ jobs:
       
       - name: Fix all Android files
         run: |
-          echo "Fixing app/build.gradle with exclusions..."
+          echo "Fixing app/build.gradle..."
           cat > android/app/build.gradle << 'EOF'
           def localProperties = new Properties()
           def localPropertiesFile = rootProject.file('local.properties')
@@ -134,6 +134,10 @@ jobs:
               }
           
               buildTypes {
+                  debug {
+                      minifyEnabled false
+                      shrinkResources false
+                  }
                   release {
                       signingConfig signingConfigs.debug
                       minifyEnabled false
@@ -149,9 +153,6 @@ jobs:
           
           dependencies {
               implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.0"
-              implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.0") {
-                  exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib'
-              }
           }
           
           configurations.all {
@@ -272,13 +273,16 @@ jobs:
       - name: Get Dependencies
         run: flutter pub get
       
-      - name: Build Debug APK
-        run: flutter build apk --debug
+      - name: Build Debug APK (NO SHRINK)
+        run: |
+          echo "Building DEBUG APK with NO shrink..."
+          flutter build apk --debug --no-shrink
+          echo "APK size:"
+          ls -lh build/app/outputs/flutter-apk/
       
-      - name: Upload APKs
+      - name: Upload APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: app-apks
-          path: |
-            build/app/outputs/flutter-apk/app-debug.apk
+          name: app-debug
+          path: build/app/outputs/flutter-apk/app-debug.apk
