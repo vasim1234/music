@@ -79,7 +79,7 @@ jobs:
       
       - name: Fix all build.gradle files
         run: |
-          echo "🔧 Fixing app/build.gradle with namespace and Kotlin resolution..."
+          echo "🔧 Fixing app/build.gradle..."
           cat > android/app/build.gradle << 'EOF'
           def localProperties = new Properties()
           def localPropertiesFile = rootProject.file('local.properties')
@@ -143,17 +143,6 @@ jobs:
               }
           }
           
-          // ✅ FORCE KOTLIN RUNTIME RESOLUTION
-          configurations.all {
-              resolutionStrategy {
-                  eachDependency { DependencyResolveDetails details ->
-                      if (details.requested.group == 'org.jetbrains.kotlin') {
-                          details.useVersion '1.8.0'
-                      }
-                  }
-              }
-          }
-          
           flutter {
               source '../..'
           }
@@ -177,7 +166,6 @@ jobs:
               }
           }
           
-          // ✅ FORCE ALL KOTLIN DEPENDENCIES TO USE 1.8.0
           subprojects {
               configurations.all {
                   resolutionStrategy {
@@ -215,7 +203,6 @@ jobs:
           echo "🔧 Fixing AndroidManifest.xml..."
           sed -i 's/package=".*"/package="com.yourcompany.yourapp"/' android/app/src/main/AndroidManifest.xml
           
-          # Add permissions
           sed -i '/<manifest /a\
           \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\
           \    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>\
@@ -227,16 +214,6 @@ jobs:
       
       - name: Get Dependencies
         run: flutter pub get
-      
-      - name: Fix Kotlin in pub-cache packages
-        run: |
-          echo "🔧 Fixing Kotlin version in pub-cache packages..."
-          find ~/.pub-cache -name "build.gradle" -type f -exec sed -i "s/ext.kotlin_version = '1.7.10'/ext.kotlin_version = '1.8.0'/g" {} \;
-          find ~/.pub-cache -name "build.gradle" -type f -exec sed -i "s/kotlin_version = '1.7.10'/kotlin_version = '1.8.0'/g" {} \;
-          find ~/.pub-cache -name "build.gradle" -type f -exec sed -i "s/ext.kotlin_version = '1.7.1'/ext.kotlin_version = '1.8.0'/g" {} \;
-          find ~/.pub-cache -name "build.gradle" -type f -exec sed -i "s/kotlin_version = '1.7.1'/kotlin_version = '1.8.0'/g" {} \;
-          find ~/.pub-cache -name "build.gradle" -type f -exec sed -i 's/compileSdkVersion 35/compileSdkVersion 34/g' {} \;
-          echo "✅ All pub-cache packages fixed!"
       
       - name: Build Debug APK
         run: flutter build apk --debug
