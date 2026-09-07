@@ -77,7 +77,7 @@ jobs:
           
           echo "Android folder created!"
       
-      - name: Fix all Android files
+      - name: Fix Android files
         run: |
           echo "Fixing app/build.gradle..."
           cat > android/app/build.gradle << 'EOF'
@@ -273,14 +273,14 @@ jobs:
       - name: Get Dependencies
         run: flutter pub get
       
-      - name: Build Debug APK (NO SHRINK)
+      - name: Build Debug APK
         run: |
-          echo "Building DEBUG APK with NO shrink..."
-          flutter build apk --debug --no-shrink
+          echo "Building DEBUG APK..."
+          flutter build apk --debug
           echo "APK size:"
           ls -lh build/app/outputs/flutter-apk/
       
-      - name: Upload APK
+      - name: Upload Debug APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
