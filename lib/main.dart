@@ -4,6 +4,14 @@ import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
 
 void main() async {
+  // ✅ Error Handling ADD KARO - YE NAYA HAI!
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.dumpErrorToConsole(details);
+    // Log error for debugging
+    print('❌ Flutter Error: ${details.exception}');
+    print('📚 Stack Trace: ${details.stack}');
+  };
+  
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService.initialize();
   
