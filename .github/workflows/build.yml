@@ -28,15 +28,15 @@ jobs:
       
       - name: Clear Flutter Cache
         run: |
-          echo "🧹 Clearing Flutter cache..."
+          echo "Clearing Flutter cache..."
           flutter clean
           rm -rf ~/.pub-cache
           rm -f pubspec.lock
-          echo "✅ Cache cleared!"
+          echo "Cache cleared!"
       
       - name: Fix pubspec.yaml
         run: |
-          echo "🔧 Fixing pubspec.yaml..."
+          echo "Fixing pubspec.yaml..."
           cat > pubspec.yaml << 'EOF'
           name: music
           description: A local music player app
@@ -65,7 +65,7 @@ jobs:
           flutter:
             uses-material-design: true
           EOF
-          echo "✅ pubspec.yaml fixed!"
+          echo "pubspec.yaml fixed!"
       
       - name: Recreate Android Folder
         run: |
@@ -75,13 +75,11 @@ jobs:
           echo "Creating fresh Android project..."
           flutter create --platforms=android .
           
-          echo "✅ Android folder created!"
+          echo "Android folder created!"
       
-      - name: FORCE FIX: Overwrite ALL Gradle and Manifest Files
+      - name: Fix Android Files
         run: |
-          echo "🔧 Force fixing ALL Android files with exact configurations..."
-          
-          # 1. OVERWRITE app/build.gradle
+          echo "Fixing app/build.gradle..."
           cat > android/app/build.gradle << 'EOF'
           def localProperties = new Properties()
           def localPropertiesFile = rootProject.file('local.properties')
@@ -154,7 +152,7 @@ jobs:
           }
           EOF
           
-          # 2. OVERWRITE root build.gradle
+          echo "Fixing root build.gradle..."
           cat > android/build.gradle << 'EOF'
           buildscript {
               ext.kotlin_version = '1.8.0'
@@ -188,7 +186,7 @@ jobs:
           }
           EOF
           
-          # 3. OVERWRITE AndroidManifest.xml with EXACT package and permissions
+          echo "Fixing AndroidManifest.xml..."
           cat > android/app/src/main/AndroidManifest.xml << 'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
               package="com.yourcompany.yourapp">
@@ -233,7 +231,7 @@ jobs:
           </manifest>
           EOF
           
-          # 4. CREATE STYLES.XML (Missing resource fix)
+          echo "Creating styles.xml..."
           mkdir -p android/app/src/main/res/values
           cat > android/app/src/main/res/values/styles.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
@@ -247,7 +245,7 @@ jobs:
           </resources>
           EOF
           
-          # 5. CREATE LAUNCH BACKGROUND
+          echo "Creating launch_background.xml..."
           mkdir -p android/app/src/main/res/drawable
           cat > android/app/src/main/res/drawable/launch_background.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
@@ -256,7 +254,7 @@ jobs:
           </layer-list>
           EOF
           
-          echo "✅ ALL Android files FORCE FIXED!"
+          echo "All Android files fixed!"
       
       - name: Get Dependencies
         run: flutter pub get
