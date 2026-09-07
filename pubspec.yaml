@@ -1,112 +1,26 @@
-name: Build APK
+name: music
+description: A local music player app
+publish_to: 'none'
+version: 1.0.0+1
 
-on:
-  push:
-    branches: [ main ]
+environment:
+  sdk: ">=3.0.0 <4.0.0"
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-      
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.19.6'
-          channel: 'stable'
-      
-      - name: Clear Flutter Cache
-        run: |
-          echo "🧹 Clearing Flutter cache..."
-          flutter clean
-          rm -rf ~/.pub-cache
-          echo "✅ Cache cleared!"
-      
-      # ✅ FIX: Correct pubspec.yaml with SDK constraint
-      - name: Fix pubspec.yaml
-        run: |
-          echo "🔧 Fixing pubspec.yaml with correct SDK constraint..."
-          
-          cat > pubspec.yaml << 'EOF'
-          name: music
-          description: A local music player app
-          publish_to: 'none'
-          version: 1.0.0+1
-          
-          environment:
-            sdk: ">=3.0.0 <4.0.0"
-          
-          dependencies:
-            flutter:
-              sdk: flutter
-            audioplayers: ^6.0.0
-            audiotags: ^1.4.2
-            file_picker: ^8.0.0
-            path_provider: ^2.1.4
-            permission_handler: ^11.3.1
-            shared_preferences: ^2.2.2
-            flutter_local_notifications: ^17.1.2
-          
-          dev_dependencies:
-            flutter_test:
-              sdk: flutter
-            flutter_lints: ^4.0.0
-          
-          flutter:
-            uses-material-design: true
-          EOF
-          
-          echo "✅ pubspec.yaml fixed with SDK constraint!"
-          cat pubspec.yaml | head -10
-      
-      - name: Recreate Android Folder
-        run: |
-          echo "Deleting android folder..."
-          rm -rf android
-          
-          echo "Creating fresh Android project..."
-          flutter create --platforms=android .
-          
-          echo "✅ Android folder created!"
-      
-      - name: Fix minSdkVersion to 21
-        run: |
-          echo "🔧 Fixing minSdkVersion to 21..."
-          sed -i 's/minSdkVersion 19/minSdkVersion 21/g' android/app/build.gradle
-          sed -i 's/minSdkVersion = 19/minSdkVersion = 21/g' android/app/build.gradle
-          sed -i '/defaultConfig {/,/}/ s/minSdkVersion [0-9]*/minSdkVersion 21/g' android/app/build.gradle
-          echo "✅ minSdkVersion fixed to 21!"
-      
-      - name: Add Storage Permissions
-        run: |
-          echo "Adding permissions to AndroidManifest.xml..."
-          sed -i '/<manifest /a\
-          \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\
-          \    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>\
-          \    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>\
-          \    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>\
-          \    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>' android/app/src/main/AndroidManifest.xml
-      
-      - name: Get Dependencies
-        run: flutter pub get
-      
-      - name: Build APK
-        run: flutter build apk --release
-      
-      - name: Upload APK
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release
-          path: build/app/outputs/flutter-apk/app-release.apk
+dependencies:
+  flutter:
+    sdk: flutter
+  audioplayers: ^5.2.1
+  audiotags: ^1.4.2
+  file_picker: ^8.0.0
+  path_provider: ^2.1.4
+  permission_handler: ^11.3.1
+  shared_preferences: ^2.2.2
+  flutter_local_notifications: ^17.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
