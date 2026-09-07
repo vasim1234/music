@@ -231,15 +231,18 @@ jobs:
           find ~/.pub-cache -name "build.gradle" -type f -exec sed -i 's/compileSdkVersion 35/compileSdkVersion 34/g' {} \;
           echo "✅ All pub-cache packages fixed to Kotlin 1.8.0!"
       
-      - name: Build APK
+      - name: Build Release APK
         run: flutter build apk --release
       
       - name: Build Debug APK
         run: flutter build apk --debug
 
-      - name: Upload APK
+      # ✅ YAHAN UPLOAD STEP ADD KARO!
+      - name: Upload APKs
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: app-release
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: app-apks
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/flutter-apk/app-debug.apk
