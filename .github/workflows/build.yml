@@ -77,9 +77,11 @@ jobs:
           
           echo "✅ Android folder created!"
       
-      - name: Fix all build.gradle files
+      - name: FORCE FIX: Overwrite ALL Gradle and Manifest Files
         run: |
-          echo "🔧 Fixing app/build.gradle..."
+          echo "🔧 Force fixing ALL Android files with exact configurations..."
+          
+          # 1. OVERWRITE app/build.gradle
           cat > android/app/build.gradle << 'EOF'
           def localProperties = new Properties()
           def localPropertiesFile = rootProject.file('local.properties')
@@ -126,7 +128,7 @@ jobs:
               }
           
               defaultConfig {
-                  applicationId 'com.yourcompany.yourapp'
+                  applicationId "com.yourcompany.yourapp"
                   minSdkVersion 21
                   targetSdkVersion 34
                   versionCode flutterVersionCode.toInteger()
@@ -136,7 +138,7 @@ jobs:
               buildTypes {
                   release {
                       signingConfig signingConfigs.debug
-                      minifyEnabled true
+                      minifyEnabled false
                       shrinkResources false
                       proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
                   }
@@ -152,7 +154,7 @@ jobs:
           }
           EOF
           
-          echo "🔧 Fixing root build.gradle..."
+          # 2. OVERWRITE root build.gradle
           cat > android/build.gradle << 'EOF'
           buildscript {
               ext.kotlin_version = '1.8.0'
@@ -166,24 +168,13 @@ jobs:
               }
           }
           
-          subprojects {
-              configurations.all {
-                  resolutionStrategy {
-                      eachDependency { DependencyResolveDetails details ->
-                          if (details.requested.group == 'org.jetbrains.kotlin') {
-                              details.useVersion '1.8.0'
-                          }
-                      }
-                  }
-              }
-          }
-          
           allprojects {
               repositories {
                   google()
                   mavenCentral()
               }
           }
+          
           rootProject.buildDir = '../build'
           subprojects {
               project.buildDir = "${rootProject.buildDir}/${project.name}"
@@ -191,26 +182,81 @@ jobs:
           subprojects {
               project.evaluationDependsOn(':app')
           }
+          
           tasks.register('clean', Delete) {
               delete rootProject.buildDir
           }
           EOF
           
-          echo "✅ All build.gradle files fixed!"
-      
-      - name: Fix AndroidManifest.xml
-        run: |
-          echo "🔧 Fixing AndroidManifest.xml..."
-          sed -i 's/package=".*"/package="com.yourcompany.yourapp"/' android/app/src/main/AndroidManifest.xml
+          # 3. OVERWRITE AndroidManifest.xml with EXACT package and permissions
+          cat > android/app/src/main/AndroidManifest.xml << 'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              package="com.yourcompany.yourapp">
           
-          sed -i '/<manifest /a\
-          \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\
-          \    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>\
-          \    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>\
-          \    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>\
-          \    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>' android/app/src/main/AndroidManifest.xml
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+              <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
+              <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
+              <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+              <uses-permission android:name="android.permission.INTERNET"/>
           
-          echo "✅ AndroidManifest.xml fixed!"
+              <application
+                  android:label="music"
+                  android:name="${applicationName}"
+                  android:icon="@mipmap/ic_launcher"
+                  android:largeHeap="true"
+                  android:hardwareAccelerated="true">
+          
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:launchMode="singleTop"
+                      android:theme="@style/LaunchTheme"
+                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+                      android:hardwareAccelerated="true"
+                      android:windowSoftInputMode="adjustResize">
+          
+                      <meta-data
+                          android:name="io.flutter.embedding.android.NormalTheme"
+                          android:resource="@style/NormalTheme"/>
+          
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+          
+                  <meta-data
+                      android:name="flutterEmbedding"
+                      android:value="2" />
+              </application>
+          </manifest>
+          EOF
+          
+          # 4. CREATE STYLES.XML (Missing resource fix)
+          mkdir -p android/app/src/main/res/values
+          cat > android/app/src/main/res/values/styles.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+                  <item name="android:windowBackground">@drawable/launch_background</item>
+              </style>
+              <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+                  <item name="android:windowBackground">?android:colorBackground</item>
+              </style>
+          </resources>
+          EOF
+          
+          # 5. CREATE LAUNCH BACKGROUND
+          mkdir -p android/app/src/main/res/drawable
+          cat > android/app/src/main/res/drawable/launch_background.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+              <item android:drawable="@android:color/white" />
+          </layer-list>
+          EOF
+          
+          echo "✅ ALL Android files FORCE FIXED!"
       
       - name: Get Dependencies
         run: flutter pub get
