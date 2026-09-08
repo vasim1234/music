@@ -33,6 +33,12 @@ jobs:
           rm -rf android
           flutter create --platforms=android .
       
+      - name: Fix minSdkVersion to 21
+        run: |
+          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
+          # Agar upar wali line match na ho toh direct replace ke liye:
+          sed -i 's/minSdkVersion 19/minSdkVersion 21/g' android/app/build.gradle
+      
       - name: Get Dependencies
         run: flutter pub get
       
@@ -45,3 +51,4 @@ jobs:
         with:
           name: app-debug
           path: build/app/outputs/flutter-apk/app-debug.apk
+
