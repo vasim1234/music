@@ -189,17 +189,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ========== PERMISSION ==========
+import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'dart:io';
+
 Future<void> _checkPermission() async {
   if (Platform.isAndroid) {
-    // ✅ Request MANAGE_EXTERNAL_STORAGE
-    var manageStatus = await Permission.manageExternalStorage.status;
+    // ✅ Check if Android 11+
+    if (await Permission.manageExternalStorage.isPermanentlyDenied) {
+      _showSettingsDialog();
+      return;
+    }
     
+    var manageStatus = await Permission.manageExternalStorage.status;
     if (!manageStatus.isGranted) {
-      // ✅ Show dialog to request permission
-      if (await Permission.manageExternalStorage.request().isGranted) {
+      final result = await Permission.manageExternalStorage.request();
+      if (result.isGranted) {
         print('✅ MANAGE_EXTERNAL_STORAGE granted!');
       } else {
-        print('❌ MANAGE_EXTERNAL_STORAGE denied!');
+        print('❌ MANAGE_EXTERNAL_STORAGE denied');
+        _showSettingsDialog();
       }
     }
     
@@ -213,6 +222,34 @@ Future<void> _checkPermission() async {
     });
     _loadData();
   }
+}
+
+void _showSettingsDialog() {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => AlertDialog(
+      title: const Text('⚠️ Permission Required'),
+      content: const Text(
+        'Music app needs "All files access" permission to scan your songs.\n\n'
+        'Please go to Settings and enable:\n'
+        'Settings → Apps → Music → Permissions → Files and Media → Allow'
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.pop(context);
+            openAppSettings();
+          },
+          child: const Text('Open Settings'),
+        ),
+      ],
+    ),
+  );
 }
 
   // ✅ ========== AUDIO SCANNING ==========
