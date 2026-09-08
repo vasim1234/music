@@ -1022,21 +1022,40 @@ class _FolderManagerScreenState extends State<FolderManagerScreen> {
   }
   
   Future<void> addNewFolder() async {
-    try {
-      String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
-      if (selectedDirectory != null) {
-        bool exists = widget.folders.any((f) => f['path'] == selectedDirectory);
-        if (!exists) {
-          setState(() { widget.folders.add({'name': selectedDirectory.split('/').last, 'path': selectedDirectory, 'isChecked': true}); });
-          widget.onFoldersUpdated();
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Added: ' + selectedDirectory.split('/').last)));
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Folder already added!')));
-        }
+  try {
+    // ✅ Use FilePicker with allowMultiple: false
+    String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: 'Select Music Folder',
+    );
+    
+    if (selectedDirectory != null) {
+      print('📁 Selected: $selectedDirectory');
+      
+      bool exists = widget.folders.any((f) => f['path'] == selectedDirectory);
+      if (!exists) {
+        setState(() {
+          widget.folders.add({
+            'name': selectedDirectory.split('/').last,
+            'path': selectedDirectory,
+            'isChecked': true,
+          });
+        });
+        widget.onFoldersUpdated();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('✅ Added: ${selectedDirectory.split('/').last}')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Folder already added!')),
+        );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: " + e.toString())));
     }
+  } catch (e) {
+    print('⚠️ Error: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Error: $e")),
+    );
+  }
   }
   
   @override
