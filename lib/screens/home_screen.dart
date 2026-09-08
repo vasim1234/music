@@ -8,18 +8,15 @@ import '../services/notification_service.dart';
 import 'equalizer_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);  // ✅ Constructor ANDAR
+  const HomeScreen({Key? key}) : super(key: key);
   
   @override
-  State<HomeScreen> createState() => _HomeScreenState();  // ✅ ANDAR
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final AudioPlayer _player = AudioPlayer();
   final TextEditingController _searchController = TextEditingController();
-  
-  // ... rest of your code
-}
   
   List<Map<String, dynamic>> _savedFolders = [];
   List<File> _playlist = []; 
@@ -192,172 +189,166 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  // ========== PERMISSION ========== 
-Future<void> _checkPermission() async {
-  if (Platform.isAndroid) {
-    // ✅ Check if Android 11+
-    if (await Permission.manageExternalStorage.isPermanentlyDenied) {
-      _showSettingsDialog();
-      return;
-    }
-    
-    var manageStatus = await Permission.manageExternalStorage.status;
-    if (!manageStatus.isGranted) {
-      final result = await Permission.manageExternalStorage.request();
-      if (result.isGranted) {
-        print('✅ MANAGE_EXTERNAL_STORAGE granted!');
-      } else {
-        print('❌ MANAGE_EXTERNAL_STORAGE denied');
+  // ========== PERMISSION ==========
+  Future<void> _checkPermission() async {
+    if (Platform.isAndroid) {
+      if (await Permission.manageExternalStorage.isPermanentlyDenied) {
         _showSettingsDialog();
+        return;
       }
-    }
-    
-    var storageStatus = await Permission.storage.status;
-    if (!storageStatus.isGranted) {
-      await Permission.storage.request();
-    }
-    
-    setState(() {
-      _hasPermission = storageStatus.isGranted || manageStatus.isGranted;
-    });
-    _loadData();
-  }
-}
-
-void _showSettingsDialog() {
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => AlertDialog(
-      title: const Text('⚠️ Permission Required'),
-      content: const Text(
-        'Music app needs "All files access" permission to scan your songs.\n\n'
-        'Please go to Settings and enable:\n'
-        'Settings → Apps → Music → Permissions → Files and Media → Allow'
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            Navigator.pop(context);
-            openAppSettings();
-          },
-          child: const Text('Open Settings'),
-        ),
-      ],
-    ),
-  );
-}
-
-  // ✅ ========== AUDIO SCANNING ==========
-  Future<List<File>> _getAudioFilesSafely(Directory dir) async {
-  List<File> audioFiles = [];
-  try {
-    print('🔍 Scanning directory: ${dir.path}');
-    
-    // ✅ Check if directory exists and is readable
-    if (!dir.existsSync()) {
-      print('⚠️ Directory does not exist: ${dir.path}');
-      return audioFiles;
-    }
-    
-    // ✅ List all files recursively
-    List<FileSystemEntity> entities = dir.listSync(recursive: true);
-    print('📊 Total entities found: ${entities.length}');
-    
-    for (FileSystemEntity entity in entities) {
-      if (entity is File) {
-        String path = entity.path.toLowerCase();
-        // ✅ Check for audio file extensions
-        if (path.endsWith('.mp3') || path.endsWith('.m4a') || 
-            path.endsWith('.wav') || path.endsWith('.aac') || 
-            path.endsWith('.ogg') || path.endsWith('.flac') || 
-            path.endsWith('.wma')) {
-          audioFiles.add(entity);
-          print('🎵 Found: ${entity.path.split('/').last}');
+      
+      var manageStatus = await Permission.manageExternalStorage.status;
+      if (!manageStatus.isGranted) {
+        final result = await Permission.manageExternalStorage.request();
+        if (result.isGranted) {
+          print('✅ MANAGE_EXTERNAL_STORAGE granted!');
+        } else {
+          print('❌ MANAGE_EXTERNAL_STORAGE denied');
+          _showSettingsDialog();
         }
       }
+      
+      var storageStatus = await Permission.storage.status;
+      if (!storageStatus.isGranted) {
+        await Permission.storage.request();
+      }
+      
+      setState(() {
+        _hasPermission = storageStatus.isGranted || manageStatus.isGranted;
+      });
+      _loadData();
     }
-  } catch (e) {
-    print('⚠️ Error scanning: $e');
-    // ✅ Show error on screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('⚠️ Error: $e')),
+  }
+
+  void _showSettingsDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('⚠️ Permission Required'),
+        content: const Text(
+          'Music app needs "All files access" permission to scan your songs.\n\n'
+          'Please go to Settings and enable:\n'
+          'Settings → Apps → Music → Permissions → Files and Media → Allow'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              openAppSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
     );
   }
-  
-  print('📊 Total audio files found: ${audioFiles.length}');
-  return audioFiles;
+
+  // ========== AUDIO SCANNING ==========
+  Future<List<File>> _getAudioFilesSafely(Directory dir) async {
+    List<File> audioFiles = [];
+    try {
+      print('🔍 Scanning directory: ${dir.path}');
+      
+      if (!dir.existsSync()) {
+        print('⚠️ Directory does not exist: ${dir.path}');
+        return audioFiles;
+      }
+      
+      List<FileSystemEntity> entities = dir.listSync(recursive: true);
+      print('📊 Total entities found: ${entities.length}');
+      
+      for (FileSystemEntity entity in entities) {
+        if (entity is File) {
+          String path = entity.path.toLowerCase();
+          if (path.endsWith('.mp3') || path.endsWith('.m4a') || 
+              path.endsWith('.wav') || path.endsWith('.aac') || 
+              path.endsWith('.ogg') || path.endsWith('.flac') || 
+              path.endsWith('.wma')) {
+            audioFiles.add(entity);
+            print('🎵 Found: ${entity.path.split('/').last}');
+          }
+        }
+      }
+    } catch (e) {
+      print('⚠️ Error scanning: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('⚠️ Error: $e')),
+      );
+    }
+    
+    print('📊 Total audio files found: ${audioFiles.length}');
+    return audioFiles;
   }
 
-  // ✅ UPDATED WITH SNACKBAR MESSAGES
   Future<void> updatePlaylistFromFolders() async {
-  print('🔄 Updating playlist from folders...');
-  
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('🔄 Scanning folders...')),
-  );
-  
-  setState(() {
-    _playlist = [];
-    _filteredPlaylist = [];
-  });
-  
-  List<File> newSongs = [];
-  
-  for (var folder in _savedFolders) {
-    if (folder['isChecked'] == true) {
-      String folderPath = folder['path'] as String;
-      print('📁 Checking folder: $folderPath');
-      
-      Directory dir = Directory(folderPath);
-      
-      if (dir.existsSync()) {
-        print('📁 Scanning: $folderPath');
+    print('🔄 Updating playlist from folders...');
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('🔄 Scanning folders...')),
+    );
+    
+    setState(() {
+      _playlist = [];
+      _filteredPlaylist = [];
+    });
+    
+    List<File> newSongs = [];
+    
+    for (var folder in _savedFolders) {
+      if (folder['isChecked'] == true) {
+        String folderPath = folder['path'] as String;
+        print('📁 Checking folder: $folderPath');
         
-        try {
-          List<File> foundSongs = await _getAudioFilesSafely(dir);
-          print('🎵 Found: ${foundSongs.length} songs in ${folder['name']}');
-          newSongs.addAll(foundSongs);
+        Directory dir = Directory(folderPath);
+        
+        if (dir.existsSync()) {
+          print('📁 Scanning: $folderPath');
           
+          try {
+            List<File> foundSongs = await _getAudioFilesSafely(dir);
+            print('🎵 Found: ${foundSongs.length} songs in ${folder['name']}');
+            newSongs.addAll(foundSongs);
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('📁 ${folder['name']}: ${foundSongs.length} songs'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          } catch (e) {
+            print('⚠️ Error scanning ${folder['name']}: $e');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('⚠️ Error scanning ${folder['name']}')),
+            );
+          }
+        } else {
+          print('⚠️ Folder not found: $folderPath');
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('📁 ${folder['name']}: ${foundSongs.length} songs'),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        } catch (e) {
-          print('⚠️ Error scanning ${folder['name']}: $e');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('⚠️ Error scanning ${folder['name']}')),
+            SnackBar(content: Text('⚠️ Folder not found: ${folder['name']}')),
           );
         }
-      } else {
-        print('⚠️ Folder not found: $folderPath');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('⚠️ Folder not found: ${folder['name']}')),
-        );
       }
     }
-  }
-  
-  print('🎵 Total songs found: ${newSongs.length}');
-  
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text('✅ ${newSongs.length} songs found!'),
-      backgroundColor: newSongs.length > 0 ? Colors.green : Colors.red,
-      duration: const Duration(seconds: 3),
-    ),
-  );
-  
-  setState(() {
-    _playlist = newSongs;
-    filterSearchResults(_searchController.text);
-  });
+    
+    print('🎵 Total songs found: ${newSongs.length}');
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('✅ ${newSongs.length} songs found!'),
+        backgroundColor: newSongs.length > 0 ? Colors.green : Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+    
+    setState(() {
+      _playlist = newSongs;
+      filterSearchResults(_searchController.text);
+    });
   }
 
   void openFolderManager() {
@@ -496,28 +487,26 @@ void _showSettingsDialog() {
                       ],
                     ),
                   ),
-                  
-                  // Full Screen Player - Album Art section
-Container(
-  height: 280,
-  width: 280,
-  decoration: BoxDecoration(
-    shape: BoxShape.circle,
-    gradient: const LinearGradient(
-      colors: [Color(0xFF4C83FF), Color(0xFFD946EF)],
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    ),
-    boxShadow: [  // ✅ const HATAO
-      BoxShadow(
-        color: Colors.purple.withOpacity(0.3),  // ✅ withOpacity sahi hai
-        blurRadius: 40,
-        spreadRadius: 10,
-      ),
-    ],
-  ),
-  child: const Icon(Icons.music_note, size: 100, color: Colors.white),
-),
+                  Container(
+                    height: 280,
+                    width: 280,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF4C83FF), Color(0xFFD946EF)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.purple.withOpacity(0.3),
+                          blurRadius: 40,
+                          spreadRadius: 10,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.music_note, size: 100, color: Colors.white),
+                  ),
                   const SizedBox(height: 20),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 30),
@@ -786,10 +775,26 @@ Container(
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white, elevation: 0, iconTheme: const IconThemeData(color: Colors.black87),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.black87),
         title: Container(
-          height: 40, decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(20)),
-          child: TextField(controller: _searchController, onChanged: filterSearchResults, decoration: const InputDecoration(hintText: "Search songs, playlists...", hintStyle: TextStyle(fontSize: 14, color: Colors.grey), prefixIcon: Icon(Icons.search, color: Colors.grey, size: 20), border: InputBorder.none, contentPadding: EdgeInsets.symmetric(vertical: 10))),
+          height: 40,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: TextField(
+            controller: _searchController,
+            onChanged: filterSearchResults,
+            decoration: const InputDecoration(
+              hintText: "Search songs, playlists...",
+              hintStyle: TextStyle(fontSize: 14, color: Colors.grey),
+              prefixIcon: Icon(Icons.search, color: Colors.grey, size: 20),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(vertical: 10),
+            ),
+          ),
         ),
       ),
       drawer: Drawer(
@@ -801,7 +806,7 @@ Container(
               padding: const EdgeInsets.only(top: 60, bottom: 20, left: 20),
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFF1E1B4B), Color(0xFFD946EF)], 
+                  colors: [Color(0xFF1E1B4B), Color(0xFFD946EF)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -811,13 +816,27 @@ Container(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
                     child: const Icon(Icons.headphones, size: 40, color: Colors.white),
                   ),
                   const SizedBox(height: 15),
-                  const Text('Bhai Bhai App', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                  const Text(
+                    'Bhai Bhai App',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                    ),
+                  ),
                   const SizedBox(height: 5),
-                  Text('${_playlist.length} Local Tracks', style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                  Text(
+                    '${_playlist.length} Local Tracks',
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
                 ],
               ),
             ),
@@ -825,122 +844,420 @@ Container(
               child: ListView(
                 padding: EdgeInsets.zero,
                 children: [
-                  ListTile(leading: const Icon(Icons.folder, color: Colors.deepPurple), title: const Text('Choose Folders', style: TextStyle(fontWeight: FontWeight.w600)), onTap: () { Navigator.pop(context); openFolderManager(); }),
-                  ListTile(leading: const Icon(Icons.refresh, color: Colors.blueAccent), title: const Text('Scan Music', style: TextStyle(fontWeight: FontWeight.w600)), onTap: () { Navigator.pop(context); updatePlaylistFromFolders(); }),
+                  ListTile(
+                    leading: const Icon(Icons.folder, color: Colors.deepPurple),
+                    title: const Text('Choose Folders', style: TextStyle(fontWeight: FontWeight.w600)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      openFolderManager();
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.refresh, color: Colors.blueAccent),
+                    title: const Text('Scan Music', style: TextStyle(fontWeight: FontWeight.w600)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      updatePlaylistFromFolders();
+                    },
+                  ),
                   const Divider(),
                   ListTile(
                     leading: const Icon(Icons.lyrics, color: Colors.teal),
                     title: const Text('Lyrics', style: TextStyle(fontWeight: FontWeight.w600)),
                     onTap: () {
                       Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lyrics feature coming soon! 🎵')));
-                    }
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Lyrics feature coming soon! 🎵')),
+                      );
+                    },
                   ),
                   ListTile(
                     leading: const Icon(Icons.bar_chart, color: Colors.indigo),
                     title: const Text('Visualizer', style: TextStyle(fontWeight: FontWeight.w600)),
                     onTap: () {
                       Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Visualizer feature coming soon! 📊')));
-                    }
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Visualizer feature coming soon! 📊')),
+                      );
+                    },
                   ),
                   ListTile(
                     leading: const Icon(Icons.equalizer, color: Colors.orange),
                     title: const Text('Equalizer & Effects', style: TextStyle(fontWeight: FontWeight.w600)),
                     onTap: () {
                       Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => const EqualizerScreen()));
-                    }
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const EqualizerScreen()),
+                      );
+                    },
                   ),
                   ListTile(
                     leading: const Icon(Icons.palette, color: Colors.pink),
                     title: const Text('Themes', style: TextStyle(fontWeight: FontWeight.w600)),
                     onTap: () {
                       Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Themes Coming Soon! 🎨')));
-                    }
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Themes Coming Soon! 🎨')),
+                      );
+                    },
                   ),
                   const Divider(),
-                  ListTile(leading: Icon(Icons.settings, color: Colors.grey.shade700), title: const Text('Settings'), onTap: () {}),
-                  ListTile(leading: const Icon(Icons.share, color: Colors.green), title: const Text('Share App'), onTap: () {}),
+                  ListTile(
+                    leading: Icon(Icons.settings, color: Colors.grey.shade700),
+                    title: const Text('Settings'),
+                    onTap: () {},
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.share, color: Colors.green),
+                    title: const Text('Share App'),
+                    onTap: () {},
+                  ),
                 ],
               ),
             ),
             const Padding(
               padding: EdgeInsets.all(20),
-              child: Text("Version 1.0.0\nMade with ❤️ by Bhai Bhai", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 12)),
-            )
+              child: Text(
+                "Version 1.0.0\nMade with ❤️ by Bhai Bhai",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+            ),
           ],
         ),
       ),
       body: Column(
         children: [
+          // Quick Access Cards
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
             child: Row(
               children: [
-                Expanded(child: GestureDetector(onTap: () => setView('Favorites'), child: Container(height: 80, decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF982B4D), Color(0xFFC7436B)]), borderRadius: BorderRadius.circular(15), border: _currentView == 'Favorites' ? Border.all(color: Colors.black87, width: 3) : null), child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.end, children: [Icon(_currentView == 'Favorites' ? Icons.favorite : Icons.favorite_border, color: Colors.white, size: 20), const SizedBox(height: 5), const Text("Favourites", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))]))))),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setView('Favorites'),
+                    child: Container(
+                      height: 80,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF982B4D), Color(0xFFC7436B)],
+                        ),
+                        borderRadius: BorderRadius.circular(15),
+                        border: _currentView == 'Favorites'
+                            ? Border.all(color: Colors.black87, width: 3)
+                            : null,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Icon(
+                              _currentView == 'Favorites' ? Icons.favorite : Icons.favorite_border,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            const SizedBox(height: 5),
+                            const Text(
+                              "Favourites",
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 10),
-                Expanded(child: GestureDetector(onTap: () => setView('Playlists'), child: Container(height: 80, decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF1E5F74), Color(0xFF2C7D99)]), borderRadius: BorderRadius.circular(15), border: _currentView == 'Playlists' ? Border.all(color: Colors.black87, width: 3) : null), child: const Padding(padding: EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.end, children: [Icon(Icons.queue_music, color: Colors.white, size: 20), SizedBox(height: 5), Text("Playlists", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))]))))),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setView('Playlists'),
+                    child: Container(
+                      height: 80,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF1E5F74), Color(0xFF2C7D99)],
+                        ),
+                        borderRadius: BorderRadius.circular(15),
+                        border: _currentView == 'Playlists'
+                            ? Border.all(color: Colors.black87, width: 3)
+                            : null,
+                      ),
+                      child: const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Icon(Icons.queue_music, color: Colors.white, size: 20),
+                            SizedBox(height: 5),
+                            Text(
+                              "Playlists",
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 10),
-                Expanded(child: GestureDetector(onTap: () => setView('Recent'), child: Container(height: 80, decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(15), border: _currentView == 'Recent' ? Border.all(color: Colors.purpleAccent, width: 3) : null), child: const Padding(padding: EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.end, children: [Icon(Icons.history, color: Colors.white, size: 20), SizedBox(height: 5), Text("Recent", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))]))))),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setView('Recent'),
+                    child: Container(
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.black87,
+                        borderRadius: BorderRadius.circular(15),
+                        border: _currentView == 'Recent'
+                            ? Border.all(color: Colors.purpleAccent, width: 3)
+                            : null,
+                      ),
+                      child: const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Icon(Icons.history, color: Colors.white, size: 20),
+                            SizedBox(height: 5),
+                            Text(
+                              "Recent",
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
+          // Tabs
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                GestureDetector(onTap: () => setView('Songs'), child: Container(padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8), decoration: BoxDecoration(color: _currentView == 'Songs' ? Colors.black : Colors.transparent, borderRadius: BorderRadius.circular(20)), child: Text("Songs", style: TextStyle(color: _currentView == 'Songs' ? Colors.white : Colors.grey, fontWeight: FontWeight.bold)))),
-                GestureDetector(onTap: () => setView('Favorites'), child: Container(padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8), decoration: BoxDecoration(color: _currentView == 'Favorites' ? Colors.black : Colors.transparent, borderRadius: BorderRadius.circular(20)), child: Text("Favorites", style: TextStyle(color: _currentView == 'Favorites' ? Colors.white : Colors.grey, fontWeight: FontWeight.bold)))),
-                GestureDetector(onTap: () => setView('Recent'), child: Container(padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8), decoration: BoxDecoration(color: _currentView == 'Recent' ? Colors.black : Colors.transparent, borderRadius: BorderRadius.circular(20)), child: Text("Recent", style: TextStyle(color: _currentView == 'Recent' ? Colors.white : Colors.grey, fontWeight: FontWeight.bold)))),
-                GestureDetector(onTap: () => setView('Playlists'), child: Container(padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8), decoration: BoxDecoration(color: _currentView == 'Playlists' ? Colors.black : Colors.transparent, borderRadius: BorderRadius.circular(20)), child: Text("Playlists", style: TextStyle(color: _currentView == 'Playlists' ? Colors.white : Colors.grey, fontWeight: FontWeight.bold)))),
+                GestureDetector(
+                  onTap: () => setView('Songs'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _currentView == 'Songs' ? Colors.black : Colors.transparent,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      "Songs",
+                      style: TextStyle(
+                        color: _currentView == 'Songs' ? Colors.white : Colors.grey,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => setView('Favorites'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _currentView == 'Favorites' ? Colors.black : Colors.transparent,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      "Favorites",
+                      style: TextStyle(
+                        color: _currentView == 'Favorites' ? Colors.white : Colors.grey,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => setView('Recent'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _currentView == 'Recent' ? Colors.black : Colors.transparent,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      "Recent",
+                      style: TextStyle(
+                        color: _currentView == 'Recent' ? Colors.white : Colors.grey,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => setView('Playlists'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _currentView == 'Playlists' ? Colors.black : Colors.transparent,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      "Playlists",
+                      style: TextStyle(
+                        color: _currentView == 'Playlists' ? Colors.white : Colors.grey,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
+          // Content
           if (_currentView == 'Playlists')
             Expanded(
               child: _customPlaylists.isEmpty
-                ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.queue_music, size: 80, color: Colors.deepPurple.shade100), const SizedBox(height: 20), const Text("No Playlists Yet", style: TextStyle(color: Colors.black87, fontSize: 20, fontWeight: FontWeight.bold)), const SizedBox(height: 10), const Text("Create your first playlist!", style: TextStyle(color: Colors.grey, fontSize: 14)), const SizedBox(height: 30), ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)), padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15)), icon: const Icon(Icons.add), label: const Text("Create Playlist", style: TextStyle(fontSize: 16)), onPressed: createNewPlaylist)]))
-                : ListView.builder(
-                    itemCount: _customPlaylists.length,
-                    itemBuilder: (context, index) {
-                      var playlist = _customPlaylists[index];
-                      int songCount = (playlist['songs'] as List<String>).length;
-                      return Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), boxShadow: [BoxShadow(color: Colors.grey.shade200, blurRadius: 5, offset: const Offset(0, 2))]),
-                        child: ListTile(
-                          leading: Container(height: 50, width: 50, decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.purple.shade300, Colors.deepPurple]), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.playlist_play, color: Colors.white)),
-                          title: Text(playlist['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                          subtitle: Text('$songCount songs • ${songCount > 0 ? "Tap to play" : "Add songs"}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (songCount > 0) IconButton(icon: const Icon(Icons.play_arrow, color: Colors.deepPurple, size: 28), onPressed: () { _selectedPlaylist = playlist['name']; setView('PlaylistDetail'); filterSearchResults(''); }),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 22),
-                                onPressed: () {
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) => AlertDialog(
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), title: const Text('Delete Playlist?'), content: Text('Are you sure you want to delete "${playlist['name']}"?'),
-                                      actions: [
-                                        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-                                        ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white), onPressed: () { setState(() { _customPlaylists.removeAt(index); }); _saveData(); Navigator.pop(context); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Playlist deleted!'), backgroundColor: Colors.red)); }, child: const Text('Delete')),
-                                      ],
-                                    ),
-                                  );
-                                },
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.queue_music, size: 80, color: Colors.deepPurple.shade100),
+                          const SizedBox(height: 20),
+                          const Text(
+                            "No Playlists Yet",
+                            style: TextStyle(
+                              color: Colors.black87,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            "Create your first playlist!",
+                            style: TextStyle(color: Colors.grey, fontSize: 14),
+                          ),
+                          const SizedBox(height: 30),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.deepPurple,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(25),
                               ),
+                              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                            ),
+                            icon: const Icon(Icons.add),
+                            label: const Text("Create Playlist", style: TextStyle(fontSize: 16)),
+                            onPressed: createNewPlaylist,
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: _customPlaylists.length,
+                      itemBuilder: (context, index) {
+                        var playlist = _customPlaylists[index];
+                        int songCount = (playlist['songs'] as List<String>).length;
+                        return Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(15),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.shade200,
+                                blurRadius: 5,
+                                offset: const Offset(0, 2),
+                              )
                             ],
                           ),
-                          onTap: () { _selectedPlaylist = playlist['name']; setView('PlaylistDetail'); filterSearchResults(''); },
-                        ),
-                      );
-                    },
-                  ),
+                          child: ListTile(
+                            leading: Container(
+                              height: 50,
+                              width: 50,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [Colors.purple.shade300, Colors.deepPurple],
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(Icons.playlist_play, color: Colors.white),
+                            ),
+                            title: Text(
+                              playlist['name'],
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            subtitle: Text(
+                              '$songCount songs • ${songCount > 0 ? "Tap to play" : "Add songs"}',
+                              style: const TextStyle(color: Colors.grey, fontSize: 12),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (songCount > 0)
+                                  IconButton(
+                                    icon: const Icon(Icons.play_arrow, color: Colors.deepPurple, size: 28),
+                                    onPressed: () {
+                                      _selectedPlaylist = playlist['name'];
+                                      setView('PlaylistDetail');
+                                      filterSearchResults('');
+                                    },
+                                  ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 22),
+                                  onPressed: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        title: const Text('Delete Playlist?'),
+                                        content: Text(
+                                          'Are you sure you want to delete "${playlist['name']}"?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(context),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.red,
+                                              foregroundColor: Colors.white,
+                                            ),
+                                            onPressed: () {
+                                              setState(() {
+                                                _customPlaylists.removeAt(index);
+                                              });
+                                              _saveData();
+                                              Navigator.pop(context);
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text('Playlist deleted!'),
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                              );
+                                            },
+                                            child: const Text('Delete'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                            onTap: () {
+                              _selectedPlaylist = playlist['name'];
+                              setView('PlaylistDetail');
+                              filterSearchResults('');
+                            },
+                          ),
+                        );
+                      },
+                    ),
             )
           else if (_currentView == 'PlaylistDetail')
             Expanded(
@@ -950,49 +1267,176 @@ Container(
                     padding: const EdgeInsets.all(15),
                     child: Row(
                       children: [
-                        IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black87), onPressed: () => setView('Playlists')),
-                        Expanded(child: Text(_selectedPlaylist, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
-                        Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: Colors.deepPurple.shade50, borderRadius: BorderRadius.circular(20)), child: Text('${_filteredPlaylist.length} songs', style: const TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold))),
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                          onPressed: () => setView('Playlists'),
+                        ),
+                        Expanded(
+                          child: Text(
+                            _selectedPlaylist,
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.deepPurple.shade50,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '${_filteredPlaylist.length} songs',
+                            style: const TextStyle(
+                              color: Colors.deepPurple,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
                   Expanded(
                     child: _filteredPlaylist.isEmpty
-                      ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.music_off, size: 60, color: Colors.grey.shade300), const SizedBox(height: 10), const Text('No songs in this playlist', style: TextStyle(color: Colors.grey)), const SizedBox(height: 10), ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, foregroundColor: Colors.white), icon: const Icon(Icons.add), label: const Text('Add Songs'), onPressed: () => setView('Songs'))]))
-                      : ListView.builder(
-                          itemCount: _filteredPlaylist.length,
-                          itemBuilder: (context, index) {
-                            String path = _filteredPlaylist[index].path;
-                            bool isCurrent = _currentIndex == index && isPlaying;
-                            return Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                              decoration: BoxDecoration(color: isCurrent ? Colors.deepPurple.shade50 : Colors.white, borderRadius: BorderRadius.circular(12)),
-                              child: ListTile(
-                                leading: Container(height: 40, width: 40, decoration: BoxDecoration(color: isCurrent ? Colors.deepPurple : Colors.grey.shade200, borderRadius: BorderRadius.circular(8)), child: Icon(Icons.music_note, color: isCurrent ? Colors.white : Colors.grey)),
-                                title: Text(getFileName(path), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal, color: isCurrent ? Colors.deepPurple : Colors.black87)),
-                                subtitle: Text("Local Audio", style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                                trailing: IconButton(
-                                  icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent),
-                                  onPressed: () { setState(() { var playlist = _customPlaylists.firstWhere((p) => p['name'] == _selectedPlaylist); (playlist['songs'] as List<String>).remove(path); }); _saveData(); filterSearchResults(''); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Removed from playlist'), backgroundColor: Colors.red)); },
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.music_off, size: 60, color: Colors.grey.shade300),
+                                const SizedBox(height: 10),
+                                const Text(
+                                  'No songs in this playlist',
+                                  style: TextStyle(color: Colors.grey),
                                 ),
-                                onTap: () { setState(() => _currentIndex = index); playSong(path); },
-                              ),
-                            );
-                          },
-                        ),
+                                const SizedBox(height: 10),
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.deepPurple,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  icon: const Icon(Icons.add),
+                                  label: const Text('Add Songs'),
+                                  onPressed: () => setView('Songs'),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: _filteredPlaylist.length,
+                            itemBuilder: (context, index) {
+                              String path = _filteredPlaylist[index].path;
+                              bool isCurrent = _currentIndex == index && isPlaying;
+                              return Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: isCurrent ? Colors.deepPurple.shade50 : Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: ListTile(
+                                  leading: Container(
+                                    height: 40,
+                                    width: 40,
+                                    decoration: BoxDecoration(
+                                      color: isCurrent ? Colors.deepPurple : Colors.grey.shade200,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Icon(
+                                      Icons.music_note,
+                                      color: isCurrent ? Colors.white : Colors.grey,
+                                    ),
+                                  ),
+                                  title: Text(
+                                    getFileName(path),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                                      color: isCurrent ? Colors.deepPurple : Colors.black87,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    "Local Audio",
+                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                  ),
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent),
+                                    onPressed: () {
+                                      setState(() {
+                                        var playlist = _customPlaylists.firstWhere(
+                                          (p) => p['name'] == _selectedPlaylist,
+                                        );
+                                        (playlist['songs'] as List<String>).remove(path);
+                                      });
+                                      _saveData();
+                                      filterSearchResults('');
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Removed from playlist'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  onTap: () {
+                                    setState(() => _currentIndex = index);
+                                    playSong(path);
+                                  },
+                                ),
+                              );
+                            },
+                          ),
                   ),
                 ],
               ),
             )
-          else 
+          else
             Expanded(
               child: _filteredPlaylist.isEmpty
-                  ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Icon(_currentView == 'Recent' ? Icons.history_toggle_off : Icons.library_music, size: 60, color: Colors.black12), 
-                      const SizedBox(height: 10), 
-                      Text(_currentView == 'Favorites' ? "No favorites yet" : _currentView == 'Recent' ? "No listening history yet" : "No songs found", style: const TextStyle(color: Colors.grey, fontSize: 16, fontWeight: FontWeight.bold)),
-                      if (_currentView == 'Songs') Column(children: [const SizedBox(height: 10), const Text("Open side menu (☰) to choose folders", style: TextStyle(color: Colors.grey, fontSize: 14)), const SizedBox(height: 20), ElevatedButton.icon(onPressed: openFolderManager, icon: const Icon(Icons.folder_open), label: const Text("Open Folder Manager"), style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, foregroundColor: Colors.white))]),
-                    ]))
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            _currentView == 'Recent'
+                                ? Icons.history_toggle_off
+                                : Icons.library_music,
+                            size: 60,
+                            color: Colors.black12,
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            _currentView == 'Favorites'
+                                ? "No favorites yet"
+                                : _currentView == 'Recent'
+                                    ? "No listening history yet"
+                                    : "No songs found",
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (_currentView == 'Songs')
+                            Column(
+                              children: [
+                                const SizedBox(height: 10),
+                                const Text(
+                                  "Open side menu (☰) to choose folders",
+                                  style: TextStyle(color: Colors.grey, fontSize: 14),
+                                ),
+                                const SizedBox(height: 20),
+                                ElevatedButton.icon(
+                                  onPressed: openFolderManager,
+                                  icon: const Icon(Icons.folder_open),
+                                  label: const Text("Open Folder Manager"),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.deepPurple,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    )
                   : ListView.builder(
                       itemCount: _filteredPlaylist.length,
                       itemBuilder: (context, index) {
@@ -1000,19 +1444,61 @@ Container(
                         String path = _filteredPlaylist[index].path;
                         return Container(
                           margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                          decoration: BoxDecoration(color: isCurrent ? Colors.deepPurple.shade50 : Colors.transparent, borderRadius: BorderRadius.circular(12)),
+                          decoration: BoxDecoration(
+                            color: isCurrent ? Colors.deepPurple.shade50 : Colors.transparent,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           child: ListTile(
-                            leading: Container(height: 50, width: 50, decoration: BoxDecoration(color: isCurrent ? Colors.deepPurple : Colors.grey.shade200, borderRadius: BorderRadius.circular(10)), child: Icon(Icons.music_note, color: isCurrent ? Colors.white : Colors.grey)),
-                            title: Text(getFileName(path), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500, color: isCurrent ? Colors.deepPurple : Colors.black87)),
-                            subtitle: Text("Local Audio", maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                            leading: Container(
+                              height: 50,
+                              width: 50,
+                              decoration: BoxDecoration(
+                                color: isCurrent ? Colors.deepPurple : Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                Icons.music_note,
+                                color: isCurrent ? Colors.white : Colors.grey,
+                              ),
+                            ),
+                            title: Text(
+                              getFileName(path),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
+                                color: isCurrent ? Colors.deepPurple : Colors.black87,
+                              ),
+                            ),
+                            subtitle: Text(
+                              "Local Audio",
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                            ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                IconButton(icon: Icon(_favorites.contains(path) ? Icons.favorite : Icons.favorite_border, color: _favorites.contains(path) ? Colors.deepPurpleAccent : Colors.grey, size: 22), onPressed: () => toggleFavorite(path)),
-                                IconButton(icon: const Icon(Icons.playlist_add, color: Colors.grey, size: 22), onPressed: () => addToPlaylist(path)),
+                                IconButton(
+                                  icon: Icon(
+                                    _favorites.contains(path) ? Icons.favorite : Icons.favorite_border,
+                                    color: _favorites.contains(path)
+                                        ? Colors.deepPurpleAccent
+                                        : Colors.grey,
+                                    size: 22,
+                                  ),
+                                  onPressed: () => toggleFavorite(path),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.playlist_add, color: Colors.grey, size: 22),
+                                  onPressed: () => addToPlaylist(path),
+                                ),
                               ],
                             ),
-                            onTap: () { setState(() => _currentIndex = index); playSong(path); },
+                            onTap: () {
+                              setState(() => _currentIndex = index);
+                              playSong(path);
+                            },
                           ),
                         );
                       },
@@ -1022,8 +1508,20 @@ Container(
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: Colors.black, unselectedItemColor: Colors.grey, showSelectedLabels: true, showUnselectedLabels: true,
-        items: const [BottomNavigationBarItem(icon: Icon(Icons.headphones), label: "My music"), BottomNavigationBarItem(icon: Icon(Icons.play_circle_outline), label: "Watch")],
+        selectedItemColor: Colors.black,
+        unselectedItemColor: Colors.grey,
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.headphones),
+            label: "My music",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.play_circle_outline),
+            label: "Watch",
+          ),
+        ],
       ),
     );
   }
@@ -1033,14 +1531,19 @@ class FolderManagerScreen extends StatefulWidget {
   final List<Map<String, dynamic>> folders;
   final VoidCallback onFoldersUpdated;
   const FolderManagerScreen({Key? key, required this.folders, required this.onFoldersUpdated}) : super(key: key);
+  
   @override
   State<FolderManagerScreen> createState() => _FolderManagerScreenState();
 }
 
 class _FolderManagerScreenState extends State<FolderManagerScreen> {
   bool _hasPermission = false;
+  
   @override
-  void initState() { super.initState(); _checkPermission(); }
+  void initState() { 
+    super.initState(); 
+    _checkPermission(); 
+  }
   
   Future<void> _checkPermission() async {
     if (Platform.isAndroid) {
@@ -1059,40 +1562,39 @@ class _FolderManagerScreenState extends State<FolderManagerScreen> {
   }
   
   Future<void> addNewFolder() async {
-  try {
-    // ✅ Use FilePicker with allowMultiple: false
-    String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
-      dialogTitle: 'Select Music Folder',
-    );
-    
-    if (selectedDirectory != null) {
-      print('📁 Selected: $selectedDirectory');
+    try {
+      String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Select Music Folder',
+      );
       
-      bool exists = widget.folders.any((f) => f['path'] == selectedDirectory);
-      if (!exists) {
-        setState(() {
-          widget.folders.add({
-            'name': selectedDirectory.split('/').last,
-            'path': selectedDirectory,
-            'isChecked': true,
+      if (selectedDirectory != null) {
+        print('📁 Selected: $selectedDirectory');
+        
+        bool exists = widget.folders.any((f) => f['path'] == selectedDirectory);
+        if (!exists) {
+          setState(() {
+            widget.folders.add({
+              'name': selectedDirectory.split('/').last,
+              'path': selectedDirectory,
+              'isChecked': true,
+            });
           });
-        });
-        widget.onFoldersUpdated();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('✅ Added: ${selectedDirectory.split('/').last}')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Folder already added!')),
-        );
+          widget.onFoldersUpdated();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('✅ Added: ${selectedDirectory.split('/').last}')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Folder already added!')),
+          );
+        }
       }
+    } catch (e) {
+      print('⚠️ Error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
     }
-  } catch (e) {
-    print('⚠️ Error: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Error: $e")),
-    );
-  }
   }
   
   @override
@@ -1100,33 +1602,135 @@ class _FolderManagerScreenState extends State<FolderManagerScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white, elevation: 0, leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black87), onPressed: () => Navigator.pop(context)), 
-        title: const Text('Choose folders to display', style: TextStyle(color: Colors.black87, fontSize: 20, fontWeight: FontWeight.bold)),
-        actions: [IconButton(icon: const Icon(Icons.refresh, color: Colors.deepPurple), onPressed: () { _checkPermission(); widget.onFoldersUpdated(); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Refreshed!'), duration: Duration(seconds: 1))); })],
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Choose folders to display',
+          style: TextStyle(color: Colors.black87, fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.deepPurple),
+            onPressed: () { 
+              _checkPermission(); 
+              widget.onFoldersUpdated(); 
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Refreshed!'), duration: Duration(seconds: 1)),
+              ); 
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
           if (!_hasPermission)
             Container(
-              padding: const EdgeInsets.all(15), margin: const EdgeInsets.all(15), decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.red.shade200)), 
-              child: Column(children: [const Text("⚠️ Storage Permission Required!", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)), const SizedBox(height: 5), const Text("Please allow Storage Access to scan your songs.", textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: Colors.black87)), const SizedBox(height: 10), ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent), onPressed: _requestPermission, child: const Text("Grant Permission", style: TextStyle(color: Colors.white)))])
+              padding: const EdgeInsets.all(15),
+              margin: const EdgeInsets.all(15),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Column(
+                children: [
+                  const Text(
+                    "⚠️ Storage Permission Required!",
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                  ),
+                  const SizedBox(height: 5),
+                  const Text(
+                    "Please allow Storage Access to scan your songs.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: Colors.black87),
+                  ),
+                  const SizedBox(height: 10),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                    onPressed: _requestPermission,
+                    child: const Text("Grant Permission", style: TextStyle(color: Colors.white)),
+                  ),
+                ],
+              ),
             ),
           Expanded(
             child: widget.folders.isEmpty 
-              ? const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.folder_open, size: 60, color: Colors.grey), SizedBox(height: 10), Text("No folders added yet", style: TextStyle(color: Colors.grey)), SizedBox(height: 5), Text("Tap + below to add a folder", style: TextStyle(color: Colors.grey, fontSize: 12))])) 
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.folder_open, size: 60, color: Colors.grey),
+                      SizedBox(height: 10),
+                      Text("No folders added yet", style: TextStyle(color: Colors.grey)),
+                      SizedBox(height: 5),
+                      Text(
+                        "Tap + below to add a folder",
+                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ) 
               : ListView.builder(
                   itemCount: widget.folders.length,
                   itemBuilder: (context, index) {
                     var folder = widget.folders[index];
                     return Container(
                       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.grey.shade200, blurRadius: 4, offset: const Offset(0, 2))]),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.shade200,
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 4), 
-                        leading: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: Colors.purple.shade50, borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.folder, color: Colors.deepPurpleAccent, size: 30)), 
-                        title: Text(folder['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), 
-                        subtitle: Text(folder['path'], style: const TextStyle(fontSize: 12, color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis), 
-                        trailing: GestureDetector(onTap: () { setState(() { folder['isChecked'] = !folder['isChecked']; }); widget.onFoldersUpdated(); }, child: Container(width: 28, height: 28, decoration: BoxDecoration(shape: BoxShape.circle, color: folder['isChecked'] ? Colors.black87 : Colors.transparent, border: Border.all(color: Colors.black87, width: 2)), child: folder['isChecked'] ? const Icon(Icons.check, color: Colors.white, size: 18) : null)),
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.purple.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.folder, color: Colors.deepPurpleAccent, size: 30),
+                        ), 
+                        title: Text(
+                          folder['name'],
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ), 
+                        subtitle: Text(
+                          folder['path'],
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ), 
+                        trailing: GestureDetector(
+                          onTap: () { 
+                            setState(() { 
+                              folder['isChecked'] = !folder['isChecked']; 
+                            }); 
+                            widget.onFoldersUpdated(); 
+                          },
+                          child: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: folder['isChecked'] ? Colors.black87 : Colors.transparent,
+                              border: Border.all(color: Colors.black87, width: 2),
+                            ),
+                            child: folder['isChecked'] 
+                              ? const Icon(Icons.check, color: Colors.white, size: 18) 
+                              : null,
+                          ),
+                        ),
                       ),
                     );
                   },
@@ -1134,7 +1738,15 @@ class _FolderManagerScreenState extends State<FolderManagerScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(backgroundColor: Colors.deepPurple, icon: const Icon(Icons.add, color: Colors.white), label: const Text("Add Folder", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), onPressed: addNewFolder),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: Colors.deepPurple,
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text(
+          "Add Folder",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        onPressed: addNewFolder,
+      ),
     );
   }
 }
