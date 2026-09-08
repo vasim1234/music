@@ -8,14 +8,18 @@ import '../services/notification_service.dart';
 import 'equalizer_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({Key? key}) : super(key: key);  // ✅ Constructor ANDAR
+  
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();  // ✅ ANDAR
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final AudioPlayer _player = AudioPlayer();
   final TextEditingController _searchController = TextEditingController();
+  
+  // ... rest of your code
+}
   
   List<Map<String, dynamic>> _savedFolders = [];
   List<File> _playlist = []; 
@@ -188,11 +192,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  // ========== PERMISSION ==========
-import 'package:flutter/material.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'dart:io';
-
+  // ========== PERMISSION ========== 
 Future<void> _checkPermission() async {
   if (Platform.isAndroid) {
     // ✅ Check if Android 11+
