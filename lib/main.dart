@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
-import 'screens/splash_screen.dart';
-import 'screens/home_screen.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:audiotags/audiotags.dart';
+import 'package:path_provider/path_provider.dart';
 
 void main() {
   runApp(const MyApp());
@@ -12,59 +17,108 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Bhai Bhai Music',
+      title: 'Music Player',
       theme: ThemeData(
         primarySwatch: Colors.deepPurple,
         useMaterial3: true,
       ),
-      home: const SplashScreenPlaceholder(),
+      home: const HomeScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
-class SplashScreenPlaceholder extends StatelessWidget {
-  const SplashScreenPlaceholder({super.key});
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final AudioPlayer _player = AudioPlayer();
+  bool isPlaying = false;
+  Duration _duration = Duration.zero;
+  Duration _position = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _player.onDurationChanged.listen((d) => setState(() => _duration = d));
+    _player.onPositionChanged.listen((p) => setState(() => _position = p));
+    _player.onPlayerStateChanged.listen((state) {
+      setState(() => isPlaying = state == PlayerState.playing);
+    });
+  }
+
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickAndPlay() async {
+    String? filePath = await FilePicker.platform.getPath();
+    if (filePath != null) {
+      await _player.play(DeviceFileSource(filePath));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    Future.delayed(const Duration(seconds: 2), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HomeScreenPlaceholder()),
-      );
-    });
-    return const Scaffold(
-      backgroundColor: Colors.deepPurple,
-      body: Center(
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Music Player'),
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.music_note, size: 80, color: Colors.white),
-            SizedBox(height: 20),
-            Text(
-              'Bhai Bhai Music',
-              style: TextStyle(color: Colors.white, fontSize: 24),
+            const Text(
+              'Select a song to play',
+              style: TextStyle(fontSize: 20),
             ),
-            SizedBox(height: 10),
-            CircularProgressIndicator(color: Colors.white),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: _pickAndPlay,
+              icon: const Icon(Icons.folder_open),
+              label: const Text('Select Song'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+                foregroundColor: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 20),
+            if (_position > Duration.zero) ...[
+              Text(
+                'Now Playing',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              Text('${_position.inSeconds}s / ${_duration.inSeconds}s'),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
+                    onPressed: () {
+                      isPlaying ? _player.pause() : _player.resume();
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.stop),
+                    onPressed: () {
+                      _player.stop();
+                    },
+                  ),
+                ],
+              ),
+            ],
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class HomeScreenPlaceholder extends StatelessWidget {
-  const HomeScreenPlaceholder({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text(
-          'Home Screen Loading...',
-          style: TextStyle(fontSize: 24),
         ),
       ),
     );
