@@ -429,28 +429,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ],
                     ),
                   ),
-                  // Album Art - Large
-                  Container(
-                    height: 280,
-                    width: 280,
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF4C83FF), Color(0xFFD946EF)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.purple,
-                          blurRadius: 40,
-                          spreadRadius: 10,
-                          color: Colors.purple.withOpacity(0.3),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(Icons.music_note, size: 100, color: Colors.white),
-                  ),
+                  
+                  // Full Screen Player - Album Art section
+Container(
+  height: 280,
+  width: 280,
+  decoration: BoxDecoration(
+    shape: BoxShape.circle,
+    gradient: const LinearGradient(
+      colors: [Color(0xFF4C83FF), Color(0xFFD946EF)],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    ),
+    boxShadow: [  // ✅ const HATAO
+      BoxShadow(
+        color: Colors.purple.withOpacity(0.3),  // ✅ withOpacity sahi hai
+        blurRadius: 40,
+        spreadRadius: 10,
+      ),
+    ],
+  ),
+  child: const Icon(Icons.music_note, size: 100, color: Colors.white),
+),
                   const SizedBox(height: 20),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 30),
