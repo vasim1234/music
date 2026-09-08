@@ -1,5 +1,5 @@
-name: music
-description: A local music player app
+name: music_player
+description: A simple music player app
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -10,12 +10,9 @@ dependencies:
   flutter:
     sdk: flutter
   audioplayers: ^5.2.1
-  audiotags: ^1.4.2
   file_picker: ^8.0.0
-  path_provider: ^2.1.4
   permission_handler: ^11.3.1
-  shared_preferences: ^2.2.2
-  flutter_local_notifications: ^17.1.2
+  path_provider: ^2.1.4
 
 dev_dependencies:
   flutter_test:
