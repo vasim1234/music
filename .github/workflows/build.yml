@@ -20,7 +20,7 @@ jobs:
         run: |
           git fetch --all
           git reset --hard origin/main
-          echo "✅ Latest code forcefully fetched!"
+          echo "✅ Latest code fetched!"
       
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -34,50 +34,23 @@ jobs:
           flutter-version: '3.19.6'
           channel: 'stable'
       
-      - name: ULTIMATE CLEAN (Cache + Build)
+      - name: ULTIMATE CLEAN
         run: |
-          echo "🔥 Deleting EVERYTHING..."
+          echo "🔥 Cleaning everything..."
           flutter clean
           rm -rf build/
           rm -rf ~/.pub-cache
           rm -f pubspec.lock
           rm -rf .dart_tool/
-          echo "✅ Everything is TOTALLY CLEAN!"
-      
-      # ✅ CRITICAL: Enable V2 Embedding
-      - name: Enable Android V2 Embedding
-        run: |
-          echo "🔧 Enabling Android V2 embedding..."
-          
-          # Fix AndroidManifest.xml
-          sed -i 's/<application/<meta-data android:name="flutterEmbedding" android:value="2" \/>\n    <application/' android/app/src/main/AndroidManifest.xml
-          
-          # Fix MainActivity.kt
-          mkdir -p android/app/src/main/kotlin/com/yourcompany/yourapp
-          cat > android/app/src/main/kotlin/com/yourcompany/yourapp/MainActivity.kt << 'EOF'
-          package com.yourcompany.yourapp
-          
-          import io.flutter.embedding.android.FlutterActivity
-          
-          class MainActivity: FlutterActivity()
-          EOF
-          
-          echo "✅ Android V2 embedding enabled!"
-      
-      - name: Verify Code (Checking main.dart)
-        run: |
-          echo "📋 First 5 lines of main.dart:"
-          head -5 lib/main.dart
-          echo "✅ Code verified!"
+          echo "✅ Everything clean!"
       
       - name: Get Dependencies
         run: flutter pub get
       
       - name: Build Debug APK
         run: |
-          echo "🚀 Building FRESH APK..."
+          echo "🚀 Building APK..."
           flutter build apk --debug
-          ls -lh build/app/outputs/flutter-apk/
       
       - name: Upload Debug APK
         if: success()
