@@ -10,14 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      # ✅ PEHLE checkout karo
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           clean: true
       
-      # ✅ AB git fetch karo (checkout ke BAAD)
       - name: Force Fetch Latest Code
         run: |
           git fetch --all
@@ -36,15 +34,35 @@ jobs:
           flutter-version: '3.19.6'
           channel: 'stable'
       
-      - name: 🔥 ULTIMATE CLEAN (Cache + Build)
+      - name: ULTIMATE CLEAN (Cache + Build)
         run: |
-          echo "🔥 Deleting EVERYTHING (Cache + Build) to force fresh build..."
+          echo "🔥 Deleting EVERYTHING..."
           flutter clean
           rm -rf build/
           rm -rf ~/.pub-cache
           rm -f pubspec.lock
           rm -rf .dart_tool/
           echo "✅ Everything is TOTALLY CLEAN!"
+      
+      # ✅ CRITICAL: Enable V2 Embedding
+      - name: Enable Android V2 Embedding
+        run: |
+          echo "🔧 Enabling Android V2 embedding..."
+          
+          # Fix AndroidManifest.xml
+          sed -i 's/<application/<meta-data android:name="flutterEmbedding" android:value="2" \/>\n    <application/' android/app/src/main/AndroidManifest.xml
+          
+          # Fix MainActivity.kt
+          mkdir -p android/app/src/main/kotlin/com/yourcompany/yourapp
+          cat > android/app/src/main/kotlin/com/yourcompany/yourapp/MainActivity.kt << 'EOF'
+          package com.yourcompany.yourapp
+          
+          import io.flutter.embedding.android.FlutterActivity
+          
+          class MainActivity: FlutterActivity()
+          EOF
+          
+          echo "✅ Android V2 embedding enabled!"
       
       - name: Verify Code (Checking main.dart)
         run: |
