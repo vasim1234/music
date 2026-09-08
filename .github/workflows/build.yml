@@ -42,6 +42,7 @@ jobs:
           rm -rf ~/.pub-cache
           rm -f pubspec.lock
           rm -rf .dart_tool/
+          rm -rf android/.gradle
           echo "✅ Everything clean!"
       
       - name: Force V2 Embedding
@@ -91,7 +92,32 @@ jobs:
           </manifest>
           EOF
           
-          echo "✅ V2 embedding forced!"
+          echo "✅ V2 Manifest created!"
+      
+      - name: Create V2 MainActivity
+        run: |
+          echo "🔧 Creating V2 MainActivity.kt..."
+          
+          mkdir -p android/app/src/main/kotlin/com/yourcompany/yourapp
+          
+          cat > android/app/src/main/kotlin/com/yourcompany/yourapp/MainActivity.kt << 'EOF'
+          package com.yourcompany.yourapp
+          
+          import io.flutter.embedding.android.FlutterActivity
+          
+          class MainActivity: FlutterActivity()
+          EOF
+          
+          echo "✅ V2 MainActivity created!"
+      
+      - name: Verify V2 Setup
+        run: |
+          echo "📋 Checking AndroidManifest.xml:"
+          grep -n "flutterEmbedding" android/app/src/main/AndroidManifest.xml || echo "⚠️ Not found!"
+          
+          echo ""
+          echo "📋 Checking MainActivity.kt:"
+          cat android/app/src/main/kotlin/com/yourcompany/yourapp/MainActivity.kt || echo "⚠️ Not found!"
       
       - name: Get Dependencies
         run: flutter pub get
