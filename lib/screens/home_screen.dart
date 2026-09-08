@@ -188,22 +188,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _checkPermission() async {
-    if (Platform.isAndroid) {
-      await Permission.notification.request();
-      var storageStatus = await Permission.storage.status;
-      var manageStatus = await Permission.manageExternalStorage.status;
-      if (!storageStatus.isGranted && !manageStatus.isGranted) {
-        await Permission.storage.request();
-        await Permission.manageExternalStorage.request();
-        await Permission.audio.request();
+  // ========== PERMISSION ==========
+Future<void> _checkPermission() async {
+  if (Platform.isAndroid) {
+    // ✅ Request MANAGE_EXTERNAL_STORAGE
+    var manageStatus = await Permission.manageExternalStorage.status;
+    
+    if (!manageStatus.isGranted) {
+      // ✅ Show dialog to request permission
+      if (await Permission.manageExternalStorage.request().isGranted) {
+        print('✅ MANAGE_EXTERNAL_STORAGE granted!');
+      } else {
+        print('❌ MANAGE_EXTERNAL_STORAGE denied!');
       }
-      storageStatus = await Permission.storage.status;
-      manageStatus = await Permission.manageExternalStorage.status;
-      setState(() { _hasPermission = storageStatus.isGranted || manageStatus.isGranted; });
-      _loadData();
     }
+    
+    var storageStatus = await Permission.storage.status;
+    if (!storageStatus.isGranted) {
+      await Permission.storage.request();
+    }
+    
+    setState(() {
+      _hasPermission = storageStatus.isGranted || manageStatus.isGranted;
+    });
+    _loadData();
   }
+}
 
   // ✅ ========== AUDIO SCANNING ==========
   Future<List<File>> _getAudioFilesSafely(Directory dir) async {
