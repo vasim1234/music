@@ -57,8 +57,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _pickAndPlay() async {
     try {
-      String? filePath = await FilePicker.platform.getPath();
-      if (filePath != null) {
+      FilePickerResult? result = await FilePicker.platform.pickFiles();
+      if (result != null && result.files.single.path != null) {
+        String filePath = result.files.single.path!;
         setState(() {
           _currentSong = filePath.split('/').last;
         });
