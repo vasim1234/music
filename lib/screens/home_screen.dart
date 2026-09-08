@@ -8,6 +8,10 @@ import 'package:audiotags/audiotags.dart';
 import 'package:path_provider/path_provider.dart';
 import '../services/notification_service.dart';
 import 'equalizer_screen.dart';
+import 'folder_manager_screen.dart';
+import 'lyrics_screen.dart';
+import 'audio_effects_screen.dart';
+import 'fm_radio_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final ValueChanged<bool>? onThemeChanged;
