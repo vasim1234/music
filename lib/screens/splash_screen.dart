@@ -3,13 +3,11 @@ import 'dart:async';
 import 'home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);  // ✅ FIXED
+  const SplashScreen({Key? key}) : super(key: key);
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
-
-// ... rest of code remains same, but remove onThemeChanged reference
 
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
@@ -25,7 +23,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => const HomeScreen(),  // ✅ No parameters
+            builder: (_) => const HomeScreen(),
           ),
         );
       }
@@ -60,7 +58,13 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white.withOpacity(0.1),
-                  boxShadow: [BoxShadow(color: Colors.purple.withOpacity(0.5), blurRadius: 40, spreadRadius: 10)],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.purple.withOpacity(0.5),
+                      blurRadius: 40,
+                      spreadRadius: 10,
+                    )
+                  ],
                 ),
                 child: const Icon(Icons.music_note, size: 100, color: Colors.white),
               ),
