@@ -3,11 +3,13 @@ import 'dart:async';
 import 'home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({Key? key}) : super(key: key);  // ✅ FIXED
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
+
+// ... rest of code remains same, but remove onThemeChanged reference
 
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
