@@ -3,14 +3,7 @@ import 'dart:async';
 import 'home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
-  final Function(bool) onThemeChanged;
-  final bool isDarkMode;
-  
-  const SplashScreen({
-    super.key, 
-    required this.onThemeChanged, 
-    required this.isDarkMode
-  });
+  const SplashScreen({Key? key}) : super(key: key);
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -30,10 +23,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => HomeScreen(
-              onThemeChanged: widget.onThemeChanged,
-              isDarkMode: widget.isDarkMode,
-            ),
+            builder: (_) => const HomeScreen(),  // ✅ No parameters
           ),
         );
       }
@@ -48,16 +38,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    final isDark = widget.isDarkMode;
-    
     return Scaffold(
       body: Container(
         width: double.infinity,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: isDark 
-              ? [const Color(0xFF0F0F0F), const Color(0xFF1A1A1A)]
-              : [const Color(0xFF0F172A), const Color(0xFFD946EF)],
+            colors: [Color(0xFF0F172A), Color(0xFFD946EF)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -84,31 +70,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             ),
             const SizedBox(height: 10),
             const Text("Feel The Rhythm", style: TextStyle(color: Colors.white70, fontSize: 16, letterSpacing: 1)),
-            const SizedBox(height: 30),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(isDark ? Icons.nightlight_round : Icons.wb_sunny, color: Colors.white, size: 20),
-                  const SizedBox(width: 10),
-                  Switch(
-                    value: widget.isDarkMode,
-                    onChanged: (value) {
-                      widget.onThemeChanged(value);
-                    },
-                    activeColor: Colors.deepPurple,
-                    inactiveThumbColor: Colors.grey,
-                  ),
-                  const SizedBox(width: 10),
-                  Text(isDark ? 'Dark' : 'Light', style: const TextStyle(color: Colors.white70)),
-                ],
-              ),
-            ),
           ],
         ),
       ),
