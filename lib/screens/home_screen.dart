@@ -248,6 +248,38 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ========== AUDIO SCANNING ==========
+
+Future<List<File>> _getAudioFilesSafely(Directory dir) async {
+  List<File> audioFiles = [];
+  try {
+    print('🔍 Scanning directory: ${dir.path}');
+    List<FileSystemEntity> entities = dir.listSync(recursive: false);
+    for (FileSystemEntity entity in entities) {
+      try {
+        if (entity is File) {
+          String path = entity.path.toLowerCase();
+          if (path.endsWith('.mp3') || path.endsWith('.m4a') || path.endsWith('.wav') ||
+              path.endsWith('.aac') || path.endsWith('.ogg') || path.endsWith('.flac') ||
+              path.endsWith('.wma')) {
+            audioFiles.add(entity);
+            print('🎵 Found audio file: ${entity.path.split('/').last}');
+          }
+        } else if (entity is Directory) {
+          if (!entity.path.split('/').last.startsWith('.')) {
+            audioFiles.addAll(await _getAudioFilesSafely(entity));
+          }
+        }
+      } catch (e) {
+        print('⚠️ Error accessing: $e');
+      }
+    }
+  } catch (e) {
+    print('⚠️ Error scanning directory: $e');
+  }
+  print('📊 Total audio files in ${dir.path}: ${audioFiles.length}');
+  return audioFiles;
+}
+
 Future<void> updatePlaylistFromFolders() async {
   print('🔄 Updating playlist from folders...');
   
