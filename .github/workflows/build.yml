@@ -1,4 +1,4 @@
-name: Build APK (Fresh Build)
+name: Build APK
 
 on:
   push:
@@ -16,12 +16,6 @@ jobs:
           fetch-depth: 0
           clean: true
       
-      - name: Force Fetch Latest Code
-        run: |
-          git fetch --all
-          git reset --hard origin/main
-          echo "✅ Latest code fetched!"
-      
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -34,42 +28,33 @@ jobs:
           flutter-version: '3.19.6'
           channel: 'stable'
       
-      - name: ULTIMATE CLEAN
+      - name: Clean Everything
         run: |
-          echo "🔥 Cleaning everything..."
           flutter clean
-          rm -rf build/
           rm -rf ~/.pub-cache
           rm -f pubspec.lock
-          rm -rf .dart_tool/
           rm -rf android/.gradle
-          echo "✅ Everything clean!"
+          rm -rf .dart_tool/
       
-      - name: Force V2 Embedding
+      - name: Create V2 Android Files
         run: |
-          echo "🔧 Force enabling Android V2 embedding..."
+          mkdir -p android/app/src/main/kotlin/com/yourcompany/yourapp
           
           cat > android/app/src/main/AndroidManifest.xml << 'EOF'
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
               package="com.yourcompany.yourapp">
-          
               <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
               <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
               <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
               <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
               <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-          
               <application
                   android:label="music"
                   android:name="${applicationName}"
                   android:icon="@mipmap/ic_launcher"
                   android:largeHeap="true"
                   android:hardwareAccelerated="true">
-          
-                  <meta-data
-                      android:name="flutterEmbedding"
-                      android:value="2" />
-          
+                  <meta-data android:name="flutterEmbedding" android:value="2" />
                   <activity
                       android:name=".MainActivity"
                       android:exported="true"
@@ -78,11 +63,9 @@ jobs:
                       android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
                       android:hardwareAccelerated="true"
                       android:windowSoftInputMode="adjustResize">
-          
                       <meta-data
                           android:name="io.flutter.embedding.android.NormalTheme"
                           android:resource="@style/NormalTheme"/>
-          
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN"/>
                           <category android:name="android.intent.category.LAUNCHER"/>
@@ -92,42 +75,19 @@ jobs:
           </manifest>
           EOF
           
-          echo "✅ V2 Manifest created!"
-      
-      - name: Create V2 MainActivity
-        run: |
-          echo "🔧 Creating V2 MainActivity.kt..."
-          
-          mkdir -p android/app/src/main/kotlin/com/yourcompany/yourapp
-          
           cat > android/app/src/main/kotlin/com/yourcompany/yourapp/MainActivity.kt << 'EOF'
           package com.yourcompany.yourapp
-          
           import io.flutter.embedding.android.FlutterActivity
-          
           class MainActivity: FlutterActivity()
           EOF
-          
-          echo "✅ V2 MainActivity created!"
-      
-      - name: Verify V2 Setup
-        run: |
-          echo "📋 Checking AndroidManifest.xml:"
-          grep -n "flutterEmbedding" android/app/src/main/AndroidManifest.xml || echo "⚠️ Not found!"
-          
-          echo ""
-          echo "📋 Checking MainActivity.kt:"
-          cat android/app/src/main/kotlin/com/yourcompany/yourapp/MainActivity.kt || echo "⚠️ Not found!"
       
       - name: Get Dependencies
         run: flutter pub get
       
-      - name: Build Debug APK
-        run: |
-          echo "🚀 Building APK..."
-          flutter build apk --debug
+      - name: Build APK
+        run: flutter build apk --debug
       
-      - name: Upload Debug APK
+      - name: Upload APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
