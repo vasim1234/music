@@ -190,99 +190,41 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ========== PERMISSION ==========
-  Future<void> _checkPermission() async {
-    if (Platform.isAndroid) {
-      if (await Permission.manageExternalStorage.isPermanentlyDenied) {
-        _showSettingsDialog();
-        return;
-      }
-      
-      var manageStatus = await Permission.manageExternalStorage.status;
-      if (!manageStatus.isGranted) {
-        final result = await Permission.manageExternalStorage.request();
-        if (result.isGranted) {
-          print('✅ MANAGE_EXTERNAL_STORAGE granted!');
-        } else {
-          print('❌ MANAGE_EXTERNAL_STORAGE denied');
-          _showSettingsDialog();
-        }
-      }
-      
-      var storageStatus = await Permission.storage.status;
-      if (!storageStatus.isGranted) {
-        await Permission.storage.request();
-      }
-      
-      setState(() {
-        _hasPermission = storageStatus.isGranted || manageStatus.isGranted;
-      });
-      _loadData();
-    }
-  }
-
-  void _showSettingsDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('⚠️ Permission Required'),
-        content: const Text(
-          'Music app needs "All files access" permission to scan your songs.\n\n'
-          'Please go to Settings and enable:\n'
-          'Settings → Apps → Music → Permissions → Files and Media → Allow'
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              openAppSettings();
-            },
-            child: const Text('Open Settings'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ========== AUDIO SCANNING ==========
   Future<List<File>> _getAudioFilesSafely(Directory dir) async {
-    List<File> audioFiles = [];
-    try {
-      print('🔍 Scanning directory: ${dir.path}');
-      
-      if (!dir.existsSync()) {
-        print('⚠️ Directory does not exist: ${dir.path}');
-        return audioFiles;
-      }
-      
-      List<FileSystemEntity> entities = dir.listSync(recursive: true);
-      print('📊 Total entities found: ${entities.length}');
-      
-      for (FileSystemEntity entity in entities) {
-        if (entity is File) {
-          String path = entity.path.toLowerCase();
-          if (path.endsWith('.mp3') || path.endsWith('.m4a') || 
-              path.endsWith('.wav') || path.endsWith('.aac') || 
-              path.endsWith('.ogg') || path.endsWith('.flac') || 
-              path.endsWith('.wma')) {
-            audioFiles.add(entity);
-            print('🎵 Found: ${entity.path.split('/').last}');
-          }
-        }
-      }
-    } catch (e) {
-      print('⚠️ Error scanning: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('⚠️ Error: $e')),
-      );
+  List<File> audioFiles = [];
+  try {
+    print('🔍 Scanning directory: ${dir.path}');
+    
+    if (!dir.existsSync()) {
+      print('⚠️ Directory does not exist: ${dir.path}');
+      return audioFiles;
     }
     
-    print('📊 Total audio files found: ${audioFiles.length}');
-    return audioFiles;
+    // ✅ RECURSIVE: TRUE - Sabhi subfolders scan karega!
+    List<FileSystemEntity> entities = dir.listSync(recursive: true);
+    print('📊 Total entities found: ${entities.length}');
+    
+    for (FileSystemEntity entity in entities) {
+      if (entity is File) {
+        String path = entity.path.toLowerCase();
+        if (path.endsWith('.mp3') || path.endsWith('.m4a') || 
+            path.endsWith('.wav') || path.endsWith('.aac') || 
+            path.endsWith('.ogg') || path.endsWith('.flac') || 
+            path.endsWith('.wma')) {
+          audioFiles.add(entity);
+          print('🎵 Found: ${entity.path.split('/').last}');
+        }
+      }
+    }
+  } catch (e) {
+    print('⚠️ Error scanning: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('⚠️ Error: $e')),
+    );
+  }
+  
+  print('📊 Total audio files found: ${audioFiles.length}');
+  return audioFiles;
   }
 
   Future<void> updatePlaylistFromFolders() async {
