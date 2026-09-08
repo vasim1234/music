@@ -248,43 +248,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ========== AUDIO SCANNING ==========
-Future<List<File>> _getAudioFilesSafely(Directory dir) async {
-  List<File> audioFiles = [];
-  try {
-    print('🔍 Scanning directory: ${dir.path}');
-    List<FileSystemEntity> entities = dir.listSync(recursive: false);
-    for (FileSystemEntity entity in entities) {
-      try {
-        if (entity is File) {
-          String path = entity.path.toLowerCase();
-          if (path.endsWith('.mp3') || path.endsWith('.m4a') || path.endsWith('.wav') ||
-              path.endsWith('.aac') || path.endsWith('.ogg') || path.endsWith('.flac') ||
-              path.endsWith('.wma')) {
-            audioFiles.add(entity);
-            print('🎵 Found audio file: ${entity.path.split('/').last}');
-          }
-        } else if (entity is Directory) {
-          if (!entity.path.split('/').last.startsWith('.')) {
-            audioFiles.addAll(await _getAudioFilesSafely(entity));
-          }
-        }
-      } catch (e) {
-        print('⚠️ Error accessing: $e');
-      }
-    }
-  } catch (e) {
-    print('⚠️ Error scanning directory: $e');
-  }
-  print('📊 Total audio files in ${dir.path}: ${audioFiles.length}');
-  return audioFiles;
-}
-
 Future<void> updatePlaylistFromFolders() async {
   print('🔄 Updating playlist from folders...');
+  
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('🔄 Scanning folders...')),
+  );
+  
   setState(() {
     _playlist = [];
     _filteredPlaylist = [];
   });
+  
   List<File> newSongs = [];
   for (var folder in _savedFolders) {
     if (folder['isChecked'] == true) {
@@ -294,12 +269,32 @@ Future<void> updatePlaylistFromFolders() async {
         List<File> foundSongs = await _getAudioFilesSafely(dir);
         print('🎵 Found: ${foundSongs.length} songs in this folder');
         newSongs.addAll(foundSongs);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('📁 ${folder['name']}: ${foundSongs.length} songs'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
       } else {
         print('⚠️ Folder not found: ${folder['path']}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('⚠️ Folder not found: ${folder['name']}')),
+        );
       }
     }
   }
+  
   print('🎵 Total songs found: ${newSongs.length}');
+  
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text('✅ ${newSongs.length} songs found!'),
+      backgroundColor: newSongs.length > 0 ? Colors.green : Colors.red,
+      duration: const Duration(seconds: 3),
+    ),
+  );
+  
   setState(() {
     _playlist = newSongs;
     filterSearchResults(_searchController.text);
