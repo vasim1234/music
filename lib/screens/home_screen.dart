@@ -445,7 +445,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           color: Colors.purple,
                           blurRadius: 40,
                           spreadRadius: 10,
-                          opacity: 0.3,
+                          color: Colors.purple.withOpacity(0.3),
                         ),
                       ],
                     ),
