@@ -44,6 +44,30 @@ jobs:
           rm -rf .dart_tool/
           echo "✅ Everything clean!"
       
+      # ✅ CRITICAL: Enable V2 Embedding
+      - name: Enable Android V2 Embedding
+        run: |
+          echo "🔧 Enabling Android V2 embedding..."
+          
+          # Fix AndroidManifest.xml
+          if grep -q "flutterEmbedding" android/app/src/main/AndroidManifest.xml; then
+            echo "✅ V2 embedding already exists"
+          else
+            sed -i 's/<application/<meta-data android:name="flutterEmbedding" android:value="2" \/>\n    <application/' android/app/src/main/AndroidManifest.xml
+          fi
+          
+          # Create MainActivity.kt
+          mkdir -p android/app/src/main/kotlin/com/yourcompany/yourapp
+          cat > android/app/src/main/kotlin/com/yourcompany/yourapp/MainActivity.kt << 'EOF'
+          package com.yourcompany.yourapp
+          
+          import io.flutter.embedding.android.FlutterActivity
+          
+          class MainActivity: FlutterActivity()
+          EOF
+          
+          echo "✅ Android V2 embedding enabled!"
+      
       - name: Get Dependencies
         run: flutter pub get
       
