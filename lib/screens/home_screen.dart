@@ -190,6 +190,79 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ========== PERMISSION ==========
+Future<void> _checkPermission() async {
+  if (Platform.isAndroid) {
+    print('🔍 Checking permissions...');
+    
+    // ✅ Check if Android 11+
+    if (await Permission.manageExternalStorage.isPermanentlyDenied) {
+      _showSettingsDialog();
+      return;
+    }
+    
+    var manageStatus = await Permission.manageExternalStorage.status;
+    print('📊 MANAGE_EXTERNAL_STORAGE status: $manageStatus');
+    
+    if (!manageStatus.isGranted) {
+      print('📱 Requesting MANAGE_EXTERNAL_STORAGE...');
+      var result = await Permission.manageExternalStorage.request();
+      print('📊 Result: $result');
+      
+      if (!result.isGranted) {
+        print('❌ User denied! Showing dialog...');
+        _showSettingsDialog();
+        return;
+      }
+    }
+    
+    var storageStatus = await Permission.storage.status;
+    if (!storageStatus.isGranted) {
+      print('📱 Requesting STORAGE...');
+      await Permission.storage.request();
+    }
+    
+    setState(() {
+      _hasPermission = true;
+    });
+    
+    print('✅ Permissions granted! Loading data...');
+    _loadData();
+  }
+}
+
+void _showSettingsDialog() {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => AlertDialog(
+      title: const Text('📱 Storage Permission Required'),
+      content: const Text(
+        'App needs "All Files Access" permission to scan your music.\n\n'
+        'Please follow these steps:\n'
+        '1️⃣ Tap "Open Settings"\n'
+        '2️⃣ Go to "Permissions"\n'
+        '3️⃣ Enable "Files and Media" OR "Storage"\n'
+        '4️⃣ Go back and tap "I have allowed"'
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+            _checkPermission();
+          },
+          child: const Text('I have allowed'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.pop(context);
+            openAppSettings();
+          },
+          child: const Text('Open Settings'),
+        ),
+      ],
+    ),
+  );
+}
   Future<List<File>> _getAudioFilesSafely(Directory dir) async {
   List<File> audioFiles = [];
   try {
