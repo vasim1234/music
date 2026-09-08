@@ -38,8 +38,7 @@ jobs:
           sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
           sed -i 's/minSdkVersion 19/minSdkVersion 21/g' android/app/build.gradle
       
-      # ✅ YAHAN DAALO - Get Dependencies se PEHLE!
-      - name: Fix Android Permissions
+      - name: Add Storage Permissions
         run: |
           sed -i '/<manifest /a\
           \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\
