@@ -206,60 +206,74 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ✅ ========== AUDIO SCANNING ==========
-  
-  // ✅ THIS METHOD WAS MISSING - ADDED NOW!
   Future<List<File>> _getAudioFilesSafely(Directory dir) async {
-    List<File> audioFiles = [];
-    try {
-      print('🔍 Scanning directory: ${dir.path}');
-      List<FileSystemEntity> entities = dir.listSync(recursive: false);
-      for (FileSystemEntity entity in entities) {
-        try {
-          if (entity is File) {
-            String path = entity.path.toLowerCase();
-            if (path.endsWith('.mp3') || path.endsWith('.m4a') || path.endsWith('.wav') ||
-                path.endsWith('.aac') || path.endsWith('.ogg') || path.endsWith('.flac') ||
-                path.endsWith('.wma')) {
-              audioFiles.add(entity);
-              print('🎵 Found audio file: ${entity.path.split('/').last}');
-            }
-          } else if (entity is Directory) {
-            if (!entity.path.split('/').last.startsWith('.')) {
-              audioFiles.addAll(await _getAudioFilesSafely(entity));
-            }
-          }
-        } catch (e) {
-          print('⚠️ Error accessing: $e');
+  List<File> audioFiles = [];
+  try {
+    print('🔍 Scanning directory: ${dir.path}');
+    
+    // ✅ Check if directory exists and is readable
+    if (!dir.existsSync()) {
+      print('⚠️ Directory does not exist: ${dir.path}');
+      return audioFiles;
+    }
+    
+    // ✅ List all files recursively
+    List<FileSystemEntity> entities = dir.listSync(recursive: true);
+    print('📊 Total entities found: ${entities.length}');
+    
+    for (FileSystemEntity entity in entities) {
+      if (entity is File) {
+        String path = entity.path.toLowerCase();
+        // ✅ Check for audio file extensions
+        if (path.endsWith('.mp3') || path.endsWith('.m4a') || 
+            path.endsWith('.wav') || path.endsWith('.aac') || 
+            path.endsWith('.ogg') || path.endsWith('.flac') || 
+            path.endsWith('.wma')) {
+          audioFiles.add(entity);
+          print('🎵 Found: ${entity.path.split('/').last}');
         }
       }
-    } catch (e) {
-      print('⚠️ Error scanning directory: $e');
     }
-    print('📊 Total audio files in ${dir.path}: ${audioFiles.length}');
-    return audioFiles;
+  } catch (e) {
+    print('⚠️ Error scanning: $e');
+    // ✅ Show error on screen
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('⚠️ Error: $e')),
+    );
+  }
+  
+  print('📊 Total audio files found: ${audioFiles.length}');
+  return audioFiles;
   }
 
   // ✅ UPDATED WITH SNACKBAR MESSAGES
   Future<void> updatePlaylistFromFolders() async {
-    print('🔄 Updating playlist from folders...');
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('🔄 Scanning folders...')),
-    );
-    
-    setState(() {
-      _playlist = [];
-      _filteredPlaylist = [];
-    });
-    
-    List<File> newSongs = [];
-    for (var folder in _savedFolders) {
-      if (folder['isChecked'] == true) {
-        Directory dir = Directory(folder['path']);
-        if (dir.existsSync()) {
-          print('📁 Scanning: ${folder['path']}');
+  print('🔄 Updating playlist from folders...');
+  
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('🔄 Scanning folders...')),
+  );
+  
+  setState(() {
+    _playlist = [];
+    _filteredPlaylist = [];
+  });
+  
+  List<File> newSongs = [];
+  
+  for (var folder in _savedFolders) {
+    if (folder['isChecked'] == true) {
+      String folderPath = folder['path'] as String;
+      print('📁 Checking folder: $folderPath');
+      
+      Directory dir = Directory(folderPath);
+      
+      if (dir.existsSync()) {
+        print('📁 Scanning: $folderPath');
+        
+        try {
           List<File> foundSongs = await _getAudioFilesSafely(dir);
-          print('🎵 Found: ${foundSongs.length} songs in this folder');
+          print('🎵 Found: ${foundSongs.length} songs in ${folder['name']}');
           newSongs.addAll(foundSongs);
           
           ScaffoldMessenger.of(context).showSnackBar(
@@ -268,29 +282,35 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               duration: const Duration(seconds: 2),
             ),
           );
-        } else {
-          print('⚠️ Folder not found: ${folder['path']}');
+        } catch (e) {
+          print('⚠️ Error scanning ${folder['name']}: $e');
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('⚠️ Folder not found: ${folder['name']}')),
+            SnackBar(content: Text('⚠️ Error scanning ${folder['name']}')),
           );
         }
+      } else {
+        print('⚠️ Folder not found: $folderPath');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('⚠️ Folder not found: ${folder['name']}')),
+        );
       }
     }
-    
-    print('🎵 Total songs found: ${newSongs.length}');
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('✅ ${newSongs.length} songs found!'),
-        backgroundColor: newSongs.length > 0 ? Colors.green : Colors.red,
-        duration: const Duration(seconds: 3),
-      ),
-    );
-    
-    setState(() {
-      _playlist = newSongs;
-      filterSearchResults(_searchController.text);
-    });
+  }
+  
+  print('🎵 Total songs found: ${newSongs.length}');
+  
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text('✅ ${newSongs.length} songs found!'),
+      backgroundColor: newSongs.length > 0 ? Colors.green : Colors.red,
+      duration: const Duration(seconds: 3),
+    ),
+  );
+  
+  setState(() {
+    _playlist = newSongs;
+    filterSearchResults(_searchController.text);
+  });
   }
 
   void openFolderManager() {
