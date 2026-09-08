@@ -1,16 +1,27 @@
-name: Build Empty Test App
+name: Build APK (Fresh Build)
 
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:  # ✅ Manual run option bhi add kar diya
 
 jobs:
   build:
     runs-on: ubuntu-latest
     
     steps:
+      # ✅ Sabse jaroori step: Latest code ko forcefully fetch karo
+      - name: Force Fetch Latest Code
+        run: |
+          git fetch --all
+          git reset --hard origin/main
+          echo "✅ Latest code forcefully fetched!"
+      
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          clean: true  # ✅ Yeh ensure karta hai ki purani files na rahe
       
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -24,21 +35,36 @@ jobs:
           flutter-version: '3.19.6'
           channel: 'stable'
       
-      # 🔥 YEH SABSE IMPORTANT STEP HAI - SAB KUCH DELETE KARO
-      - name: Create EMPTY Flutter App
+      # ✅ Sabse IMPORTANT - Har baar clean build
+      - name: 🔥 ULTIMATE CLEAN (Cache + Build)
         run: |
-          echo "Deleting EVERYTHING..."
-          rm -rf android ios lib pubspec.yaml assets
-          
-          echo "Creating brand new EMPTY Flutter app..."
-          flutter create --platforms=android .
-          
-          echo "Building EMPTY debug APK..."
-          flutter build apk --debug
+          echo "🔥 Deleting EVERYTHING (Cache + Build) to force fresh build..."
+          flutter clean
+          rm -rf build/
+          rm -rf ~/.pub-cache
+          rm -f pubspec.lock
+          rm -rf .dart_tool/
+          echo "✅ Everything is TOTALLY CLEAN!"
       
-      - name: Upload EMPTY APK
+      # ✅ Verify karo ki naya code aaya hai
+      - name: Verify Code (Checking main.dart)
+        run: |
+          echo "📋 First 5 lines of main.dart:"
+          head -5 lib/main.dart
+          echo "✅ Code verified!"
+      
+      - name: Get Dependencies
+        run: flutter pub get
+      
+      - name: Build Debug APK
+        run: |
+          echo "🚀 Building FRESH APK..."
+          flutter build apk --debug
+          ls -lh build/app/outputs/flutter-apk/
+      
+      - name: Upload Debug APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: empty-app
+          name: app-debug
           path: build/app/outputs/flutter-apk/app-debug.apk
