@@ -8,10 +8,8 @@ import 'package:audiotags/audiotags.dart';
 import 'package:path_provider/path_provider.dart';
 import '../services/notification_service.dart';
 import 'equalizer_screen.dart';
-import 'folder_manager_screen.dart';
-import 'lyrics_screen.dart';
-import 'audio_effects_screen.dart';
-import 'fm_radio_screen.dart';
+
+// ✅ FolderManagerScreen is already in this file at the bottom!
 
 class HomeScreen extends StatefulWidget {
   final ValueChanged<bool>? onThemeChanged;
@@ -26,6 +24,8 @@ class HomeScreen extends StatefulWidget {
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
+
+// ... (rest of your code remains same)
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // Player
