@@ -3,7 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 void main() {
   runApp(const MyApp());
@@ -16,10 +16,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Music Player',
-      theme: ThemeData(
-        primarySwatch: Colors.deepPurple,
-        useMaterial3: true,
-      ),
+      theme: ThemeData(primarySwatch: Colors.deepPurple, useMaterial3: true),
       home: const MusicPlayerScreen(),
       debugShowCheckedModeBanner: false,
     );
@@ -49,31 +46,96 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _player.onPlayerStateChanged.listen((state) {
       setState(() => isPlaying = state == PlayerState.playing);
     });
-    _checkPermission();
+    _checkPermissionAndLoad();
   }
 
-  Future<void> _checkPermission() async {
+  // ✅ PERMISSION KA DUMDAAR FUNCTION
+  Future<void> _checkPermissionAndLoad() async {
     if (Platform.isAndroid) {
-      var status = await Permission.storage.status;
-      if (!status.isGranted) {
-        await Permission.storage.request();
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      final sdkInt = androidInfo.version.sdkInt;
+
+      if (sdkInt >= 30) {
+        // Android 11+
+        final status = await Permission.manageExternalStorage.status;
+        if (status.isPermanentlyDenied || status.isDenied) {
+          _showPermissionDialog();
+          return;
+        }
+        if (status.isGranted) {
+          _loadDefaultMusic();
+        }
+      } else {
+        // Android 10 ya usse purana
+        final status = await Permission.storage.status;
+        if (status.isDenied) await Permission.storage.request();
+        if (status.isGranted) _loadDefaultMusic();
       }
     }
   }
 
+  void _showPermissionDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('⚠️ Permission Needed'),
+        content: const Text(
+          'Music app needs "All files access" to scan your songs.\n\n'
+          '👉 Tap "Open Settings"\n'
+          '👉 Go to "Permissions"\n'
+          '👉 Enable "Files and Media"\n'
+          '👉 Come back and restart the app.'
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              openAppSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _loadDefaultMusic() async {
+    try {
+      final musicDir = Directory('/storage/emulated/0/Music');
+      if (musicDir.existsSync()) {
+        final files = musicDir.listSync(recursive: true).whereType<File>().where((f) => f.path.toLowerCase().endsWith('.mp3')).toList();
+        setState(() => _songs = files);
+        if (files.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('✅ ${files.length} songs found in Music folder!')),
+          );
+        }
+      }
+    } catch (e) {
+      print('⚠️ Default load error: $e');
+    }
+  }
+
   Future<void> _pickFolder() async {
-    String? path = await FilePicker.platform.getDirectoryPath();
-    if (path != null) {
-      Directory dir = Directory(path);
-      List<File> files = dir.listSync(recursive: true)
-          .whereType<File>()
-          .where((f) => f.path.toLowerCase().endsWith('.mp3'))
-          .toList();
-      setState(() {
-        _songs = files;
-      });
+    try {
+      String? path = await FilePicker.platform.getDirectoryPath();
+      if (path != null) {
+        Directory dir = Directory(path);
+        final files = dir.listSync(recursive: true).whereType<File>().where((f) => f.path.toLowerCase().endsWith('.mp3')).toList();
+        setState(() => _songs = files);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('✅ ${files.length} songs found!')),
+        );
+      }
+    } catch (e) {
+      print('⚠️ Folder pick error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('✅ ${files.length} songs found!')),
+        const SnackBar(content: Text('⚠️ Error scanning folder. Please grant permission first.')),
       );
     }
   }
@@ -85,11 +147,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   }
 
   void _togglePlay() {
-    if (isPlaying) {
-      _player.pause();
-    } else {
-      _player.resume();
-    }
+    isPlaying ? _player.pause() : _player.resume();
   }
 
   String formatTime(Duration d) {
@@ -111,36 +169,42 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: _checkPermissionAndLoad,
+          ),
+        ],
       ),
       body: Column(
         children: [
-          // Select Folder Button
           Padding(
             padding: const EdgeInsets.all(16),
-            child: ElevatedButton.icon(
-              onPressed: _pickFolder,
-              icon: const Icon(Icons.folder_open),
-              label: Text('📁 Select Music Folder'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurple,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(25),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _pickFolder,
+                    icon: const Icon(Icons.folder_open),
+                    label: const Text('📁 Select Folder'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 10),
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: _loadDefaultMusic,
+                ),
+              ],
             ),
           ),
-          
-          // Song Count
-          Text(
-            '${_songs.length} songs found',
-            style: const TextStyle(fontSize: 14, color: Colors.grey),
-          ),
-          
+          Text('${_songs.length} songs found', style: const TextStyle(fontSize: 14, color: Colors.grey)),
           const Divider(),
-          
-          // Songs List
           Expanded(
             child: _songs.isEmpty
                 ? const Center(
@@ -150,7 +214,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         Icon(Icons.music_off, size: 80, color: Colors.grey),
                         SizedBox(height: 16),
                         Text('No songs found!', style: TextStyle(fontSize: 18)),
-                        Text('Select a folder to scan', style: TextStyle(color: Colors.grey)),
+                        Text('Grant permission & select folder', style: TextStyle(color: Colors.grey)),
                       ],
                     ),
                   )
@@ -162,10 +226,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       return ListTile(
                         leading: CircleAvatar(
                           backgroundColor: isSelected ? Colors.deepPurple : Colors.grey.shade300,
-                          child: Icon(
-                            Icons.music_note,
-                            color: isSelected ? Colors.white : Colors.black54,
-                          ),
+                          child: Icon(Icons.music_note, color: isSelected ? Colors.white : Colors.black54),
                         ),
                         title: Text(
                           song.path.split('/').last.replaceAll('.mp3', ''),
@@ -178,10 +239,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         ),
                         trailing: isSelected
                             ? IconButton(
-                                icon: Icon(
-                                  isPlaying ? Icons.pause : Icons.play_arrow,
-                                  color: Colors.deepPurple,
-                                ),
+                                icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow, color: Colors.deepPurple),
                                 onPressed: _togglePlay,
                               )
                             : null,
@@ -190,19 +248,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                     },
                   ),
           ),
-          
-          // Mini Player
           if (_currentSong != null)
             Container(
               decoration: BoxDecoration(
                 color: Colors.deepPurple.shade50,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
-                ),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 10),
-                ],
+                borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
+                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
               ),
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -213,43 +264,25 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              _currentSong!.path.split('/').last.replaceAll('.mp3', ''),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
+                            Text(_currentSong!.path.split('/').last.replaceAll('.mp3', ''), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold)),
                             const Text('Local Audio', style: TextStyle(fontSize: 12, color: Colors.grey)),
                           ],
                         ),
                       ),
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: Icon(
-                              isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
-                              color: Colors.deepPurple,
-                              size: 40,
-                            ),
-                            onPressed: _togglePlay,
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.stop_circle_outlined, color: Colors.deepPurple, size: 40),
-                            onPressed: () {
-                              _player.stop();
-                              setState(() {});
-                            },
-                          ),
-                        ],
+                      IconButton(
+                        icon: Icon(isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled, color: Colors.deepPurple, size: 40),
+                        onPressed: _togglePlay,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.stop_circle_outlined, color: Colors.deepPurple, size: 40),
+                        onPressed: () { _player.stop(); setState(() {}); },
                       ),
                     ],
                   ),
                   Slider(
                     value: _position.inSeconds.toDouble(),
                     max: _duration.inSeconds.toDouble() > 0 ? _duration.inSeconds.toDouble() : 1,
-                    onChanged: (value) async {
-                      await _player.seek(Duration(seconds: value.toInt()));
-                    },
+                    onChanged: (value) async => await _player.seek(Duration(seconds: value.toInt())),
                     activeColor: Colors.deepPurple,
                     inactiveColor: Colors.deepPurple.shade100,
                   ),
