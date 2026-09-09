@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
 void main() {
@@ -37,6 +38,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   bool isPlaying = false;
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -49,27 +51,25 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _checkPermissionAndLoad();
   }
 
-  // ✅ PERMISSION KA DUMDAAR FUNCTION
+  // ✅ PERMISSION CHECK
   Future<void> _checkPermissionAndLoad() async {
     if (Platform.isAndroid) {
       final androidInfo = await DeviceInfoPlugin().androidInfo;
       final sdkInt = androidInfo.version.sdkInt;
 
       if (sdkInt >= 30) {
-        // Android 11+
         final status = await Permission.manageExternalStorage.status;
-        if (status.isPermanentlyDenied || status.isDenied) {
+        if (status.isDenied || status.isPermanentlyDenied) {
           _showPermissionDialog();
           return;
         }
         if (status.isGranted) {
-          _loadDefaultMusic();
+          _loadAllSongs();
         }
       } else {
-        // Android 10 ya usse purana
         final status = await Permission.storage.status;
         if (status.isDenied) await Permission.storage.request();
-        if (status.isGranted) _loadDefaultMusic();
+        if (status.isGranted) _loadAllSongs();
       }
     }
   }
@@ -81,61 +81,120 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       builder: (context) => AlertDialog(
         title: const Text('⚠️ Permission Needed'),
         content: const Text(
-          'Music app needs "All files access" to scan your songs.\n\n'
-          '👉 Tap "Open Settings"\n'
-          '👉 Go to "Permissions"\n'
-          '👉 Enable "Files and Media"\n'
-          '👉 Come back and restart the app.'
+          'Music app needs "All files access" to scan songs.\n\n'
+          '👉 Tap "Open Settings"\n👉 Go to "Permissions"\n👉 Enable "Files and Media"\n👉 Restart app'
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              openAppSettings();
-            },
-            child: const Text('Open Settings'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () { Navigator.pop(context); openAppSettings(); }, child: const Text('Open Settings')),
         ],
       ),
     );
   }
 
-  Future<void> _loadDefaultMusic() async {
+  // ✅ 3-IN-1 SONG SCANNER (Teeno Methods)
+  Future<void> _loadAllSongs() async {
+    setState(() => _isLoading = true);
+    List<File> allSongs = [];
+
+    // 🔴 METHOD 1: Default Music Folder
     try {
-      final musicDir = Directory('/storage/emulated/0/Music');
-      if (musicDir.existsSync()) {
-        final files = musicDir.listSync(recursive: true).whereType<File>().where((f) => f.path.toLowerCase().endsWith('.mp3')).toList();
-        setState(() => _songs = files);
-        if (files.isNotEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('✅ ${files.length} songs found in Music folder!')),
-          );
+      final defaultMusic = Directory('/storage/emulated/0/Music');
+      if (defaultMusic.existsSync()) {
+        final files = defaultMusic.listSync(recursive: true).whereType<File>().where((f) => 
+          f.path.toLowerCase().endsWith('.mp3') || 
+          f.path.toLowerCase().endsWith('.m4a') ||
+          f.path.toLowerCase().endsWith('.wav')
+        ).toList();
+        allSongs.addAll(files);
+        print('✅ Method 1 (Music): ${files.length} songs found');
+      }
+    } catch (e) { print('Method 1 Error: $e'); }
+
+    // 🔴 METHOD 2: Download Folder
+    try {
+      final downloadDir = Directory('/storage/emulated/0/Download');
+      if (downloadDir.existsSync()) {
+        final files = downloadDir.listSync(recursive: true).whereType<File>().where((f) => 
+          f.path.toLowerCase().endsWith('.mp3') || 
+          f.path.toLowerCase().endsWith('.m4a')
+        ).toList();
+        allSongs.addAll(files);
+        print('✅ Method 2 (Download): ${files.length} songs found');
+      }
+    } catch (e) { print('Method 2 Error: $e'); }
+
+    // 🔴 METHOD 3: SnapTube (Tumhari specific folder)
+    try {
+      final snapTubeDir = Directory('/storage/emulated/0/snaptube/download/SnapTube Audio');
+      if (snapTubeDir.existsSync()) {
+        final files = snapTubeDir.listSync(recursive: true).whereType<File>().where((f) => 
+          f.path.toLowerCase().endsWith('.mp3') || 
+          f.path.toLowerCase().endsWith('.m4a')
+        ).toList();
+        allSongs.addAll(files);
+        print('✅ Method 3 (SnapTube): ${files.length} songs found');
+      } else {
+        // Agar SnapTube folder na mile toh "SnapTube" search karo
+        final snapDir = Directory('/storage/emulated/0/snaptube');
+        if (snapDir.existsSync()) {
+          final files = snapDir.listSync(recursive: true).whereType<File>().where((f) => 
+            f.path.toLowerCase().contains('snaptube') && 
+            (f.path.toLowerCase().endsWith('.mp3') || f.path.toLowerCase().endsWith('.m4a'))
+          ).toList();
+          allSongs.addAll(files);
+          print('✅ Method 3 (SnapTube search): ${files.length} songs found');
         }
       }
-    } catch (e) {
-      print('⚠️ Default load error: $e');
+    } catch (e) { print('Method 3 Error: $e'); }
+
+    // 🔴 METHOD 4: File Picker se manual select
+    // (Ye already hai, par hum ise keep karte hain)
+
+    // Remove duplicates
+    final uniqueSongs = allSongs.toSet().toList();
+    
+    setState(() {
+      _songs = uniqueSongs;
+      _isLoading = false;
+    });
+
+    if (_songs.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('✅ ${_songs.length} songs found!'), backgroundColor: Colors.green),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('⚠️ No songs found. Try selecting folder manually!'), backgroundColor: Colors.orange),
+      );
     }
   }
 
+  // ✅ MANUAL FOLDER SELECT
   Future<void> _pickFolder() async {
     try {
       String? path = await FilePicker.platform.getDirectoryPath();
       if (path != null) {
+        setState(() => _isLoading = true);
         Directory dir = Directory(path);
-        final files = dir.listSync(recursive: true).whereType<File>().where((f) => f.path.toLowerCase().endsWith('.mp3')).toList();
-        setState(() => _songs = files);
+        final files = dir.listSync(recursive: true).whereType<File>().where((f) => 
+          f.path.toLowerCase().endsWith('.mp3') || 
+          f.path.toLowerCase().endsWith('.m4a') || 
+          f.path.toLowerCase().endsWith('.wav')
+        ).toList();
+        setState(() {
+          _songs = files;
+          _isLoading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('✅ ${files.length} songs found!')),
+          SnackBar(content: Text('✅ ${files.length} songs found!'), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       print('⚠️ Folder pick error: $e');
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('⚠️ Error scanning folder. Please grant permission first.')),
+        const SnackBar(content: Text('⚠️ Error scanning folder. Try granting permission.')),
       );
     }
   }
@@ -171,8 +230,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: _checkPermissionAndLoad,
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadAllSongs,
           ),
         ],
       ),
@@ -196,17 +255,14 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                IconButton(
-                  icon: const Icon(Icons.refresh),
-                  onPressed: _loadDefaultMusic,
-                ),
+                if (_isLoading) const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
               ],
             ),
           ),
           Text('${_songs.length} songs found', style: const TextStyle(fontSize: 14, color: Colors.grey)),
           const Divider(),
           Expanded(
-            child: _songs.isEmpty
+            child: _songs.isEmpty && !_isLoading
                 ? const Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -214,7 +270,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         Icon(Icons.music_off, size: 80, color: Colors.grey),
                         SizedBox(height: 16),
                         Text('No songs found!', style: TextStyle(fontSize: 18)),
-                        Text('Grant permission & select folder', style: TextStyle(color: Colors.grey)),
+                        Text('🔹 Grant "All files access" permission', style: TextStyle(color: Colors.grey)),
+                        Text('🔹 Tap refresh button', style: TextStyle(color: Colors.grey)),
+                        Text('🔹 Or select folder manually', style: TextStyle(color: Colors.grey)),
                       ],
                     ),
                   )
@@ -229,7 +287,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                           child: Icon(Icons.music_note, color: isSelected ? Colors.white : Colors.black54),
                         ),
                         title: Text(
-                          song.path.split('/').last.replaceAll('.mp3', ''),
+                          song.path.split('/').last.replaceAll(RegExp(r'\.[^.]*$'), ''),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -264,7 +322,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(_currentSong!.path.split('/').last.replaceAll('.mp3', ''), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            Text(
+                              _currentSong!.path.split('/').last.replaceAll(RegExp(r'\.[^.]*$'), ''),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
                             const Text('Local Audio', style: TextStyle(fontSize: 12, color: Colors.grey)),
                           ],
                         ),
