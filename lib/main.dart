@@ -5,7 +5,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'theme/app_colors.dart';
-
 void main() {
   runApp(const MyApp());
 }
