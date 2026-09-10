@@ -47,18 +47,22 @@ jobs:
           \    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>\
           \    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>' android/app/src/main/AndroidManifest.xml
           
-          # Add requestLegacyExternalStorage
+          # Request legacy storage
           sed -i 's/<application/<application android:requestLegacyExternalStorage="true"/g' android/app/src/main/AndroidManifest.xml
       
       - name: Get Dependencies
         run: flutter pub get
       
-      - name: Build APK
-        run: flutter build apk --debug
+      # ✅ RELEASE BUILD WITH SPLIT (CHHOTA APK)
+      - name: Build Split Release APKs
+        run: flutter build apk --release --split-per-abi
       
-      - name: Upload APK
+      # ✅ Upload both variants
+      - name: Upload APKs
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          name: music-player-apks
+          path: |
+            build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
