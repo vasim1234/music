@@ -4,6 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
+import 'theme/app_colors.dart';
 
 void main() {
   runApp(const MyApp());
@@ -19,7 +20,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.deepPurple,
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFF0F0F1E),
+        scaffoldBackgroundColor: AppTheme.bg,
       ),
       home: const MusicPlayerScreen(),
       debugShowCheckedModeBanner: false,
@@ -47,10 +48,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
   bool isPlaying = false;
   bool isShuffle = false;
   bool isRepeat = false;
+  bool _isLuxeTheme = true;
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
   int _currentIndex = -1;
-  int _selectedTab = 0; // 0: All, 1: Favorites, 2: Recent, 3: Playlists
+  int _selectedTab = 0;
   final TextEditingController _searchController = TextEditingController();
   late TabController _tabController;
 
@@ -76,6 +78,31 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
     _player.onPlayerComplete.listen((_) => _playNext());
     _checkPermission();
     _loadSavedData();
+    _loadTheme();
+  }
+
+  // ✅ LOAD THEME
+  Future<void> _loadTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    bool isLuxe = prefs.getBool('isLuxeTheme') ?? true;
+    setState(() {
+      _isLuxeTheme = isLuxe;
+      AppTheme.isLuxeTheme = isLuxe;
+    });
+  }
+
+  // ✅ TOGGLE THEME
+  Future<void> _toggleTheme(bool isLuxe) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isLuxeTheme', isLuxe);
+    setState(() {
+      _isLuxeTheme = isLuxe;
+      AppTheme.isLuxeTheme = isLuxe;
+    });
+    _showSnackBar(
+      isLuxe ? '🎨 Luxe Purple theme applied' : '🎨 Cyber Neon theme applied',
+      AppTheme.accent,
+    );
   }
 
   Future<void> _checkPermission() async {
@@ -253,7 +280,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
     _playSong(_filteredSongs[prev], prev);
   }
 
-  // ✅ APPLY FILTER
   void _applyFilter() {
     List<File> baseList = [];
 
@@ -267,7 +293,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
           .where((f) => f.existsSync())
           .toList();
     } else if (_selectedTab == 3 && _openedPlaylist != null) {
-      // Inside a playlist
       var playlist = _playlists.firstWhere(
         (p) => p['name'] == _openedPlaylist,
         orElse: () => {'name': '', 'songs': <String>[]},
@@ -288,7 +313,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
     });
   }
 
-  // ✅ DELETE SONG PERMANENTLY
   void _deleteSongPermanently(File song) {
     setState(() {
       if (song == _currentSong) {
@@ -299,7 +323,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
       _songs.remove(song);
       _recentSongs.remove(song.path);
       _favorites.remove(song.path);
-      // Remove from playlists
       for (var playlist in _playlists) {
         (playlist['songs'] as List<String>).remove(song.path);
       }
@@ -312,7 +335,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
     _showSnackBar('🗑️ Song deleted permanently', Colors.red);
   }
 
-  // ✅ REMOVE FROM PLAYLIST ONLY
   void _removeFromPlaylist(File song) {
     if (_openedPlaylist == null) return;
     setState(() {
@@ -324,7 +346,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
     _showSnackBar('🚫 Removed from $_openedPlaylist', Colors.orange);
   }
 
-  // ✅ TOGGLE FAVORITE
   void _toggleFavorite(File song) {
     setState(() {
       if (_favorites.contains(song.path)) {
@@ -339,20 +360,15 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
     _saveFavorites();
   }
 
-  // ✅ ADD TO PLAYLIST
   void _showAddToPlaylist(File song) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+          decoration: BoxDecoration(
+            color: AppTheme.card,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
           ),
           child: SafeArea(
             child: Column(
@@ -374,9 +390,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF6C63FF), Color(0xFFD946EF)],
-                          ),
+                          gradient: LinearGradient(colors: AppTheme.primaryGradient),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(Icons.playlist_add,
@@ -394,7 +408,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                     ],
                   ),
                 ),
-                const Divider(color: Colors.grey, height: 1),
+                Divider(color: Colors.grey.shade800, height: 1),
                 if (_playlists.isEmpty)
                   const Padding(
                     padding: EdgeInsets.all(20),
@@ -412,12 +426,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                       leading: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.deepPurpleAccent.withOpacity(0.15),
+                          color: AppTheme.accent.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(
                           isIn ? Icons.check_circle : Icons.playlist_play,
-                          color: isIn ? Colors.green : Colors.deepPurpleAccent,
+                          color: isIn ? Colors.green : AppTheme.accent,
                         ),
                       ),
                       title: Text(
@@ -448,7 +462,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                         _showSnackBar(
                           isIn
                               ? '🚫 Removed from ${playlist['name']}'
-                              : '✅ Added to ${playlist['name']}',
+                              : '✅ Song added to ${playlist['name']}',
                           isIn ? Colors.orange : Colors.green,
                         );
                       },
@@ -465,9 +479,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                     child: Container(
                       padding: const EdgeInsets.all(15),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF00C9A7), Color(0xFF00B4D8)],
-                        ),
+                        gradient: LinearGradient(colors: AppTheme.primaryGradient),
                         borderRadius: BorderRadius.circular(15),
                       ),
                       child: const Row(
@@ -504,7 +516,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF1A1A2E),
+          backgroundColor: AppTheme.card,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text('➕ New Playlist',
               style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -516,12 +528,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
               hintText: 'Enter playlist name',
               hintStyle: const TextStyle(color: Colors.grey),
               prefixIcon:
-                  const Icon(Icons.playlist_play, color: Colors.deepPurpleAccent),
+                  Icon(Icons.playlist_play, color: AppTheme.accent),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(15),
-                borderSide:
-                    const BorderSide(color: Colors.deepPurpleAccent, width: 2),
+                borderSide: BorderSide(color: AppTheme.accent, width: 2),
               ),
             ),
           ),
@@ -532,7 +543,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurpleAccent,
+                backgroundColor: AppTheme.accent,
                 foregroundColor: Colors.white,
               ),
               onPressed: () {
@@ -546,7 +557,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                   _savePlaylists();
                   Navigator.pop(context);
                   _showSnackBar(
-                    '✅ Added to "${nameCtrl.text}"',
+                    '✅ Song added to "${nameCtrl.text}"',
                     Colors.green,
                   );
                 }
@@ -559,7 +570,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
     );
   }
 
-  // ✅ LONG PRESS MENU (Main Page)
   void _showMainSongOptions(File song) {
     bool isFav = _favorites.contains(song.path);
 
@@ -581,7 +591,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
             ),
             _optionItem(
               icon: Icons.playlist_add,
-              color: Colors.deepPurpleAccent,
+              color: AppTheme.accent,
               title: 'Add to Playlist',
               onTap: () {
                 Navigator.pop(context);
@@ -594,7 +604,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
               title: 'Delete Permanently',
               onTap: () {
                 Navigator.pop(context);
-                _confirmDelete(song, false);
+                _confirmDelete(song);
               },
             ),
           ],
@@ -603,7 +613,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
     );
   }
 
-  // ✅ LONG PRESS MENU (Inside Playlist)
   void _showPlaylistSongOptions(File song) {
     bool isFav = _favorites.contains(song.path);
 
@@ -638,7 +647,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
               title: 'Delete Permanently',
               onTap: () {
                 Navigator.pop(context);
-                _confirmDelete(song, true);
+                _confirmDelete(song);
               },
             ),
           ],
@@ -652,13 +661,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
     required List<Widget> options,
   }) {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+      decoration: BoxDecoration(
+        color: AppTheme.card,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
       ),
       child: SafeArea(
         child: Column(
@@ -681,9 +686,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                     height: 55,
                     width: 55,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF6C63FF), Color(0xFFD946EF)],
-                      ),
+                      gradient: LinearGradient(colors: AppTheme.primaryGradient),
                       borderRadius: BorderRadius.circular(15),
                     ),
                     child: const Icon(Icons.music_note,
@@ -705,7 +708,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                 ],
               ),
             ),
-            const Divider(color: Colors.grey, height: 1),
+            Divider(color: Colors.grey.shade800, height: 1),
             ...options,
             const SizedBox(height: 20),
           ],
@@ -738,20 +741,19 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
     );
   }
 
-  // ✅ CONFIRM DELETE
-  void _confirmDelete(File song, bool fromPlaylist) {
+  void _confirmDelete(File song) {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF1A1A2E),
+          backgroundColor: AppTheme.card,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text(
             '🗑️ Delete Permanently?',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
           content: Text(
-            'Are you sure you want to delete "${getSongName(song.path)}" permanently?\n\nThis will remove it from your device and all playlists.',
+            'Delete "${getSongName(song.path)}" permanently?\n\nThis will remove it from your device and all playlists.',
             style: const TextStyle(color: Colors.grey),
           ),
           actions: [
@@ -813,9 +815,13 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
     return Scaffold(
       drawer: _buildDrawer(),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF0F0F1E), Color(0xFF1A1A2E), Color(0xFF16213E)],
+            colors: [
+              AppTheme.bg,
+              AppTheme.bg.withOpacity(0.95),
+              AppTheme.card,
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -848,13 +854,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF6C63FF), Color(0xFFD946EF)],
-                        ),
+                        gradient: LinearGradient(colors: AppTheme.primaryGradient),
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF6C63FF).withOpacity(0.5),
+                            color: AppTheme.primaryGradient[0].withOpacity(0.5),
                             blurRadius: 15,
                             spreadRadius: 3,
                           ),
@@ -893,8 +897,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(30),
-                    border:
-                        Border.all(color: Colors.white.withOpacity(0.1)),
+                    border: Border.all(color: Colors.white.withOpacity(0.1)),
                   ),
                   child: TextField(
                     controller: _searchController,
@@ -915,7 +918,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
 
               const SizedBox(height: 15),
 
-              // ✅ TABS (All, Favorites, Recent, Playlists)
+              // TABS
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Container(
@@ -927,13 +930,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                   child: TabBar(
                     controller: _tabController,
                     indicator: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF6C63FF), Color(0xFFD946EF)],
-                      ),
+                      gradient: LinearGradient(colors: AppTheme.primaryGradient),
                       borderRadius: BorderRadius.circular(25),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF6C63FF).withOpacity(0.4),
+                          color: AppTheme.primaryGradient[0].withOpacity(0.4),
                           blurRadius: 15,
                           spreadRadius: 2,
                         ),
@@ -945,9 +946,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                       fontWeight: FontWeight.bold,
                       fontSize: 12,
                     ),
-                    unselectedLabelStyle: const TextStyle(
-                      fontSize: 12,
-                    ),
+                    unselectedLabelStyle: const TextStyle(fontSize: 12),
                     indicatorSize: TabBarIndicatorSize.tab,
                     dividerColor: Colors.transparent,
                     tabs: const [
@@ -962,7 +961,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
 
               const SizedBox(height: 15),
 
-              // ✅ CONTENT
+              // CONTENT
               Expanded(
                 child: _selectedTab == 3
                     ? _buildPlaylistsView()
@@ -987,10 +986,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
     );
   }
 
-  // ✅ PLAYLISTS VIEW
   Widget _buildPlaylistsView() {
     if (_openedPlaylist != null) {
-      // Inside a playlist
       var playlist = _playlists.firstWhere(
         (p) => p['name'] == _openedPlaylist,
         orElse: () => {'name': '', 'songs': <String>[]},
@@ -999,18 +996,15 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
 
       return Column(
         children: [
-          // Playlist Header
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
             padding: const EdgeInsets.all(15),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF6C63FF), Color(0xFFD946EF)],
-              ),
+              gradient: LinearGradient(colors: AppTheme.primaryGradient),
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF6C63FF).withOpacity(0.4),
+                  color: AppTheme.primaryGradient[0].withOpacity(0.4),
                   blurRadius: 20,
                   spreadRadius: 3,
                 ),
@@ -1030,8 +1024,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child:
-                        const Icon(Icons.arrow_back, color: Colors.white),
+                    child: const Icon(Icons.arrow_back, color: Colors.white),
                   ),
                 ),
                 const SizedBox(width: 15),
@@ -1071,7 +1064,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                       ),
                       child: const Row(
                         children: [
-                          Icon(Icons.play_arrow, color: Colors.white, size: 20),
+                          Icon(Icons.play_arrow,
+                              color: Colors.white, size: 20),
                           SizedBox(width: 5),
                           Text(
                             'Play All',
@@ -1107,7 +1101,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
       );
     }
 
-    // Playlists List View
     if (_playlists.isEmpty) {
       return Center(
         child: Column(
@@ -1165,16 +1158,15 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
             padding: const EdgeInsets.all(15),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [
-                  Color(0xFF6C63FF).withOpacity(0.3),
-                  Color(0xFFD946EF).withOpacity(0.3),
-                ],
+                colors: AppTheme.primaryGradient
+                    .map((c) => c.withOpacity(0.3))
+                    .toList(),
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: const Color(0xFF6C63FF).withOpacity(0.3),
+                color: AppTheme.primaryGradient[0].withOpacity(0.3),
               ),
             ),
             child: Column(
@@ -1184,9 +1176,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF6C63FF), Color(0xFFD946EF)],
-                    ),
+                    gradient: LinearGradient(colors: AppTheme.primaryGradient),
                     borderRadius: BorderRadius.circular(15),
                   ),
                   child: const Icon(
@@ -1230,7 +1220,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A2E),
+        backgroundColor: AppTheme.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('🗑️ Delete Playlist?',
             style:
@@ -1264,7 +1254,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
     );
   }
 
-  // ✅ FULL SCREEN PLAYER
   void _showFullScreenPlayer() {
     if (_currentSong == null) return;
 
@@ -1276,17 +1265,17 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
         builder: (context, setModalState) {
           return Container(
             height: MediaQuery.of(context).size.height * 0.95,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Color(0xFF0F0F1E),
-                  Color(0xFF1A1A2E),
-                  Color(0xFF16213E)
+                  AppTheme.bg,
+                  AppTheme.bg.withOpacity(0.95),
+                  AppTheme.card,
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
             ),
             child: SafeArea(
               child: Column(
@@ -1342,14 +1331,14 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                     width: 280,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF6C63FF), Color(0xFFD946EF)],
+                      gradient: LinearGradient(
+                        colors: AppTheme.primaryGradient,
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF6C63FF).withOpacity(0.5),
+                          color: AppTheme.primaryGradient[0].withOpacity(0.5),
                           blurRadius: 50,
                           spreadRadius: 10,
                         ),
@@ -1389,12 +1378,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                         SliderTheme(
                           data: SliderThemeData(
                             trackHeight: 4,
-                            activeTrackColor: const Color(0xFFD946EF),
-                            inactiveTrackColor:
-                                Colors.white.withOpacity(0.2),
+                            activeTrackColor: AppTheme.primaryGradient[1],
+                            inactiveTrackColor: Colors.white.withOpacity(0.2),
                             thumbColor: Colors.white,
                             overlayColor:
-                                const Color(0xFFD946EF).withOpacity(0.3),
+                                AppTheme.primaryGradient[1].withOpacity(0.3),
                             thumbShape: const RoundSliderThumbShape(
                                 enabledThumbRadius: 7),
                           ),
@@ -1441,7 +1429,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                           icon: Icon(
                             isShuffle ? Icons.shuffle : Icons.shuffle_outlined,
                             color: isShuffle
-                                ? const Color(0xFFD946EF)
+                                ? AppTheme.primaryGradient[1]
                                 : Colors.white54,
                             size: 26,
                           ),
@@ -1463,16 +1451,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                           width: 75,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: const LinearGradient(
-                              colors: [
-                                Color(0xFF6C63FF),
-                                Color(0xFFD946EF)
-                              ],
-                            ),
+                            gradient:
+                                LinearGradient(colors: AppTheme.primaryGradient),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF6C63FF)
-                                    .withOpacity(0.5),
+                                color:
+                                    AppTheme.primaryGradient[0].withOpacity(0.5),
                                 blurRadius: 20,
                                 spreadRadius: 3,
                               ),
@@ -1501,7 +1485,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                           icon: Icon(
                             isRepeat ? Icons.repeat_one : Icons.repeat,
                             color: isRepeat
-                                ? const Color(0xFFD946EF)
+                                ? AppTheme.primaryGradient[1]
                                 : Colors.white54,
                             size: 26,
                           ),
@@ -1525,11 +1509,14 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
 
   Widget _buildDrawer() {
     return Drawer(
-      backgroundColor: const Color(0xFF0F0F1E),
+      backgroundColor: AppTheme.bg,
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
+            colors: [
+              AppTheme.bg,
+              AppTheme.card,
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -1546,13 +1533,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                     Container(
                       padding: const EdgeInsets.all(15),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF6C63FF), Color(0xFFD946EF)],
-                        ),
+                        gradient: LinearGradient(colors: AppTheme.primaryGradient),
                         borderRadius: BorderRadius.circular(15),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF6C63FF).withOpacity(0.5),
+                            color: AppTheme.primaryGradient[0].withOpacity(0.5),
                             blurRadius: 20,
                             spreadRadius: 5,
                           ),
@@ -1580,14 +1565,14 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                   ],
                 ),
               ),
-              const Divider(color: Colors.grey, height: 1),
+              Divider(color: Colors.grey.shade800, height: 1),
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   children: [
                     _drawerItem(
                       icon: Icons.library_music,
-                      iconColor: const Color(0xFF00C9A7),
+                      iconColor: AppTheme.secondaryGradient[0],
                       title: 'Pick Songs',
                       subtitle: 'Select from storage',
                       onTap: () {
@@ -1597,7 +1582,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                     ),
                     _drawerItem(
                       icon: Icons.folder_open,
-                      iconColor: const Color(0xFF6C63FF),
+                      iconColor: AppTheme.accent,
                       title: 'Scan Music',
                       subtitle: 'Auto scan folders',
                       onTap: () {
@@ -1627,7 +1612,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                     ),
                     _drawerItem(
                       icon: Icons.playlist_play,
-                      iconColor: Colors.deepPurpleAccent,
+                      iconColor: AppTheme.accent,
                       title: 'Playlists',
                       subtitle: '${_playlists.length} playlists',
                       onTap: () {
@@ -1635,15 +1620,123 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                         _tabController.animateTo(3);
                       },
                     ),
+                    Divider(color: Colors.grey.shade800, height: 1),
+                    // ✅ THEME SELECTOR
+                    Padding(
+                      padding: const EdgeInsets.all(15),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(left: 10, bottom: 10),
+                            child: Text(
+                              '🎨 Choose Theme',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => _toggleTheme(true),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: AppColors.primaryGradientA,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: _isLuxeTheme
+                                            ? Colors.white
+                                            : Colors.transparent,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Icon(
+                                          _isLuxeTheme
+                                              ? Icons.check_circle
+                                              : Icons.circle_outlined,
+                                          color: Colors.white,
+                                          size: 20,
+                                        ),
+                                        const SizedBox(height: 5),
+                                        const Text(
+                                          'Luxe\nPurple',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () => _toggleTheme(false),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: AppColors.primaryGradientB,
+                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: !_isLuxeTheme
+                                            ? Colors.white
+                                            : Colors.transparent,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Icon(
+                                          !_isLuxeTheme
+                                              ? Icons.check_circle
+                                              : Icons.circle_outlined,
+                                          color: Colors.white,
+                                          size: 20,
+                                        ),
+                                        const SizedBox(height: 5),
+                                        const Text(
+                                          'Cyber\nNeon',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-              const Padding(
-                padding: EdgeInsets.all(20),
+              Padding(
+                padding: const EdgeInsets.all(20),
                 child: Text(
                   "Version 1.0.0\nMade with ❤️ by Bhai Bhai",
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey, fontSize: 11),
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
                 ),
               ),
             ],
@@ -1689,15 +1782,15 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
         margin: const EdgeInsets.all(8),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF6C63FF), Color(0xFFD946EF)],
+          gradient: LinearGradient(
+            colors: AppTheme.primaryGradient,
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF6C63FF).withOpacity(0.4),
+              color: AppTheme.primaryGradient[0].withOpacity(0.4),
               blurRadius: 15,
               spreadRadius: 2,
             ),
@@ -1836,8 +1929,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
             child: Text(
               sub,
               textAlign: TextAlign.center,
-              style:
-                  TextStyle(color: Colors.grey.shade500, fontSize: 14),
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
             ),
           ),
         ],
@@ -1865,9 +1957,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           gradient: isSelected
-              ? const LinearGradient(
-                  colors: [Color(0xFF6C63FF), Color(0xFFD946EF)],
-                )
+              ? LinearGradient(colors: AppTheme.primaryGradient)
               : null,
           color: isSelected ? null : Colors.white.withOpacity(0.05),
           borderRadius: BorderRadius.circular(15),
@@ -1879,7 +1969,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF6C63FF).withOpacity(0.4),
+                    color: AppTheme.primaryGradient[0].withOpacity(0.4),
                     blurRadius: 15,
                     spreadRadius: 2,
                   ),
