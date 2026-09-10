@@ -5,9 +5,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 
-// ✅ COLORS - SAME FILE MEIN DEFINE KAR DIYE
+// ✅ COLORS
 class AppColors {
-  // Luxe Purple Theme
   static const Color bgA = Color(0xFF0F0F14);
   static const Color cardA = Color(0xFF181820);
   static const Color accentA = Color(0xFF8B5CF6);
@@ -16,7 +15,6 @@ class AppColors {
     Color(0xFFD946EF),
   ];
 
-  // Cyber Neon Theme
   static const Color bgB = Color(0xFF0D0E15);
   static const Color cardB = Color(0xFF1A1C28);
   static const Color accentB = Color(0xFF00E676);
@@ -78,6 +76,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   bool isShuffle = false;
   bool isRepeat = false;
   bool _isLuxeTheme = true;
+  bool is3DOn = false;  // ✅ 3D Audio Toggle
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
   int _currentIndex = -1;
@@ -101,9 +100,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
     bool isLuxe = prefs.getBool('isLuxeTheme') ?? true;
+    bool is3D = prefs.getBool('is3DOn') ?? false;
     setState(() {
       _isLuxeTheme = isLuxe;
       AppTheme.isLuxeTheme = isLuxe;
+      is3DOn = is3D;
     });
   }
 
@@ -118,6 +119,25 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       isLuxe ? '🎨 Luxe Purple applied' : '🎨 Cyber Neon applied',
       AppTheme.accent,
     );
+  }
+
+  // ✅ 3D AUDIO TOGGLE
+  Future<void> _toggle3D() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      is3DOn = !is3DOn;
+    });
+    await prefs.setBool('is3DOn', is3DOn);
+
+    if (is3DOn) {
+      await _player.setVolume(0.85);
+      await _player.setBalance(0.4);
+      _showSnackBar('🎧 3D Audio ON', AppTheme.accent);
+    } else {
+      await _player.setVolume(1.0);
+      await _player.setBalance(0.0);
+      _showSnackBar('🔊 3D Audio OFF', Colors.grey);
+    }
   }
 
   Future<void> _checkPermission() async {
@@ -274,6 +294,15 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
 
     await _player.play(DeviceFileSource(song.path));
+
+    // ✅ Apply 3D effect if ON
+    if (is3DOn) {
+      await _player.setVolume(0.85);
+      await _player.setBalance(0.4);
+    } else {
+      await _player.setVolume(1.0);
+      await _player.setBalance(0.0);
+    }
   }
 
   void _togglePlay() {
@@ -899,6 +928,33 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         ),
                       ],
                     ),
+                    const Spacer(),
+                    // ✅ 3D Audio Quick Toggle in Header
+                    GestureDetector(
+                      onTap: _toggle3D,
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: is3DOn
+                              ? AppTheme.accent.withOpacity(0.2)
+                              : Colors.white.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: is3DOn
+                                ? AppTheme.accent
+                                : Colors.white.withOpacity(0.1),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Icon(
+                          is3DOn
+                              ? Icons.surround_sound
+                              : Icons.surround_sound_outlined,
+                          color: is3DOn ? AppTheme.accent : Colors.white70,
+                          size: 22,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1306,6 +1362,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
+                  // ✅ HEADER WITH 3D BUTTON
                   Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 15),
@@ -1324,20 +1381,72 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                               fontSize: 16,
                               fontWeight: FontWeight.bold),
                         ),
-                        IconButton(
-                          icon: Icon(
-                            _favorites.contains(_currentSong!.path)
-                                ? Icons.favorite
-                                : Icons.favorite_border,
-                            color: _favorites.contains(_currentSong!.path)
-                                ? Colors.pinkAccent
-                                : Colors.white,
-                          ),
-                          onPressed: () {
-                            _toggleFavorite(_currentSong!);
-                            setModalState(() {});
-                            setState(() {});
-                          },
+                        Row(
+                          children: [
+                            // ✅ 3D AUDIO BUTTON
+                            GestureDetector(
+                              onTap: () {
+                                _toggle3D();
+                                setModalState(() {});
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: is3DOn
+                                      ? AppTheme.accent.withOpacity(0.2)
+                                      : Colors.white.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: is3DOn
+                                        ? AppTheme.accent
+                                        : Colors.white.withOpacity(0.2),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      is3DOn
+                                          ? Icons.surround_sound
+                                          : Icons.surround_sound_outlined,
+                                      color: is3DOn
+                                          ? AppTheme.accent
+                                          : Colors.white70,
+                                      size: 18,
+                                    ),
+                                    if (is3DOn) ...[
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '3D',
+                                        style: TextStyle(
+                                          color: AppTheme.accent,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            // Favorite Button
+                            IconButton(
+                              icon: Icon(
+                                _favorites.contains(_currentSong!.path)
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: _favorites.contains(_currentSong!.path)
+                                    ? Colors.pinkAccent
+                                    : Colors.white,
+                              ),
+                              onPressed: () {
+                                _toggleFavorite(_currentSong!);
+                                setModalState(() {});
+                                setState(() {});
+                              },
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -1381,9 +1490,44 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Local Audio',
-                          style: TextStyle(color: Colors.grey, fontSize: 14),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              'Local Audio',
+                              style: TextStyle(
+                                  color: Colors.grey, fontSize: 14),
+                            ),
+                            // ✅ 3D Badge
+                            if (is3DOn) ...[
+                              const SizedBox(width: 10),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.accent.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                      color: AppTheme.accent, width: 1),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.surround_sound,
+                                        color: AppTheme.accent, size: 12),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      '3D',
+                                      style: TextStyle(
+                                        color: AppTheme.accent,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ],
                     ),
@@ -1650,6 +1794,42 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       },
                     ),
                     Divider(color: Colors.grey.shade800, height: 1),
+                    // ✅ 3D AUDIO TOGGLE
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: (is3DOn ? AppTheme.accent : Colors.grey)
+                              .withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          is3DOn
+                              ? Icons.surround_sound
+                              : Icons.surround_sound_outlined,
+                          color: is3DOn ? AppTheme.accent : Colors.grey,
+                          size: 22,
+                        ),
+                      ),
+                      title: const Text(
+                        '3D Audio',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15),
+                      ),
+                      subtitle: Text(
+                        is3DOn ? 'ON - Surround Sound' : 'OFF - Normal Audio',
+                        style:
+                            const TextStyle(color: Colors.grey, fontSize: 11),
+                      ),
+                      trailing: Switch(
+                        value: is3DOn,
+                        onChanged: (value) => _toggle3D(),
+                        activeColor: AppTheme.accent,
+                      ),
+                    ),
+                    Divider(color: Colors.grey.shade800, height: 1),
                     // THEME SELECTOR
                     Padding(
                       padding: const EdgeInsets.all(15),
@@ -1847,15 +2027,48 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        getSongName(_currentSong!.path),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              getSongName(_currentSong!.path),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                          // ✅ 3D Badge in Mini Player
+                          if (is3DOn) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.25),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(Icons.surround_sound,
+                                      color: Colors.white, size: 10),
+                                  SizedBox(width: 3),
+                                  Text(
+                                    '3D',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -2054,6 +2267,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       if (isFav) ...[
                         const Icon(Icons.favorite,
                             color: Colors.pinkAccent, size: 11),
+                        const SizedBox(width: 4),
+                      ],
+                      if (isSelected && is3DOn) ...[
+                        Icon(Icons.surround_sound,
+                            color: AppTheme.accent, size: 11),
                         const SizedBox(width: 4),
                       ],
                       Text(
