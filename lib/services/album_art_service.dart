@@ -1,48 +1,66 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:audiotags/audiotags.dart';
+import 'package:path_provider/path_provider.dart';
 
 class AlbumArtService {
-  static final Map<String, Color> _colorCache = {};
+  static final Map<String, String?> _cache = {};
+  static String? _cacheDir;
 
-  static Color getColorFromName(String name) {
-    if (_colorCache.containsKey(name)) {
-      return _colorCache[name]!;
+  // ✅ Initialize cache directory
+  static Future<void> init() async {
+    final dir = await getApplicationDocumentsDirectory();
+    final albumArtDir = Directory('${dir.path}/album_art');
+    if (!await albumArtDir.exists()) {
+      await albumArtDir.create(recursive: true);
     }
-
-    int hash = name.hashCode.abs();
-    int hue = hash % 360;
-    Color color = HSLColor.fromAHSL(1.0, hue.toDouble(), 0.7, 0.5).toColor();
-    _colorCache[name] = color;
-    return color;
+    _cacheDir = albumArtDir.path;
   }
 
-  static Widget buildAlbumArt({
-    required String filePath,
-    required String songName,
-    double size = 50,
-    BorderRadius? borderRadius,
-  }) {
-    final color = getColorFromName(songName);
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [color, color.withOpacity(0.6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: borderRadius ?? BorderRadius.circular(10),
-      ),
-      child: Center(
-        child: Text(
-          songName.isNotEmpty ? songName[0].toUpperCase() : '🎵',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: size * 0.4,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
+  // ✅ Get album art path (cached)
+  static Future<String?> getAlbumArt(String audioFilePath) async {
+    // Cache check
+    if (_cache.containsKey(audioFilePath)) {
+      final cached = _cache[audioFilePath];
+      if (cached == null) return null;
+      if (File(cached).existsSync()) return cached;
+    }
+
+    try {
+      // ✅ Read tags
+      final tag = await AudioTags.read(audioFilePath);
+      if (tag == null || tag.pictures.isEmpty) {
+        _cache[audioFilePath] = null;
+        return null;
+      }
+
+      // ✅ Save first picture
+      final picture = tag.pictures.first;
+      final bytes = picture.bytes;
+      if (bytes == null || bytes.isEmpty) {
+        _cache[audioFilePath] = null;
+        return null;
+      }
+
+      // ✅ Save to cache folder
+      final fileName = '${audioFilePath.hashCode}.jpg';
+      final filePath = '$_cacheDir/$fileName';
+      final file = File(filePath);
+
+      if (!await file.exists()) {
+        await file.writeAsBytes(bytes);
+      }
+
+      _cache[audioFilePath] = filePath;
+      return filePath;
+    } catch (e) {
+      print('⚠️ Album art error: $e');
+      _cache[audioFilePath] = null;
+      return null;
+    }
+  }
+
+  // ✅ Clear cache
+  static void clearCache() {
+    _cache.clear();
   }
 }
