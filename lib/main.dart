@@ -58,7 +58,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _player.onDurationChanged.listen((d) => setState(() => _duration = d));
     _player.onPositionChanged.listen((p) => setState(() => _position = p));
     _player.onPlayerStateChanged.listen((state) {
-      setState(() => isPlaying == state == PlayerState.playing);
+      setState(() => isPlaying = state == PlayerState.playing);
     });
     _player.onPlayerComplete.listen((_) => _playNext());
     _checkPermission();
