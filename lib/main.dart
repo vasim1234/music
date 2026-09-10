@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 
 void main() {
   runApp(const MyApp());
@@ -38,7 +37,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   bool isPlaying = false;
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
-  bool _isLoading = false;
+  bool _hasPermission = false;
 
   @override
   void initState() {
@@ -48,157 +47,148 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _player.onPlayerStateChanged.listen((state) {
       setState(() => isPlaying = state == PlayerState.playing);
     });
-    _checkPermissionAndLoad();
+    _checkPermission();
+    _loadSavedSongs();
   }
 
   // ✅ PERMISSION CHECK
-  Future<void> _checkPermissionAndLoad() async {
+  Future<void> _checkPermission() async {
     if (Platform.isAndroid) {
-      final androidInfo = await DeviceInfoPlugin().androidInfo;
-      final sdkInt = androidInfo.version.sdkInt;
-
-      if (sdkInt >= 30) {
-        final status = await Permission.manageExternalStorage.status;
-        if (status.isDenied || status.isPermanentlyDenied) {
-          _showPermissionDialog();
-          return;
-        }
-        if (status.isGranted) {
-          _loadAllSongs();
-        }
-      } else {
-        final status = await Permission.storage.status;
-        if (status.isDenied) await Permission.storage.request();
-        if (status.isGranted) _loadAllSongs();
+      var status = await Permission.storage.status;
+      if (!status.isGranted) {
+        await Permission.storage.request();
       }
+      var manageStatus = await Permission.manageExternalStorage.status;
+      if (!manageStatus.isGranted) {
+        await Permission.manageExternalStorage.request();
+      }
+      setState(() {
+        _hasPermission = true;
+      });
     }
   }
 
-  void _showPermissionDialog() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('⚠️ Permission Needed'),
-        content: const Text(
-          'Music app needs "All files access" to scan songs.\n\n'
-          '👉 Tap "Open Settings"\n👉 Go to "Permissions"\n👉 Enable "Files and Media"\n👉 Restart app'
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () { Navigator.pop(context); openAppSettings(); }, child: const Text('Open Settings')),
-        ],
-      ),
-    );
-  }
-
-  // ✅ 3-IN-1 SONG SCANNER (Teeno Methods)
-  Future<void> _loadAllSongs() async {
-    setState(() => _isLoading = true);
-    List<File> allSongs = [];
-
-    // 🔴 METHOD 1: Default Music Folder
-    try {
-      final defaultMusic = Directory('/storage/emulated/0/Music');
-      if (defaultMusic.existsSync()) {
-        final files = defaultMusic.listSync(recursive: true).whereType<File>().where((f) => 
-          f.path.toLowerCase().endsWith('.mp3') || 
-          f.path.toLowerCase().endsWith('.m4a') ||
-          f.path.toLowerCase().endsWith('.wav')
-        ).toList();
-        allSongs.addAll(files);
-        print('✅ Method 1 (Music): ${files.length} songs found');
-      }
-    } catch (e) { print('Method 1 Error: $e'); }
-
-    // 🔴 METHOD 2: Download Folder
-    try {
-      final downloadDir = Directory('/storage/emulated/0/Download');
-      if (downloadDir.existsSync()) {
-        final files = downloadDir.listSync(recursive: true).whereType<File>().where((f) => 
-          f.path.toLowerCase().endsWith('.mp3') || 
-          f.path.toLowerCase().endsWith('.m4a')
-        ).toList();
-        allSongs.addAll(files);
-        print('✅ Method 2 (Download): ${files.length} songs found');
-      }
-    } catch (e) { print('Method 2 Error: $e'); }
-
-    // 🔴 METHOD 3: SnapTube (Tumhari specific folder)
-    try {
-      final snapTubeDir = Directory('/storage/emulated/0/snaptube/download/SnapTube Audio');
-      if (snapTubeDir.existsSync()) {
-        final files = snapTubeDir.listSync(recursive: true).whereType<File>().where((f) => 
-          f.path.toLowerCase().endsWith('.mp3') || 
-          f.path.toLowerCase().endsWith('.m4a')
-        ).toList();
-        allSongs.addAll(files);
-        print('✅ Method 3 (SnapTube): ${files.length} songs found');
-      } else {
-        // Agar SnapTube folder na mile toh "SnapTube" search karo
-        final snapDir = Directory('/storage/emulated/0/snaptube');
-        if (snapDir.existsSync()) {
-          final files = snapDir.listSync(recursive: true).whereType<File>().where((f) => 
-            f.path.toLowerCase().contains('snaptube') && 
-            (f.path.toLowerCase().endsWith('.mp3') || f.path.toLowerCase().endsWith('.m4a'))
-          ).toList();
-          allSongs.addAll(files);
-          print('✅ Method 3 (SnapTube search): ${files.length} songs found');
-        }
-      }
-    } catch (e) { print('Method 3 Error: $e'); }
-
-    // 🔴 METHOD 4: File Picker se manual select
-    // (Ye already hai, par hum ise keep karte hain)
-
-    // Remove duplicates
-    final uniqueSongs = allSongs.toSet().toList();
-    
-    setState(() {
-      _songs = uniqueSongs;
-      _isLoading = false;
-    });
-
-    if (_songs.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('✅ ${_songs.length} songs found!'), backgroundColor: Colors.green),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('⚠️ No songs found. Try selecting folder manually!'), backgroundColor: Colors.orange),
-      );
+  // ✅ LOAD SAVED SONGS
+  Future<void> _loadSavedSongs() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String>? savedPaths = prefs.getStringList('saved_songs');
+    if (savedPaths != null) {
+      List<File> songs = savedPaths
+          .map((path) => File(path))
+          .where((f) => f.existsSync())
+          .toList();
+      setState(() {
+        _songs = songs;
+      });
     }
   }
 
-  // ✅ MANUAL FOLDER SELECT
-  Future<void> _pickFolder() async {
+  // ✅ SAVE SONGS
+  Future<void> _saveSongs() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> paths = _songs.map((f) => f.path).toList();
+    await prefs.setStringList('saved_songs', paths);
+  }
+
+  // ✅ PICK SONGS - MAIN FEATURE
+  Future<void> _pickSongs() async {
     try {
-      String? path = await FilePicker.platform.getDirectoryPath();
-      if (path != null) {
-        setState(() => _isLoading = true);
-        Directory dir = Directory(path);
-        final files = dir.listSync(recursive: true).whereType<File>().where((f) => 
-          f.path.toLowerCase().endsWith('.mp3') || 
-          f.path.toLowerCase().endsWith('.m4a') || 
-          f.path.toLowerCase().endsWith('.wav')
-        ).toList();
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        type: FileType.audio,
+        dialogTitle: 'Select Songs',
+      );
+
+      if (result != null) {
+        List<File> pickedSongs = result.paths
+            .where((path) => path != null)
+            .map((path) => File(path!))
+            .toList();
+
         setState(() {
-          _songs = files;
-          _isLoading = false;
+          for (var song in pickedSongs) {
+            if (!_songs.any((f) => f.path == song.path)) {
+              _songs.add(song);
+            }
+          }
         });
+
+        await _saveSongs();
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('✅ ${files.length} songs found!'), backgroundColor: Colors.green),
+          SnackBar(
+            content: Text('✅ ${pickedSongs.length} songs added!'),
+            backgroundColor: Colors.green,
+          ),
         );
       }
     } catch (e) {
-      print('⚠️ Folder pick error: $e');
-      setState(() => _isLoading = false);
+      print('⚠️ Error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('⚠️ Error scanning folder. Try granting permission.')),
+        SnackBar(content: Text('⚠️ Error: $e')),
       );
     }
   }
 
+  // ✅ SCAN DEFAULT MUSIC FOLDER
+  Future<void> _scanDefaultFolder() async {
+    try {
+      List<File> allSongs = [];
+      
+      // Common music folders
+      List<String> folders = [
+        '/storage/emulated/0/Music',
+        '/storage/emulated/0/Download',
+        '/storage/emulated/0/snaptube/download/SnapTube Audio',
+        '/storage/emulated/0/snaptube',
+      ];
+
+      for (var folderPath in folders) {
+        Directory dir = Directory(folderPath);
+        if (dir.existsSync()) {
+          try {
+            List<FileSystemEntity> entities = dir.listSync(recursive: true);
+            for (var entity in entities) {
+              if (entity is File) {
+                String path = entity.path.toLowerCase();
+                if (path.endsWith('.mp3') || path.endsWith('.m4a') || 
+                    path.endsWith('.wav') || path.endsWith('.aac') ||
+                    path.endsWith('.ogg') || path.endsWith('.flac')) {
+                  allSongs.add(entity);
+                }
+              }
+            }
+          } catch (e) {
+            print('⚠️ Error scanning $folderPath: $e');
+          }
+        }
+      }
+
+      setState(() {
+        for (var song in allSongs) {
+          if (!_songs.any((f) => f.path == song.path)) {
+            _songs.add(song);
+          }
+        }
+      });
+
+      await _saveSongs();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ ${allSongs.length} songs found!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      print('⚠️ Error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('⚠️ Error: $e')),
+      );
+    }
+  }
+
+  // ✅ PLAY SONG
   Future<void> _playSong(File song) async {
     _currentSong = song;
     await _player.play(DeviceFileSource(song.path));
@@ -207,6 +197,14 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
   void _togglePlay() {
     isPlaying ? _player.pause() : _player.resume();
+  }
+
+  // ✅ DELETE SONG
+  void _deleteSong(int index) {
+    setState(() {
+      _songs.removeAt(index);
+    });
+    _saveSongs();
   }
 
   String formatTime(Duration d) {
@@ -228,24 +226,33 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadAllSongs,
-          ),
-        ],
       ),
       body: Column(
         children: [
+          // ✅ BUTTONS
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: _pickFolder,
+                    onPressed: _pickSongs,
+                    icon: const Icon(Icons.library_music),
+                    label: const Text('🎵 Pick Songs'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _scanDefaultFolder,
                     icon: const Icon(Icons.folder_open),
-                    label: const Text('📁 Select Folder'),
+                    label: const Text('📁 Scan'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.deepPurple,
                       foregroundColor: Colors.white,
@@ -254,15 +261,21 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                if (_isLoading) const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2)),
               ],
             ),
           ),
-          Text('${_songs.length} songs found', style: const TextStyle(fontSize: 14, color: Colors.grey)),
+          
+          // ✅ SONG COUNT
+          Text(
+            '${_songs.length} songs found',
+            style: const TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+          
           const Divider(),
+          
+          // ✅ SONGS LIST
           Expanded(
-            child: _songs.isEmpty && !_isLoading
+            child: _songs.isEmpty
                 ? const Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -270,9 +283,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         Icon(Icons.music_off, size: 80, color: Colors.grey),
                         SizedBox(height: 16),
                         Text('No songs found!', style: TextStyle(fontSize: 18)),
-                        Text('🔹 Grant "All files access" permission', style: TextStyle(color: Colors.grey)),
-                        Text('🔹 Tap refresh button', style: TextStyle(color: Colors.grey)),
-                        Text('🔹 Or select folder manually', style: TextStyle(color: Colors.grey)),
+                        SizedBox(height: 8),
+                        Text('Tap "Pick Songs" to add', style: TextStyle(color: Colors.grey)),
                       ],
                     ),
                   )
@@ -295,22 +307,36 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                             color: isSelected ? Colors.deepPurple : Colors.black87,
                           ),
                         ),
-                        trailing: isSelected
-                            ? IconButton(
+                        subtitle: const Text('Local Audio', style: TextStyle(fontSize: 12)),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isSelected)
+                              IconButton(
                                 icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow, color: Colors.deepPurple),
                                 onPressed: _togglePlay,
-                              )
-                            : null,
+                              ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                              onPressed: () => _deleteSong(index),
+                            ),
+                          ],
+                        ),
                         onTap: () => _playSong(song),
                       );
                     },
                   ),
           ),
+          
+          // ✅ MINI PLAYER
           if (_currentSong != null)
             Container(
               decoration: BoxDecoration(
                 color: Colors.deepPurple.shade50,
-                borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
                 boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
               ),
               padding: const EdgeInsets.all(16),
@@ -328,7 +354,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(fontWeight: FontWeight.bold),
                             ),
-                            const Text('Local Audio', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            const Text('Now Playing', style: TextStyle(fontSize: 12, color: Colors.grey)),
                           ],
                         ),
                       ),
@@ -338,14 +364,21 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       ),
                       IconButton(
                         icon: const Icon(Icons.stop_circle_outlined, color: Colors.deepPurple, size: 40),
-                        onPressed: () { _player.stop(); setState(() {}); },
+                        onPressed: () {
+                          _player.stop();
+                          setState(() {
+                            _currentSong = null;
+                          });
+                        },
                       ),
                     ],
                   ),
                   Slider(
                     value: _position.inSeconds.toDouble(),
                     max: _duration.inSeconds.toDouble() > 0 ? _duration.inSeconds.toDouble() : 1,
-                    onChanged: (value) async => await _player.seek(Duration(seconds: value.toInt())),
+                    onChanged: (value) async {
+                      await _player.seek(Duration(seconds: value.toInt()));
+                    },
                     activeColor: Colors.deepPurple,
                     inactiveColor: Colors.deepPurple.shade100,
                   ),
