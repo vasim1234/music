@@ -17,19 +17,16 @@ class AlbumArtService {
     _cacheDir = albumArtDir.path;
   }
 
-  // ✅ CACHED FUTURE - Same future har baar return karega
   static Future<String?> getAlbumArt(String audioFilePath) {
     if (_futureCache.containsKey(audioFilePath)) {
       return _futureCache[audioFilePath]!;
     }
-
     final future = _loadAlbumArt(audioFilePath);
     _futureCache[audioFilePath] = future;
     return future;
   }
 
   static Future<String?> _loadAlbumArt(String audioFilePath) async {
-    // Pehle memory cache check karo
     if (_cache.containsKey(audioFilePath)) {
       final cached = _cache[audioFilePath];
       if (cached == null) return null;
@@ -73,12 +70,13 @@ class AlbumArtService {
   }
 }
 
-// ✅ SEPARATE WIDGET - StatefulWidget jo sirf ek baar load karega
+// ✅ SEPARATE STATEFULWIDGET - No Flickering
 class AlbumArtWidget extends StatefulWidget {
   final String audioPath;
   final double size;
   final bool isPlaying;
   final double borderRadius;
+  final bool isCircle;
 
   const AlbumArtWidget({
     super.key,
@@ -86,6 +84,7 @@ class AlbumArtWidget extends StatefulWidget {
     required this.size,
     this.isPlaying = false,
     this.borderRadius = 0.25,
+    this.isCircle = false,
   });
 
   @override
@@ -105,7 +104,7 @@ class _AlbumArtWidgetState extends State<AlbumArtWidget> {
   @override
   void didUpdateWidget(AlbumArtWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // ✅ Sirf tab reload karo jab path badle
+    // ✅ Sirf tab reload jab path change ho
     if (oldWidget.audioPath != widget.audioPath) {
       _loadImage();
     }
@@ -115,9 +114,7 @@ class _AlbumArtWidgetState extends State<AlbumArtWidget> {
     setState(() {
       _isLoading = true;
     });
-
     final path = await AlbumArtService.getAlbumArt(widget.audioPath);
-
     if (mounted) {
       setState(() {
         _imagePath = path;
@@ -128,38 +125,20 @@ class _AlbumArtWidgetState extends State<AlbumArtWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final radius = widget.size * widget.borderRadius;
+    final radius = widget.isCircle
+        ? widget.size / 2
+        : widget.size * widget.borderRadius;
 
-    // ✅ Placeholder - agar loading ya image nahi hai
     if (_isLoading || _imagePath == null) {
-      return Container(
-        height: widget.size,
-        width: widget.size,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              const Color(0xFF8B5CF6).withOpacity(0.6),
-              const Color(0xFFD946EF).withOpacity(0.6),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(radius),
-        ),
-        child: Icon(
-          widget.isPlaying ? Icons.graphic_eq : Icons.music_note,
-          color: Colors.white,
-          size: widget.size * 0.5,
-        ),
-      );
+      return _buildPlaceholder(radius);
     }
 
-    // ✅ Album Art - Cached image
     return Container(
       height: widget.size,
       width: widget.size,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
+        shape: widget.isCircle ? BoxShape.circle : BoxShape.rectangle,
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF8B5CF6).withOpacity(0.3),
@@ -173,18 +152,33 @@ class _AlbumArtWidgetState extends State<AlbumArtWidget> {
         child: Image.file(
           File(_imagePath!),
           fit: BoxFit.cover,
-          // ✅ Error par placeholder
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              color: Colors.grey.shade800,
-              child: Icon(
-                Icons.music_note,
-                color: Colors.white,
-                size: widget.size * 0.5,
-              ),
-            );
-          },
+          errorBuilder: (context, error, stackTrace) =>
+              _buildPlaceholder(radius),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder(double radius) {
+    return Container(
+      height: widget.size,
+      width: widget.size,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF8B5CF6).withOpacity(0.6),
+            const Color(0xFFD946EF).withOpacity(0.6),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(radius),
+        shape: widget.isCircle ? BoxShape.circle : BoxShape.rectangle,
+      ),
+      child: Icon(
+        widget.isPlaying ? Icons.graphic_eq : Icons.music_note,
+        color: Colors.white,
+        size: widget.size * 0.5,
       ),
     );
   }
