@@ -33,19 +33,22 @@ jobs:
           rm -rf android
           flutter create --platforms=android .
       
-      - name: Fix minSdkVersion to 21
+      - name: Fix minSdkVersion and Permissions
         run: |
+          # Fix minSdkVersion
           sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle
           sed -i 's/minSdkVersion 19/minSdkVersion 21/g' android/app/build.gradle
-      
-      - name: Add Storage Permissions
-        run: |
+          
+          # Add permissions
           sed -i '/<manifest /a\
           \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\
           \    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>\
           \    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>\
           \    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>\
           \    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>' android/app/src/main/AndroidManifest.xml
+          
+          # Add requestLegacyExternalStorage
+          sed -i 's/<application/<application android:requestLegacyExternalStorage="true"/g' android/app/src/main/AndroidManifest.xml
       
       - name: Get Dependencies
         run: flutter pub get
