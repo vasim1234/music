@@ -726,7 +726,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
               child: Row(
                 children: [
                   // ✅ Album Art in Options Sheet
-                  _buildAlbumArt(songPath, 55, false),
+                  AlbumArtWidget(
+                    audioPath: songPath,
+                    size: 55,
+                    isPlaying: false,
+                  ),
                   const SizedBox(width: 15),
                   Expanded(
                     child: Text(
@@ -839,94 +843,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     name = name.replaceAll(
         RegExp(r'\.(mp3|m4a|wav|aac|ogg|flac)$', caseSensitive: false), '');
     return name.replaceAll('_', ' ').trim();
-  }
-
-  // ✅ ALBUM ART WIDGET
-  Widget _buildAlbumArt(String path, double size, bool isPlaying) {
-    return FutureBuilder<String?>(
-      future: AlbumArtService.getAlbumArt(path),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return _buildPlaceholder(size, isPlaying);
-        }
-
-        if (snapshot.hasData && snapshot.data != null) {
-          return Container(
-            height: size,
-            width: size,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(size * 0.25),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.primaryGradient[0].withOpacity(0.3),
-                  blurRadius: 8,
-                  spreadRadius: 1,
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(size * 0.25),
-              child: Image.file(
-                File(snapshot.data!),
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    _buildPlaceholder(size, isPlaying),
-              ),
-            ),
-          );
-        }
-
-        return _buildPlaceholder(size, isPlaying);
-      },
-    );
-  }
-
-  // ✅ PLACEHOLDER
-  Widget _buildPlaceholder(double size, bool isPlaying) {
-    return Container(
-      height: size,
-      width: size,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: AppTheme.primaryGradient
-              .map((c) => c.withOpacity(0.6))
-              .toList(),
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(size * 0.25),
-      ),
-      child: Icon(
-        isPlaying ? Icons.graphic_eq : Icons.music_note,
-        color: Colors.white,
-        size: size * 0.5,
-      ),
-    );
-  }
-
-  // ✅ FULL SCREEN PLACEHOLDER
-  Widget _buildFullScreenPlaceholder() {
-    return Container(
-      margin: const EdgeInsets.all(30),
-      height: 280,
-      width: 280,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          colors: AppTheme.primaryGradient,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryGradient[0].withOpacity(0.5),
-            blurRadius: 50,
-            spreadRadius: 10,
-          ),
-        ],
-      ),
-      child: const Icon(Icons.music_note, size: 130, color: Colors.white),
-    );
   }
 
   @override
@@ -1529,38 +1445,15 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       ],
                     ),
                   ),
-                  // ✅ FULL SCREEN ALBUM ART
-                  FutureBuilder<String?>(
-                    future: AlbumArtService.getAlbumArt(_currentSong!.path),
-                    builder: (context, snapshot) {
-                      if (snapshot.hasData && snapshot.data != null) {
-                        return Container(
-                          margin: const EdgeInsets.all(30),
-                          height: 280,
-                          width: 280,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppTheme.primaryGradient[0]
-                                    .withOpacity(0.5),
-                                blurRadius: 50,
-                                spreadRadius: 10,
-                              ),
-                            ],
-                          ),
-                          child: ClipOval(
-                            child: Image.file(
-                              File(snapshot.data!),
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  _buildFullScreenPlaceholder(),
-                            ),
-                          ),
-                        );
-                      }
-                      return _buildFullScreenPlaceholder();
-                    },
+                  // ✅ FULL SCREEN ALBUM ART - No Flickering!
+                  Padding(
+                    padding: const EdgeInsets.all(30),
+                    child: AlbumArtWidget(
+                      audioPath: _currentSong!.path,
+                      size: 280,
+                      isPlaying: isPlaying,
+                      isCircle: true,
+                    ),
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 30),
@@ -2097,8 +1990,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           children: [
             Row(
               children: [
-                // ✅ Mini Player Album Art
-                _buildAlbumArt(_currentSong!.path, 40, isPlaying),
+                // ✅ Mini Player Album Art - No Flickering!
+                AlbumArtWidget(
+                  audioPath: _currentSong!.path,
+                  size: 40,
+                  isPlaying: isPlaying,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -2298,8 +2195,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         ),
         child: Row(
           children: [
-            // ✅ ALBUM ART
-            _buildAlbumArt(song.path, 45, isSelected && isPlaying),
+            // ✅ ALBUM ART - No Flickering!
+            AlbumArtWidget(
+              audioPath: song.path,
+              size: 45,
+              isPlaying: isSelected && isPlaying,
+            ),
             const SizedBox(width: 15),
             Expanded(
               child: Column(
