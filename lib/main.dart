@@ -4,6 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
+import 'album_art_service.dart';
 
 // ✅ COLORS
 class AppColors {
@@ -76,7 +77,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   bool isShuffle = false;
   bool isRepeat = false;
   bool _isLuxeTheme = true;
-  bool is3DOn = false;  // ✅ 3D Audio Toggle
+  bool is3DOn = false;
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
   int _currentIndex = -1;
@@ -86,6 +87,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   @override
   void initState() {
     super.initState();
+    AlbumArtService.init();
     _player.onDurationChanged.listen((d) => setState(() => _duration = d));
     _player.onPositionChanged.listen((p) => setState(() => _position = p));
     _player.onPlayerStateChanged.listen((state) {
@@ -121,7 +123,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
-  // ✅ 3D AUDIO TOGGLE
   Future<void> _toggle3D() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -295,7 +296,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
     await _player.play(DeviceFileSource(song.path));
 
-    // ✅ Apply 3D effect if ON
     if (is3DOn) {
       await _player.setVolume(0.85);
       await _player.setBalance(0.4);
@@ -619,6 +619,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       builder: (context) {
         return _buildOptionsSheet(
           title: getSongName(song.path),
+          songPath: song.path,
           options: [
             _optionItem(
               icon: isFav ? Icons.favorite : Icons.favorite_border,
@@ -662,6 +663,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       builder: (context) {
         return _buildOptionsSheet(
           title: getSongName(song.path),
+          songPath: song.path,
           options: [
             _optionItem(
               icon: Icons.remove_circle_outline,
@@ -698,6 +700,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
   Widget _buildOptionsSheet({
     required String title,
+    required String songPath,
     required List<Widget> options,
   }) {
     return Container(
@@ -722,17 +725,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
               padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
-                  Container(
-                    height: 55,
-                    width: 55,
-                    decoration: BoxDecoration(
-                      gradient:
-                          LinearGradient(colors: AppTheme.primaryGradient),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: const Icon(Icons.music_note,
-                        color: Colors.white, size: 28),
-                  ),
+                  // ✅ Album Art in Options Sheet
+                  _buildAlbumArt(songPath, 55, false),
                   const SizedBox(width: 15),
                   Expanded(
                     child: Text(
@@ -847,6 +841,94 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     return name.replaceAll('_', ' ').trim();
   }
 
+  // ✅ ALBUM ART WIDGET
+  Widget _buildAlbumArt(String path, double size, bool isPlaying) {
+    return FutureBuilder<String?>(
+      future: AlbumArtService.getAlbumArt(path),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _buildPlaceholder(size, isPlaying);
+        }
+
+        if (snapshot.hasData && snapshot.data != null) {
+          return Container(
+            height: size,
+            width: size,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(size * 0.25),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primaryGradient[0].withOpacity(0.3),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(size * 0.25),
+              child: Image.file(
+                File(snapshot.data!),
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) =>
+                    _buildPlaceholder(size, isPlaying),
+              ),
+            ),
+          );
+        }
+
+        return _buildPlaceholder(size, isPlaying);
+      },
+    );
+  }
+
+  // ✅ PLACEHOLDER
+  Widget _buildPlaceholder(double size, bool isPlaying) {
+    return Container(
+      height: size,
+      width: size,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: AppTheme.primaryGradient
+              .map((c) => c.withOpacity(0.6))
+              .toList(),
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(size * 0.25),
+      ),
+      child: Icon(
+        isPlaying ? Icons.graphic_eq : Icons.music_note,
+        color: Colors.white,
+        size: size * 0.5,
+      ),
+    );
+  }
+
+  // ✅ FULL SCREEN PLACEHOLDER
+  Widget _buildFullScreenPlaceholder() {
+    return Container(
+      margin: const EdgeInsets.all(30),
+      height: 280,
+      width: 280,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: AppTheme.primaryGradient,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryGradient[0].withOpacity(0.5),
+            blurRadius: 50,
+            spreadRadius: 10,
+          ),
+        ],
+      ),
+      child: const Icon(Icons.music_note, size: 130, color: Colors.white),
+    );
+  }
+
   @override
   void dispose() {
     _player.dispose();
@@ -929,7 +1011,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       ],
                     ),
                     const Spacer(),
-                    // ✅ 3D Audio Quick Toggle in Header
                     GestureDetector(
                       onTap: _toggle3D,
                       child: Container(
@@ -1362,7 +1443,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  // ✅ HEADER WITH 3D BUTTON
                   Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 15),
@@ -1383,7 +1463,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         ),
                         Row(
                           children: [
-                            // ✅ 3D AUDIO BUTTON
                             GestureDetector(
                               onTap: () {
                                 _toggle3D();
@@ -1430,7 +1509,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                               ),
                             ),
                             const SizedBox(width: 10),
-                            // Favorite Button
                             IconButton(
                               icon: Icon(
                                 _favorites.contains(_currentSong!.path)
@@ -1451,28 +1529,38 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       ],
                     ),
                   ),
-                  Container(
-                    margin: const EdgeInsets.all(30),
-                    height: 280,
-                    width: 280,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: AppTheme.primaryGradient,
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color:
-                              AppTheme.primaryGradient[0].withOpacity(0.5),
-                          blurRadius: 50,
-                          spreadRadius: 10,
-                        ),
-                      ],
-                    ),
-                    child: const Icon(Icons.music_note,
-                        size: 130, color: Colors.white),
+                  // ✅ FULL SCREEN ALBUM ART
+                  FutureBuilder<String?>(
+                    future: AlbumArtService.getAlbumArt(_currentSong!.path),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData && snapshot.data != null) {
+                        return Container(
+                          margin: const EdgeInsets.all(30),
+                          height: 280,
+                          width: 280,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.primaryGradient[0]
+                                    .withOpacity(0.5),
+                                blurRadius: 50,
+                                spreadRadius: 10,
+                              ),
+                            ],
+                          ),
+                          child: ClipOval(
+                            child: Image.file(
+                              File(snapshot.data!),
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  _buildFullScreenPlaceholder(),
+                            ),
+                          ),
+                        );
+                      }
+                      return _buildFullScreenPlaceholder();
+                    },
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 30),
@@ -1498,7 +1586,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                               style: TextStyle(
                                   color: Colors.grey, fontSize: 14),
                             ),
-                            // ✅ 3D Badge
                             if (is3DOn) ...[
                               const SizedBox(width: 10),
                               Container(
@@ -1794,7 +1881,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       },
                     ),
                     Divider(color: Colors.grey.shade800, height: 1),
-                    // ✅ 3D AUDIO TOGGLE
                     ListTile(
                       leading: Container(
                         padding: const EdgeInsets.all(10),
@@ -1830,7 +1916,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       ),
                     ),
                     Divider(color: Colors.grey.shade800, height: 1),
-                    // THEME SELECTOR
                     Padding(
                       padding: const EdgeInsets.all(15),
                       child: Column(
@@ -2012,16 +2097,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           children: [
             Row(
               children: [
-                Container(
-                  height: 40,
-                  width: 40,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.music_note,
-                      color: Colors.white, size: 20),
-                ),
+                // ✅ Mini Player Album Art
+                _buildAlbumArt(_currentSong!.path, 40, isPlaying),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -2041,7 +2118,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                               ),
                             ),
                           ),
-                          // ✅ 3D Badge in Mini Player
                           if (is3DOn) ...[
                             const SizedBox(width: 6),
                             Container(
@@ -2222,29 +2298,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         ),
         child: Row(
           children: [
-            Container(
-              height: 45,
-              width: 45,
-              decoration: BoxDecoration(
-                gradient: isSelected
-                    ? const LinearGradient(
-                        colors: [Colors.white24, Colors.white10])
-                    : LinearGradient(
-                        colors: [
-                          Colors.grey.shade700,
-                          Colors.grey.shade800
-                        ],
-                      ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                isSelected && isPlaying
-                    ? Icons.graphic_eq
-                    : Icons.music_note,
-                color: Colors.white,
-                size: 22,
-              ),
-            ),
+            // ✅ ALBUM ART
+            _buildAlbumArt(song.path, 45, isSelected && isPlaying),
             const SizedBox(width: 15),
             Expanded(
               child: Column(
