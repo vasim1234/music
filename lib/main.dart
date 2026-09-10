@@ -39,6 +39,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   List<File> _songs = [];
   List<File> _filteredSongs = [];
   List<String> _favorites = [];
+  List<String> _recentSongs = [];
   List<Map<String, dynamic>> _playlists = [];
   File? _currentSong;
   bool isPlaying = false;
@@ -47,6 +48,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
   int _currentIndex = -1;
+  int _selectedTab = 0; // 0: All, 1: Favorites, 2: Recent
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -73,6 +75,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     final prefs = await SharedPreferences.getInstance();
     List<String>? savedPaths = prefs.getStringList('saved_songs');
     List<String>? favs = prefs.getStringList('favorites');
+    List<String>? recent = prefs.getStringList('recent_songs');
     List<String>? playlists = prefs.getStringList('playlists');
 
     if (savedPaths != null) {
@@ -87,6 +90,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
 
     if (favs != null) setState(() => _favorites = favs);
+    if (recent != null) setState(() => _recentSongs = recent);
 
     if (playlists != null) {
       setState(() {
@@ -112,6 +116,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   Future<void> _saveFavorites() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('favorites', _favorites);
+  }
+
+  Future<void> _saveRecent() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('recent_songs', _recentSongs);
   }
 
   Future<void> _savePlaylists() async {
@@ -142,7 +151,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
               _songs.add(song);
             }
           }
-          _filteredSongs = _songs;
+          _applyFilter();
         });
 
         await _saveSongs();
@@ -193,7 +202,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             _songs.add(song);
           }
         }
-        _filteredSongs = _songs;
+        _applyFilter();
       });
 
       await _saveSongs();
@@ -208,6 +217,14 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       _currentSong = song;
       _currentIndex = index;
     });
+
+    // ✅ Add to Recent
+    if (!_recentSongs.contains(song.path)) {
+      _recentSongs.insert(0, song.path);
+      if (_recentSongs.length > 20) _recentSongs.removeLast();
+      await _saveRecent();
+    }
+
     await _player.play(DeviceFileSource(song.path));
   }
 
@@ -230,17 +247,54 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _playSong(_filteredSongs[prevIndex], prevIndex);
   }
 
-  void _deleteSong(int index) {
+  // ✅ APPLY FILTER BASED ON SELECTED TAB
+  void _applyFilter() {
+    List<File> baseList = [];
+
+    switch (_selectedTab) {
+      case 0: // All Songs
+        baseList = _songs;
+        break;
+      case 1: // Favorites
+        baseList = _songs.where((f) => _favorites.contains(f.path)).toList();
+        break;
+      case 2: // Recent
+        baseList = _recentSongs
+            .map((path) => File(path))
+            .where((f) => f.existsSync())
+            .toList();
+        break;
+    }
+
+    // Search filter
+    String query = _searchController.text.toLowerCase();
+    if (query.isNotEmpty) {
+      baseList = baseList
+          .where((f) => getSongName(f.path).toLowerCase().contains(query))
+          .toList();
+    }
+
     setState(() {
-      if (_songs[index] == _currentSong) {
+      _filteredSongs = baseList;
+    });
+  }
+
+  void _deleteSong(int index) {
+    File songToDelete = _filteredSongs[index];
+    setState(() {
+      if (songToDelete == _currentSong) {
         _player.stop();
         _currentSong = null;
         _currentIndex = -1;
       }
-      _songs.removeAt(index);
-      _filteredSongs = _songs;
+      _songs.remove(songToDelete);
+      _recentSongs.remove(songToDelete.path);
+      _favorites.remove(songToDelete.path);
+      _applyFilter();
     });
     _saveSongs();
+    _saveFavorites();
+    _saveRecent();
     _showSnackBar('🗑️ Song deleted', Colors.red);
   }
 
@@ -253,6 +307,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         _favorites.add(song.path);
         _showSnackBar('❤️ Added to Favorites', Colors.pink);
       }
+      _applyFilter();
     });
     _saveFavorites();
   }
@@ -280,7 +335,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             child: SafeArea(
               child: Column(
                 children: [
-                  // Handle bar
                   Container(
                     width: 50,
                     height: 5,
@@ -290,8 +344,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-
-                  // Top bar
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                     child: Row(
@@ -323,8 +375,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       ],
                     ),
                   ),
-
-                  // Album Art
                   Container(
                     margin: const EdgeInsets.all(30),
                     height: 280,
@@ -346,8 +396,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                     ),
                     child: const Icon(Icons.music_note, size: 130, color: Colors.white),
                   ),
-
-                  // Song name
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 30),
                     child: Column(
@@ -371,10 +419,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       ],
                     ),
                   ),
-
                   const Spacer(),
-
-                  // Progress
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
@@ -419,8 +464,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       ],
                     ),
                   ),
-
-                  // Controls
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 30),
                     child: Row(
@@ -491,7 +534,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 30),
                 ],
               ),
@@ -502,7 +544,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
-  // ✅ SONG OPTIONS (Long Press)
+  // ✅ LONG PRESS OPTIONS
   void _showSongOptions(File song, int index) {
     bool isFav = _favorites.contains(song.path);
 
@@ -631,7 +673,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           title: const Text('🗑️ Delete Song?',
               style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           content: Text(
-            'Are you sure you want to delete "${getSongName(_songs[index].path)}"?',
+            'Are you sure you want to delete "${getSongName(_filteredSongs[index].path)}"?',
             style: const TextStyle(color: Colors.grey),
           ),
           actions: [
@@ -772,18 +814,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
-  void _filterSongs(String query) {
-    setState(() {
-      if (query.isEmpty) {
-        _filteredSongs = _songs;
-      } else {
-        _filteredSongs = _songs
-            .where((f) => f.path.toLowerCase().contains(query.toLowerCase()))
-            .toList();
-      }
-    });
-  }
-
   String formatTime(Duration d) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
     return '${twoDigits(d.inMinutes)}:${twoDigits(d.inSeconds.remainder(60))}';
@@ -805,9 +835,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // ✅ DRAWER
       drawer: _buildDrawer(),
-
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -819,12 +847,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // ✅ HEADER WITH MENU BUTTON
+              // HEADER
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
-                    // Menu Icon
                     Builder(
                       builder: (context) => GestureDetector(
                         onTap: () => Scaffold.of(context).openDrawer(),
@@ -891,7 +918,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   ),
                   child: TextField(
                     controller: _searchController,
-                    onChanged: _filterSongs,
+                    onChanged: (_) => _applyFilter(),
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
                       hintText: 'Search songs...',
@@ -906,15 +933,39 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
               const SizedBox(height: 15),
 
+              // ✅ HORIZONTAL TABS
+              SizedBox(
+                height: 45,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 15),
+                  children: [
+                    _buildTab(0, '🎵 All Songs', Icons.library_music),
+                    _buildTab(1, '❤️ Favorites', Icons.favorite),
+                    _buildTab(2, '🕒 Recent', Icons.history),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
               // SONG COUNT
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
                   children: [
-                    const Icon(Icons.queue_music, color: Colors.grey, size: 16),
+                    Icon(
+                      _selectedTab == 0
+                          ? Icons.queue_music
+                          : _selectedTab == 1
+                              ? Icons.favorite
+                              : Icons.history,
+                      color: Colors.grey,
+                      size: 16,
+                    ),
                     const SizedBox(width: 8),
                     Text(
-                      '${_filteredSongs.length} songs',
+                      '${_filteredSongs.length} ${_selectedTab == 1 ? "favorites" : _selectedTab == 2 ? "recent" : "songs"}',
                       style: const TextStyle(color: Colors.grey, fontSize: 13),
                     ),
                     const Spacer(),
@@ -949,12 +1000,68 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         ),
       ),
 
-      // ✅ SLIM MINI PLAYER (Bottom)
       bottomNavigationBar: _currentSong != null ? _buildSlimMiniPlayer() : null,
     );
   }
 
-  // ✅ SIDEBAR DRAWER
+  // ✅ TAB WIDGET
+  Widget _buildTab(int index, String label, IconData icon) {
+    bool isActive = _selectedTab == index;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _selectedTab = index;
+          _applyFilter();
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        margin: const EdgeInsets.symmetric(horizontal: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        decoration: BoxDecoration(
+          gradient: isActive
+              ? const LinearGradient(
+                  colors: [Color(0xFF6C63FF), Color(0xFFD946EF)],
+                )
+              : null,
+          color: isActive ? null : Colors.white.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(
+            color: isActive ? Colors.white.withOpacity(0.3) : Colors.white.withOpacity(0.1),
+          ),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF6C63FF).withOpacity(0.4),
+                    blurRadius: 15,
+                    spreadRadius: 2,
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: isActive ? Colors.white : Colors.grey,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: isActive ? Colors.white : Colors.grey,
+                fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildDrawer() {
     return Drawer(
       backgroundColor: const Color(0xFF0F0F1E),
@@ -969,7 +1076,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Header
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(25),
@@ -1011,10 +1117,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   ],
                 ),
               ),
-
               const Divider(color: Colors.grey, height: 1),
-
-              // Menu Items
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.symmetric(vertical: 10),
@@ -1046,7 +1149,23 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       subtitle: '${_favorites.length} songs',
                       onTap: () {
                         Navigator.pop(context);
-                        _showSnackBar('Favorites: ${_favorites.length} songs', Colors.pink);
+                        setState(() {
+                          _selectedTab = 1;
+                          _applyFilter();
+                        });
+                      },
+                    ),
+                    _drawerItem(
+                      icon: Icons.history,
+                      iconColor: Colors.orangeAccent,
+                      title: 'Recent',
+                      subtitle: '${_recentSongs.length} songs',
+                      onTap: () {
+                        Navigator.pop(context);
+                        setState(() {
+                          _selectedTab = 2;
+                          _applyFilter();
+                        });
                       },
                     ),
                     _drawerItem(
@@ -1062,8 +1181,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   ],
                 ),
               ),
-
-              // Footer
               const Padding(
                 padding: EdgeInsets.all(20),
                 child: Text(
@@ -1107,7 +1224,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
-  // ✅ SLIM MINI PLAYER
   Widget _buildSlimMiniPlayer() {
     return GestureDetector(
       onTap: _showFullScreenPlayer,
@@ -1134,7 +1250,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           children: [
             Row(
               children: [
-                // Album Art
                 Container(
                   height: 40,
                   width: 40,
@@ -1145,8 +1260,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   child: const Icon(Icons.music_note, color: Colors.white, size: 20),
                 ),
                 const SizedBox(width: 12),
-
-                // Song Info
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1169,8 +1282,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                     ],
                   ),
                 ),
-
-                // Controls
                 IconButton(
                   icon: const Icon(Icons.skip_previous, color: Colors.white, size: 24),
                   onPressed: _playPrevious,
@@ -1197,8 +1308,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 ),
               ],
             ),
-
-            // Progress Bar
             const SizedBox(height: 8),
             ClipRRect(
               borderRadius: BorderRadius.circular(2),
@@ -1218,6 +1327,17 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   }
 
   Widget _buildEmptyState() {
+    String message = 'No songs found!';
+    String subMessage = 'Open menu → Pick Songs or Scan';
+
+    if (_selectedTab == 1) {
+      message = 'No favorites yet!';
+      subMessage = 'Long press a song → Add to Favorites';
+    } else if (_selectedTab == 2) {
+      message = 'No recent songs!';
+      subMessage = 'Play a song to add it to recent';
+    }
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1228,16 +1348,25 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
               color: Colors.white.withOpacity(0.05),
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.music_off, size: 80, color: Colors.grey.shade600),
+            child: Icon(
+              _selectedTab == 1
+                  ? Icons.favorite_border
+                  : _selectedTab == 2
+                      ? Icons.history
+                      : Icons.music_off,
+              size: 80,
+              color: Colors.grey.shade600,
+            ),
           ),
           const SizedBox(height: 20),
-          const Text(
-            'No songs found!',
-            style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+          Text(
+            message,
+            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
-            'Open menu → Pick Songs or Scan',
+            subMessage,
+            textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
           ),
         ],
