@@ -1144,38 +1144,36 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                             setModalState(() {});
                           },
                         ),
-                        StreamBuilder<PlayerState>(
-                          stream: _player.onPlayerStateChanged,
-                          builder: (context, snapshot) {
-                            final actuallyPlaying =
-                                snapshot.data == PlayerState.playing;
-                            return Container(
-                              height: 75,
-                              width: 75,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: LinearGradient(
-                                    colors: AppTheme.primaryGradient),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppTheme.primaryGradient[0]
-                                        .withOpacity(0.5),
-                                    blurRadius: 20,
-                                    spreadRadius: 3,
-                                  ),
-                                ],
-                              ),
-                              child: IconButton(
-                                iconSize: 45,
-                                color: Colors.white,
-                                icon: Icon(actuallyPlaying
-                                    ? Icons.pause
-                                    : Icons.play_arrow),
-                                onPressed: _togglePlay,
-                              ),
-                            );
-                          },
-                        ),
+                        ValueListenableBuilder<bool>(
+  valueListenable: _isPlayingNotifier,
+  builder: (context, actuallyPlaying, child) {
+    return Container(
+      height: 75,
+      width: 75,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+            colors: AppTheme.primaryGradient),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryGradient[0]
+                .withOpacity(0.5),
+            blurRadius: 20,
+            spreadRadius: 3,
+          ),
+        ],
+      ),
+      child: IconButton(
+        iconSize: 45,
+        color: Colors.white,
+        icon: Icon(actuallyPlaying
+            ? Icons.pause
+            : Icons.play_arrow),
+        onPressed: _togglePlay,
+      ),
+    );
+  },
+),
                         IconButton(
                           icon: const Icon(Icons.skip_next,
                               color: Colors.white, size: 45),
