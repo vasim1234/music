@@ -66,6 +66,7 @@ class MusicPlayerScreen extends StatefulWidget {
 
 class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   final AudioPlayer _player = AudioPlayer();
+  final ValueNotifier<bool> _isPlayingNotifier = ValueNotifier<bool>(false);
   List<File> _songs = [];
   List<File> _filteredSongs = [];
   List<String> _favorites = [];
@@ -88,12 +89,19 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   void initState() {
     super.initState();
     AlbumArtService.init();
+
+    // ✅ Player Streams
     _player.onDurationChanged.listen((d) => setState(() => _duration = d));
     _player.onPositionChanged.listen((p) => setState(() => _position = p));
     _player.onPlayerStateChanged.listen((state) {
-      setState(() => isPlaying = state == PlayerState.playing);
+      final playing = state == PlayerState.playing;
+      _isPlayingNotifier.value = playing; // ✅ Real-time notifier
+      if (mounted) {
+        setState(() => isPlaying = playing);
+      }
     });
     _player.onPlayerComplete.listen((_) => _playNext());
+
     _checkPermission();
     _loadSavedData();
     _loadTheme();
@@ -282,11 +290,20 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
   }
 
+  // ✅ PLAY SONG - Fixed with immediate state update
   Future<void> _playSong(File song, int index) async {
+    // Agar same song hai toh toggle karo
+    if (_currentSong == song) {
+      _togglePlay();
+      return;
+    }
+
     setState(() {
       _currentSong = song;
       _currentIndex = index;
+      isPlaying = true; // ✅ Turant true
     });
+    _isPlayingNotifier.value = true; // ✅ Notifier bhi update
 
     if (!_recentSongs.contains(song.path)) {
       _recentSongs.insert(0, song.path);
@@ -305,8 +322,14 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
   }
 
-  void _togglePlay() {
-    isPlaying ? _player.pause() : _player.resume();
+  // ✅ TOGGLE PLAY/PAUSE - Simple
+  Future<void> _togglePlay() async {
+    if (isPlaying) {
+      await _player.pause();
+    } else {
+      await _player.resume();
+    }
+    // Note: Player state change will update UI automatically via listener
   }
 
   void _playNext() {
@@ -362,6 +385,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         _player.stop();
         _currentSong = null;
         _currentIndex = -1;
+        isPlaying = false;
+        _isPlayingNotifier.value = false;
       }
       _songs.remove(song);
       _recentSongs.remove(song.path);
@@ -725,7 +750,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
               padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
-                  // ✅ Album Art in Options Sheet
                   AlbumArtWidget(
                     audioPath: songPath,
                     size: 55,
@@ -847,6 +871,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
   @override
   void dispose() {
+    _isPlayingNotifier.dispose();
     _player.dispose();
     _searchController.dispose();
     super.dispose();
@@ -1445,7 +1470,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       ],
                     ),
                   ),
-                  // ✅ FULL SCREEN ALBUM ART - No Flickering!
                   Padding(
                     padding: const EdgeInsets.all(30),
                     child: AlbumArtWidget(
@@ -1591,32 +1615,38 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                             setModalState(() {});
                           },
                         ),
-                        Container(
-                          height: 75,
-                          width: 75,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                                colors: AppTheme.primaryGradient),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppTheme.primaryGradient[0]
-                                    .withOpacity(0.5),
-                                blurRadius: 20,
-                                spreadRadius: 3,
+                        // ✅ StreamBuilder - Real-time play/pause
+                        StreamBuilder<PlayerState>(
+                          stream: _player.onPlayerStateChanged,
+                          builder: (context, snapshot) {
+                            final actuallyPlaying =
+                                snapshot.data == PlayerState.playing;
+                            return Container(
+                              height: 75,
+                              width: 75,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                    colors: AppTheme.primaryGradient),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.primaryGradient[0]
+                                        .withOpacity(0.5),
+                                    blurRadius: 20,
+                                    spreadRadius: 3,
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          child: IconButton(
-                            iconSize: 45,
-                            color: Colors.white,
-                            icon: Icon(
-                                isPlaying ? Icons.pause : Icons.play_arrow),
-                            onPressed: () {
-                              _togglePlay();
-                              setModalState(() {});
-                            },
-                          ),
+                              child: IconButton(
+                                iconSize: 45,
+                                color: Colors.white,
+                                icon: Icon(actuallyPlaying
+                                    ? Icons.pause
+                                    : Icons.play_arrow),
+                                onPressed: _togglePlay,
+                              ),
+                            );
+                          },
                         ),
                         IconButton(
                           icon: const Icon(Icons.skip_next,
@@ -1964,6 +1994,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
+  // ✅ MINI PLAYER - With StreamBuilder for real-time sync
   Widget _buildSlimMiniPlayer() {
     return GestureDetector(
       onTap: _showFullScreenPlayer,
@@ -1990,7 +2021,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           children: [
             Row(
               children: [
-                // ✅ Mini Player Album Art - No Flickering!
                 AlbumArtWidget(
                   audioPath: _currentSong!.path,
                   size: 40,
@@ -2060,17 +2090,25 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   constraints: const BoxConstraints(),
                 ),
                 const SizedBox(width: 8),
-                IconButton(
-                  icon: Icon(
-                    isPlaying
-                        ? Icons.pause_circle_filled
-                        : Icons.play_circle_filled,
-                    color: Colors.white,
-                    size: 38,
-                  ),
-                  onPressed: _togglePlay,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
+                // ✅ StreamBuilder - Real-time play/pause
+                StreamBuilder<PlayerState>(
+                  stream: _player.onPlayerStateChanged,
+                  builder: (context, snapshot) {
+                    final actuallyPlaying =
+                        snapshot.data == PlayerState.playing;
+                    return IconButton(
+                      icon: Icon(
+                        actuallyPlaying
+                            ? Icons.pause_circle_filled
+                            : Icons.play_circle_filled,
+                        color: Colors.white,
+                        size: 38,
+                      ),
+                      onPressed: _togglePlay,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    );
+                  },
                 ),
                 const SizedBox(width: 8),
                 IconButton(
@@ -2154,6 +2192,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
+  // ✅ SONG TILE - With StreamBuilder for real-time play/pause
   Widget _buildSongTile(File song, int index,
       {bool isFromPlaylist = false}) {
     bool isSelected = _currentSong == song;
@@ -2195,7 +2234,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         ),
         child: Row(
           children: [
-            // ✅ ALBUM ART - No Flickering!
             AlbumArtWidget(
               audioPath: song.path,
               size: 45,
@@ -2246,16 +2284,24 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 ],
               ),
             ),
+            // ✅ StreamBuilder - Real-time play/pause icon
             if (isSelected)
-              IconButton(
-                icon: Icon(
-                  isPlaying
-                      ? Icons.pause_circle_filled
-                      : Icons.play_circle_filled,
-                  color: Colors.white,
-                  size: 32,
-                ),
-                onPressed: _togglePlay,
+              StreamBuilder<PlayerState>(
+                stream: _player.onPlayerStateChanged,
+                builder: (context, snapshot) {
+                  final actuallyPlaying =
+                      snapshot.data == PlayerState.playing;
+                  return IconButton(
+                    icon: Icon(
+                      actuallyPlaying
+                          ? Icons.pause_circle_filled
+                          : Icons.play_circle_filled,
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                    onPressed: _togglePlay,
+                  );
+                },
               ),
           ],
         ),
