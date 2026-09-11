@@ -428,20 +428,30 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _saveFavorites();
   }
 
-  void _showAddToPlaylist(File song) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
+  void _showFullScreenPlayer() {
+  if (_currentSong == null) return;
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setModalState) {
         return Container(
+          height: MediaQuery.of(context).size.height * 0.95,
           decoration: BoxDecoration(
-            color: AppTheme.card,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+            gradient: LinearGradient(
+              colors: [AppTheme.bg, AppTheme.card],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(30)),
           ),
           child: SafeArea(
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               children: [
+                // Handle Bar
                 Container(
                   width: 50,
                   height: 5,
@@ -451,129 +461,344 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
+
+                // Top Bar
                 Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 15),
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                              colors: AppTheme.primaryGradient),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.playlist_add,
-                            color: Colors.white, size: 24),
+                      IconButton(
+                        icon: const Icon(Icons.keyboard_arrow_down,
+                            color: Colors.white, size: 30),
+                        onPressed: () => Navigator.pop(context),
                       ),
-                      const SizedBox(width: 15),
                       const Text(
-                        'Add to Playlist',
+                        'Now Playing',
                         style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold),
+                      ),
+                      Row(
+                        children: [
+                          // 3D Toggle
+                          GestureDetector(
+                            onTap: () {
+                              _toggle3D();
+                              setModalState(() {});
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: is3DOn
+                                    ? AppTheme.accent.withOpacity(0.2)
+                                    : Colors.white.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: is3DOn
+                                      ? AppTheme.accent
+                                      : Colors.white.withOpacity(0.2),
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    is3DOn
+                                        ? Icons.surround_sound
+                                        : Icons.surround_sound_outlined,
+                                    color: is3DOn
+                                        ? AppTheme.accent
+                                        : Colors.white70,
+                                    size: 18,
+                                  ),
+                                  if (is3DOn) ...[
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '3D',
+                                      style: TextStyle(
+                                        color: AppTheme.accent,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          // ✅ Favorite button with StreamBuilder-like real state
+                          StreamBuilder<PlayerState>(
+                            stream: _player.onPlayerStateChanged,
+                            builder: (context, snapshot) {
+                              return IconButton(
+                                icon: Icon(
+                                  _favorites.contains(_currentSong!.path)
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  color: _favorites
+                                          .contains(_currentSong!.path)
+                                      ? Colors.pinkAccent
+                                      : Colors.white,
+                                ),
+                                onPressed: () {
+                                  _toggleFavorite(_currentSong!);
+                                  setModalState(() {});
+                                  setState(() {});
+                                },
+                              );
+                            },
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-                Divider(color: Colors.grey.shade800, height: 1),
-                if (_playlists.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Text(
-                      'No playlists yet!\nCreate one below 👇',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey, fontSize: 14),
-                    ),
-                  )
-                else
-                  ..._playlists.map((playlist) {
-                    bool isIn = (playlist['songs'] as List<String>)
-                        .contains(song.path);
-                    return ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accent.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          isIn ? Icons.check_circle : Icons.playlist_play,
-                          color: isIn ? Colors.green : AppTheme.accent,
-                        ),
-                      ),
-                      title: Text(
-                        playlist['name'],
+
+                // Album Art
+                Padding(
+                  padding: const EdgeInsets.all(30),
+                  child: AlbumArtWidget(
+                    audioPath: _currentSong!.path,
+                    size: 280,
+                    isPlaying: isPlaying,
+                    isCircle: true,
+                  ),
+                ),
+
+                // Song Name
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 30),
+                  child: Column(
+                    children: [
+                      Text(
+                        getSongName(_currentSong!.path),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      trailing: isIn
-                          ? const Icon(Icons.check, color: Colors.green)
-                          : null,
-                      onTap: () {
-                        setState(() {
-                          if (isIn) {
-                            (playlist['songs'] as List<String>)
-                                .remove(song.path);
-                          } else {
-                            (playlist['songs'] as List<String>).add(song.path);
-                          }
-                        });
-                        _savePlaylists();
-                        Navigator.pop(context);
-                        _showSnackBar(
-                          isIn
-                              ? '🚫 Removed from ${playlist['name']}'
-                              : '✅ Song added to ${playlist['name']}',
-                          isIn ? Colors.orange : Colors.green,
-                        );
-                      },
-                    );
-                  }).toList(),
-                const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.all(15),
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                      _createNewPlaylist(song);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(15),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                            colors: AppTheme.primaryGradient),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: const Row(
+                      const SizedBox(height: 8),
+                      Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.add_circle_outline,
-                              color: Colors.white, size: 22),
-                          SizedBox(width: 8),
-                          Text(
-                            'Create New Playlist',
+                          const Text(
+                            'Local Audio',
                             style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
+                                color: Colors.grey, fontSize: 14),
+                          ),
+                          if (is3DOn) ...[
+                            const SizedBox(width: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppTheme.accent.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                    color: AppTheme.accent, width: 1),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.surround_sound,
+                                      color: AppTheme.accent, size: 12),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '3D',
+                                    style: TextStyle(
+                                      color: AppTheme.accent,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const Spacer(),
+
+                // ✅ Progress Bar with StreamBuilder - Real-time
+                StreamBuilder<Duration>(
+                  stream: _player.onPositionChanged,
+                  builder: (context, snapshot) {
+                    final currentPosition = snapshot.data ?? Duration.zero;
+                    final maxDuration =
+                        _duration.inSeconds.toDouble() > 0
+                            ? _duration.inSeconds.toDouble()
+                            : 1.0;
+                    final currentValue = currentPosition.inSeconds
+                        .toDouble()
+                        .clamp(0.0, maxDuration);
+
+                    return Padding(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        children: [
+                          SliderTheme(
+                            data: SliderThemeData(
+                              trackHeight: 4,
+                              activeTrackColor:
+                                  AppTheme.primaryGradient[1],
+                              inactiveTrackColor:
+                                  Colors.white.withOpacity(0.2),
+                              thumbColor: Colors.white,
+                              overlayColor: AppTheme.primaryGradient[1]
+                                  .withOpacity(0.3),
+                              thumbShape: const RoundSliderThumbShape(
+                                  enabledThumbRadius: 7),
+                            ),
+                            child: Slider(
+                              value: currentValue,
+                              max: maxDuration,
+                              onChanged: (value) async {
+                                await _player.seek(
+                                    Duration(seconds: value.toInt()));
+                                setModalState(() {});
+                              },
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 15),
+                            child: Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  formatTime(currentPosition),
+                                  style: const TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 12),
+                                ),
+                                Text(
+                                  formatTime(_duration),
+                                  style: const TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 12),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                    ),
+                    );
+                  },
+                ),
+
+                // Controls
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 30),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      IconButton(
+                        icon: Icon(
+                          isShuffle
+                              ? Icons.shuffle
+                              : Icons.shuffle_outlined,
+                          color: isShuffle
+                              ? AppTheme.primaryGradient[1]
+                              : Colors.white54,
+                          size: 26,
+                        ),
+                        onPressed: () {
+                          setState(() => isShuffle = !isShuffle);
+                          setModalState(() {});
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.skip_previous,
+                            color: Colors.white, size: 45),
+                        onPressed: () {
+                          _playPrevious();
+                          setModalState(() {});
+                        },
+                      ),
+
+                      // ✅✅✅ MAIN FIX: Play/Pause Button with StreamBuilder
+                      StreamBuilder<PlayerState>(
+                        stream: _player.onPlayerStateChanged,
+                        builder: (context, snapshot) {
+                          // ✅ Real-time state - no more initial "Play" icon bug!
+                          final actuallyPlaying =
+                              snapshot.data == PlayerState.playing;
+
+                          return Container(
+                            height: 75,
+                            width: 75,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                  colors: AppTheme.primaryGradient),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.primaryGradient[0]
+                                      .withOpacity(0.5),
+                                  blurRadius: 20,
+                                  spreadRadius: 3,
+                                ),
+                              ],
+                            ),
+                            child: IconButton(
+                              iconSize: 45,
+                              color: Colors.white,
+                              icon: Icon(actuallyPlaying
+                                  ? Icons.pause
+                                  : Icons.play_arrow),
+                              onPressed: _togglePlay,
+                            ),
+                          );
+                        },
+                      ),
+
+                      IconButton(
+                        icon: const Icon(Icons.skip_next,
+                            color: Colors.white, size: 45),
+                        onPressed: () {
+                          _playNext();
+                          setModalState(() {});
+                        },
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          isRepeat
+                              ? Icons.repeat_one
+                              : Icons.repeat,
+                          color: isRepeat
+                              ? AppTheme.primaryGradient[1]
+                              : Colors.white54,
+                          size: 26,
+                        ),
+                        onPressed: () {
+                          setState(() => isRepeat = !isRepeat);
+                          setModalState(() {});
+                        },
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 30),
               ],
             ),
           ),
         );
       },
-    );
+    ),
+  );
   }
 
   void _createNewPlaylist(File song) {
