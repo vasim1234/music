@@ -7,33 +7,87 @@ import 'dart:io';
 import 'album_art_service.dart';
 import 'enhance_sound_screen.dart';
 
-// âœ… COLORS
+// ✅ 4 PREMIUM THEMES
 class AppColors {
-  static const Color bgA = Color(0xFF0F0F14);
-  static const Color cardA = Color(0xFF181820);
-  static const Color accentA = Color(0xFF8B5CF6);
-  static const List<Color> primaryGradientA = [
-    Color(0xFF8B5CF6),
-    Color(0xFFD946EF),
+  // 🟢 THEME 0 - Midnight Emerald
+  static const Color bg0 = Color(0xFF0B1310);
+  static const Color card0 = Color(0xFF13221C);
+  static const Color accent0 = Color(0xFF34D399);
+  static const List<Color> gradient0 = [
+    Color(0xFF059669),
+    Color(0xFF34D399),
   ];
 
-  static const Color bgB = Color(0xFF0D0E15);
-  static const Color cardB = Color(0xFF1A1C28);
-  static const Color accentB = Color(0xFF00E676);
-  static const List<Color> primaryGradientB = [
-    Color(0xFF00F2FE),
-    Color(0xFF4FACFE),
+  // 🟡 THEME 1 - Obsidian Gold
+  static const Color bg1 = Color(0xFF121212);
+  static const Color card1 = Color(0xFF1E1E1E);
+  static const Color accent1 = Color(0xFFD4AF37);
+  static const List<Color> gradient1 = [
+    Color(0xFFD4AF37),
+    Color(0xFFC5A059),
+  ];
+
+  // 🔵 THEME 2 - Cosmic Indigo
+  static const Color bg2 = Color(0xFF0A0E1A);
+  static const Color card2 = Color(0xFF141B2D);
+  static const Color accent2 = Color(0xFF06B6D4);
+  static const List<Color> gradient2 = [
+    Color(0xFF4F46E5),
+    Color(0xFF06B6D4),
+  ];
+
+  // 🟣 THEME 3 - Luxe Purple
+  static const Color bg3 = Color(0xFF0F0F14);
+  static const Color card3 = Color(0xFF181820);
+  static const Color accent3 = Color(0xFF8B5CF6);
+  static const List<Color> gradient3 = [
+    Color(0xFF8B5CF6),
+    Color(0xFFD946EF),
   ];
 }
 
 class AppTheme {
-  static bool isLuxeTheme = true;
+  static int themeIndex = 0;
 
-  static Color get bg => isLuxeTheme ? AppColors.bgA : AppColors.bgB;
-  static Color get card => isLuxeTheme ? AppColors.cardA : AppColors.cardB;
-  static Color get accent => isLuxeTheme ? AppColors.accentA : AppColors.accentB;
-  static List<Color> get primaryGradient =>
-      isLuxeTheme ? AppColors.primaryGradientA : AppColors.primaryGradientB;
+  static Color get bg {
+    switch (themeIndex) {
+      case 0: return AppColors.bg0;
+      case 1: return AppColors.bg1;
+      case 2: return AppColors.bg2;
+      case 3: return AppColors.bg3;
+      default: return AppColors.bg0;
+    }
+  }
+
+  static Color get card {
+    switch (themeIndex) {
+      case 0: return AppColors.card0;
+      case 1: return AppColors.card1;
+      case 2: return AppColors.card2;
+      case 3: return AppColors.card3;
+      default: return AppColors.card0;
+    }
+  }
+
+  static Color get accent {
+    switch (themeIndex) {
+      case 0: return AppColors.accent0;
+      case 1: return AppColors.accent1;
+      case 2: return AppColors.accent2;
+      case 3: return AppColors.accent3;
+      default: return AppColors.accent0;
+    }
+  }
+
+  static List<Color> get primaryGradient {
+    switch (themeIndex) {
+      case 0: return AppColors.gradient0;
+      case 1: return AppColors.gradient1;
+      case 2: return AppColors.gradient2;
+      case 3: return AppColors.gradient3;
+      default: return AppColors.gradient0;
+    }
+  }
 }
 
 void main() {
@@ -78,17 +132,16 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   bool isPlaying = false;
   bool isShuffle = false;
   bool isRepeat = false;
-  bool _isLuxeTheme = true;
   bool is3DOn = false;
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
   int _currentIndex = -1;
   int _selectedTab = 0;
+  int _themeIndex = 0;
+  double _bassLevel = 0.3;
+  double _immersiveLevel = 0.3;
   final TextEditingController _searchController = TextEditingController();
-// âœ… Enhance Sound variables
-double _bassLevel = 0.3;
-double _immersiveLevel = 0.3;
-  
+
   @override
   void initState() {
     super.initState();
@@ -112,26 +165,30 @@ double _immersiveLevel = 0.3;
 
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    bool isLuxe = prefs.getBool('isLuxeTheme') ?? true;
+    int theme = prefs.getInt('themeIndex') ?? 0;
     bool is3D = prefs.getBool('is3DOn') ?? false;
     setState(() {
-      _isLuxeTheme = isLuxe;
-      AppTheme.isLuxeTheme = isLuxe;
+      _themeIndex = theme;
+      AppTheme.themeIndex = theme;
       is3DOn = is3D;
     });
   }
 
-  Future<void> _toggleTheme(bool isLuxe) async {
+  Future<void> _toggleTheme(int index) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isLuxeTheme', isLuxe);
+    await prefs.setInt('themeIndex', index);
     setState(() {
-      _isLuxeTheme = isLuxe;
-      AppTheme.isLuxeTheme = isLuxe;
+      _themeIndex = index;
+      AppTheme.themeIndex = index;
     });
-    _showSnackBar(
-      isLuxe ? 'ðŸŽ¨ Luxe Purple applied' : 'ðŸŽ¨ Cyber Neon applied',
-      AppTheme.accent,
-    );
+
+    const names = [
+      '🟢 Midnight Emerald',
+      '🟡 Obsidian Gold',
+      '🔵 Cosmic Indigo',
+      '🟣 Luxe Purple',
+    ];
+    _showSnackBar('🎨 ${names[index]} applied', AppTheme.accent);
   }
 
   Future<void> _toggle3D() async {
@@ -144,11 +201,11 @@ double _immersiveLevel = 0.3;
     if (is3DOn) {
       await _player.setVolume(0.85);
       await _player.setBalance(0.4);
-      _showSnackBar('ðŸŽ§ 3D Audio ON', AppTheme.accent);
+      _showSnackBar('🎧 3D Audio ON', AppTheme.accent);
     } else {
       await _player.setVolume(1.0);
       await _player.setBalance(0.0);
-      _showSnackBar('ðŸ”Š 3D Audio OFF', Colors.grey);
+      _showSnackBar('🔊 3D Audio OFF', Colors.grey);
     }
   }
 
@@ -241,10 +298,10 @@ double _immersiveLevel = 0.3;
         });
 
         await _saveSongs();
-        _showSnackBar('âœ… ${picked.length} songs added!', Colors.green);
+        _showSnackBar('✅ ${picked.length} songs added!', Colors.green);
       }
     } catch (e) {
-      _showSnackBar('âš ï¸ Error: $e', Colors.red);
+      _showSnackBar('⚠️ Error: $e', Colors.red);
     }
   }
 
@@ -287,9 +344,9 @@ double _immersiveLevel = 0.3;
       });
 
       await _saveSongs();
-      _showSnackBar('âœ… ${allSongs.length} songs found!', Colors.green);
+      _showSnackBar('✅ ${allSongs.length} songs found!', Colors.green);
     } catch (e) {
-      _showSnackBar('âš ï¸ Error: $e', Colors.red);
+      _showSnackBar('⚠️ Error: $e', Colors.red);
     }
   }
 
@@ -399,7 +456,7 @@ double _immersiveLevel = 0.3;
     _saveFavorites();
     _saveRecent();
     _savePlaylists();
-    _showSnackBar('ðŸ—‘ï¸ Song deleted permanently', Colors.red);
+    _showSnackBar('🗑️ Song deleted permanently', Colors.red);
   }
 
   void _removeFromPlaylist(File song) {
@@ -410,24 +467,23 @@ double _immersiveLevel = 0.3;
       _applyFilter();
     });
     _savePlaylists();
-    _showSnackBar('ðŸš« Removed from $_openedPlaylist', Colors.orange);
+    _showSnackBar('🚫 Removed from $_openedPlaylist', Colors.orange);
   }
 
   void _toggleFavorite(File song) {
     setState(() {
       if (_favorites.contains(song.path)) {
         _favorites.remove(song.path);
-        _showSnackBar('ðŸ’” Removed from Favorites', Colors.orange);
+        _showSnackBar('💔 Removed from Favorites', Colors.orange);
       } else {
         _favorites.add(song.path);
-        _showSnackBar('â¤ï¸ Added to Favorites', Colors.pink);
+        _showSnackBar('❤️ Added to Favorites', Colors.pink);
       }
       _applyFilter();
     });
     _saveFavorites();
   }
 
-  // âœ… FIX 1: _showAddToPlaylist method ADD kiya
   void _showAddToPlaylist(File song) {
     showModalBottomSheet(
       context: context,
@@ -482,7 +538,7 @@ double _immersiveLevel = 0.3;
                   const Padding(
                     padding: EdgeInsets.all(20),
                     child: Text(
-                      'No playlists yet!\nCreate one below ðŸ‘‡',
+                      'No playlists yet!\nCreate one below 👇',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.grey, fontSize: 14),
                     ),
@@ -526,8 +582,8 @@ double _immersiveLevel = 0.3;
                         Navigator.pop(context);
                         _showSnackBar(
                           isIn
-                              ? 'ðŸš« Removed from ${playlist['name']}'
-                              : 'âœ… Song added to ${playlist['name']}',
+                              ? '🚫 Removed from ${playlist['name']}'
+                              : '✅ Song added to ${playlist['name']}',
                           isIn ? Colors.orange : Colors.green,
                         );
                       },
@@ -585,7 +641,7 @@ double _immersiveLevel = 0.3;
           backgroundColor: AppTheme.card,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('âž• New Playlist',
+          title: const Text('➕ New Playlist',
               style:
                   TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           content: TextField(
@@ -622,7 +678,7 @@ double _immersiveLevel = 0.3;
                   _savePlaylists();
                   Navigator.pop(context);
                   _showSnackBar(
-                    'âœ… Song added to "${nameCtrl.text}"',
+                    '✅ Song added to "${nameCtrl.text}"',
                     Colors.green,
                   );
                 }
@@ -815,7 +871,7 @@ double _immersiveLevel = 0.3;
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text(
-            'ðŸ—‘ï¸ Delete Permanently?',
+            '🗑️ Delete Permanently?',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
           content: Text(
@@ -869,7 +925,6 @@ double _immersiveLevel = 0.3;
     return name.replaceAll('_', ' ').trim();
   }
 
-  // âœ… FIX 2: _showFullScreenPlayer - SIRF EK BAAR (duplicate hataya)
   void _showFullScreenPlayer() {
     if (_currentSong == null) return;
 
@@ -1149,35 +1204,35 @@ double _immersiveLevel = 0.3;
                           },
                         ),
                         ValueListenableBuilder<bool>(
-  valueListenable: _isPlayingNotifier,
-  builder: (context, actuallyPlaying, child) {
-    return Container(
-      height: 75,
-      width: 75,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-            colors: AppTheme.primaryGradient),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.primaryGradient[0]
-                .withOpacity(0.5),
-            blurRadius: 20,
-            spreadRadius: 3,
-          ),
-        ],
-      ),
-      child: IconButton(
-        iconSize: 45,
-        color: Colors.white,
-        icon: Icon(actuallyPlaying
-            ? Icons.pause
-            : Icons.play_arrow),
-        onPressed: _togglePlay,
-      ),
-    );
-  },
-),
+                          valueListenable: _isPlayingNotifier,
+                          builder: (context, actuallyPlaying, child) {
+                            return Container(
+                              height: 75,
+                              width: 75,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                    colors: AppTheme.primaryGradient),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.primaryGradient[0]
+                                        .withOpacity(0.5),
+                                    blurRadius: 20,
+                                    spreadRadius: 3,
+                                  ),
+                                ],
+                              ),
+                              child: IconButton(
+                                iconSize: 45,
+                                color: Colors.white,
+                                icon: Icon(actuallyPlaying
+                                    ? Icons.pause
+                                    : Icons.play_arrow),
+                                onPressed: _togglePlay,
+                              ),
+                            );
+                          },
+                        ),
                         IconButton(
                           icon: const Icon(Icons.skip_next,
                               color: Colors.white, size: 45),
@@ -1212,476 +1267,57 @@ double _immersiveLevel = 0.3;
     );
   }
 
-  @override
-  void dispose() {
-    _isPlayingNotifier.dispose();
-    _player.dispose();
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      drawer: _buildDrawer(),
-      body: Container(
+  Widget _buildThemeCard(
+    int index,
+    String name,
+    String emoji,
+    List<Color> gradient,
+  ) {
+    bool isActive = _themeIndex == index;
+    return GestureDetector(
+      onTap: () => _toggleTheme(index),
+      child: Container(
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [AppTheme.bg, AppTheme.card],
+            colors: gradient,
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isActive ? Colors.white : Colors.transparent,
+            width: 2,
+          ),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: gradient[0].withOpacity(0.5),
+                    blurRadius: 12,
+                    spreadRadius: 2,
+                  ),
+                ]
+              : null,
         ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    Builder(
-                      builder: (context) => GestureDetector(
-                        onTap: () => Scaffold.of(context).openDrawer(),
-                        child: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                                color: Colors.white.withOpacity(0.1)),
-                          ),
-                          child: const Icon(Icons.menu,
-                              color: Colors.white, size: 22),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 15),
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                            colors: AppTheme.primaryGradient),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.primaryGradient[0]
-                                .withOpacity(0.5),
-                            blurRadius: 15,
-                            spreadRadius: 3,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(Icons.music_note,
-                          color: Colors.white, size: 24),
-                    ),
-                    const SizedBox(width: 12),
-                    const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Bhai Bhai Music',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        Text(
-                          'Feel The Rhythm',
-                          style: TextStyle(color: Colors.grey, fontSize: 11),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    GestureDetector(
-                      onTap: _toggle3D,
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: is3DOn
-                              ? AppTheme.accent.withOpacity(0.2)
-                              : Colors.white.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: is3DOn
-                                ? AppTheme.accent
-                                : Colors.white.withOpacity(0.1),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Icon(
-                          is3DOn
-                              ? Icons.surround_sound
-                              : Icons.surround_sound_outlined,
-                          color: is3DOn ? AppTheme.accent : Colors.white70,
-                          size: 22,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: Colors.white.withOpacity(0.1)),
-                  ),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (_) => _applyFilter(),
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: 'Search songs...',
-                      hintStyle: TextStyle(color: Colors.grey.shade500),
-                      prefixIcon:
-                          const Icon(Icons.search, color: Colors.grey),
-                      border: InputBorder.none,
-                      contentPadding:
-                          const EdgeInsets.symmetric(vertical: 15),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 15),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Container(
-                  height: 45,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: Row(
-                    children: [
-                      _buildTab(0, 'ðŸŽµ All'),
-                      _buildTab(1, 'â¤ï¸ Favorites'),
-                      _buildTab(2, 'ðŸ•’ Recent'),
-                      _buildTab(3, 'ðŸ“ Playlists'),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 15),
-              Expanded(
-                child: _selectedTab == 3
-                    ? _buildPlaylistsView()
-                    : _filteredSongs.isEmpty
-                        ? _buildEmptyState()
-                        : ListView.builder(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 15),
-                            itemCount: _filteredSongs.length,
-                            itemBuilder: (context, index) {
-                              return _buildSongTile(
-                                  _filteredSongs[index], index);
-                            },
-                          ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar:
-          _currentSong != null ? _buildSlimMiniPlayer() : null,
-    );
-  }
-
-  Widget _buildTab(int index, String label) {
-    bool isActive = _selectedTab == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _selectedTab = index;
-            _openedPlaylist = null;
-            _applyFilter();
-          });
-        },
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: isActive
-                ? LinearGradient(colors: AppTheme.primaryGradient)
-                : null,
-            borderRadius: BorderRadius.circular(25),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: isActive ? Colors.white : Colors.grey,
-                fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
-                fontSize: 11,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPlaylistsView() {
-    if (_openedPlaylist != null) {
-      var playlist = _playlists.firstWhere(
-        (p) => p['name'] == _openedPlaylist,
-        orElse: () => {'name': '', 'songs': <String>[]},
-      );
-      int count = (playlist['songs'] as List<String>).length;
-
-      return Column(
-        children: [
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-            padding: const EdgeInsets.all(15),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(colors: AppTheme.primaryGradient),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _openedPlaylist = null;
-                    });
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child:
-                        const Icon(Icons.arrow_back, color: Colors.white),
-                  ),
-                ),
-                const SizedBox(width: 15),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _openedPlaylist!,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        '$count songs',
-                        style: const TextStyle(
-                            color: Colors.white70, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-                if (count > 0)
-                  GestureDetector(
-                    onTap: () {
-                      if (_filteredSongs.isNotEmpty) {
-                        _playSong(_filteredSongs[0], 0);
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 15, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.play_arrow,
-                              color: Colors.white, size: 20),
-                          SizedBox(width: 5),
-                          Text(
-                            'Play All',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          Expanded(
-            child: _filteredSongs.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 15),
-                    itemCount: _filteredSongs.length,
-                    itemBuilder: (context, index) {
-                      return _buildSongTile(
-                        _filteredSongs[index],
-                        index,
-                        isFromPlaylist: true,
-                      );
-                    },
-                  ),
-          ),
-        ],
-      );
-    }
-
-    if (_playlists.isEmpty) {
-      return Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              padding: const EdgeInsets.all(30),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.playlist_add,
-                  size: 80, color: Colors.grey.shade600),
+            Icon(
+              isActive ? Icons.check_circle : Icons.circle_outlined,
+              color: Colors.white,
+              size: 18,
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'No playlists yet!',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 5),
             Text(
-              'Long press any song â†’ Add to Playlist',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+              '$emoji $name',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
-      );
-    }
-
-    return GridView.builder(
-      padding: const EdgeInsets.all(15),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 1.1,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: _playlists.length,
-      itemBuilder: (context, index) {
-        var playlist = _playlists[index];
-        int count = (playlist['songs'] as List<String>).length;
-
-        return GestureDetector(
-          onTap: () {
-            setState(() {
-              _openedPlaylist = playlist['name'];
-              _applyFilter();
-            });
-          },
-          onLongPress: () => _confirmDeletePlaylist(index),
-          child: Container(
-            padding: const EdgeInsets.all(15),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: AppTheme.primaryGradient
-                    .map((c) => c.withOpacity(0.3))
-                    .toList(),
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: AppTheme.primaryGradient[0].withOpacity(0.3),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    gradient:
-                        LinearGradient(colors: AppTheme.primaryGradient),
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: const Icon(
-                    Icons.playlist_play,
-                    color: Colors.white,
-                    size: 28,
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      playlist['name'],
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '$count songs',
-                      style: const TextStyle(
-                        color: Colors.grey,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _confirmDeletePlaylist(int index) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.card,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('ðŸ—‘ï¸ Delete Playlist?',
-            style:
-                TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: Text(
-          'Delete "${_playlists[index]['name']}"?',
-          style: const TextStyle(color: Colors.grey),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () {
-              setState(() {
-                _playlists.removeAt(index);
-              });
-              _savePlaylists();
-              Navigator.pop(context);
-              _showSnackBar('ðŸ—‘ï¸ Playlist deleted', Colors.red);
-            },
-            child: const Text('Delete'),
-          ),
-        ],
       ),
     );
   }
@@ -1795,43 +1431,42 @@ double _immersiveLevel = 0.3;
                       },
                     ),
                     _drawerItem(
-  icon: Icons.playlist_play,
-  iconColor: AppTheme.accent,
-  title: 'Playlists',
-  subtitle: '${_playlists.length} playlists',
-  onTap: () {
-    Navigator.pop(context);
-    setState(() {
-      _selectedTab = 3;
-      _applyFilter();
-    });
-  },
-),
-// âœ… NEW: Enhance Sound
-_drawerItem(
-  icon: Icons.graphic_eq,
-  iconColor: Colors.deepPurpleAccent,
-  title: 'Enhance Sound',
-  subtitle: 'Bass & Immersive audio',
-  onTap: () {
-    Navigator.pop(context);
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => EnhanceSoundScreen(
-          player: _player,
-          isDarkTheme: true,
-          onEffectsChanged: (bass, immersive) {
-            setState(() {
-              _bassLevel = bass;
-              _immersiveLevel = immersive;
-            });
-          },
-        ),
-      ),
-    );
-  },
-),
+                      icon: Icons.playlist_play,
+                      iconColor: AppTheme.accent,
+                      title: 'Playlists',
+                      subtitle: '${_playlists.length} playlists',
+                      onTap: () {
+                        Navigator.pop(context);
+                        setState(() {
+                          _selectedTab = 3;
+                          _applyFilter();
+                        });
+                      },
+                    ),
+                    _drawerItem(
+                      icon: Icons.graphic_eq,
+                      iconColor: Colors.deepPurpleAccent,
+                      title: 'Enhance Sound',
+                      subtitle: 'Bass & Immersive audio',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => EnhanceSoundScreen(
+                              player: _player,
+                              isDarkTheme: true,
+                              onEffectsChanged: (bass, immersive) {
+                                setState(() {
+                                  _bassLevel = bass;
+                                  _immersiveLevel = immersive;
+                                });
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                     Divider(color: Colors.grey.shade800, height: 1),
                     ListTile(
                       leading: Container(
@@ -1876,7 +1511,7 @@ _drawerItem(
                           const Padding(
                             padding: EdgeInsets.only(left: 10, bottom: 10),
                             child: Text(
-                              'ðŸŽ¨ Choose Theme',
+                              '🎨 Choose Theme',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 14,
@@ -1887,86 +1522,42 @@ _drawerItem(
                           Row(
                             children: [
                               Expanded(
-                                child: GestureDetector(
-                                  onTap: () => _toggleTheme(true),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: AppColors.primaryGradientA,
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: _isLuxeTheme
-                                            ? Colors.white
-                                            : Colors.transparent,
-                                        width: 2,
-                                      ),
-                                    ),
-                                    child: Column(
-                                      children: [
-                                        Icon(
-                                          _isLuxeTheme
-                                              ? Icons.check_circle
-                                              : Icons.circle_outlined,
-                                          color: Colors.white,
-                                          size: 20,
-                                        ),
-                                        const SizedBox(height: 5),
-                                        const Text(
-                                          'Luxe\nPurple',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                                child: _buildThemeCard(
+                                  0,
+                                  'Emerald',
+                                  '🟢',
+                                  AppColors.gradient0,
                                 ),
                               ),
-                              const SizedBox(width: 10),
+                              const SizedBox(width: 8),
                               Expanded(
-                                child: GestureDetector(
-                                  onTap: () => _toggleTheme(false),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: AppColors.primaryGradientB,
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: !_isLuxeTheme
-                                            ? Colors.white
-                                            : Colors.transparent,
-                                        width: 2,
-                                      ),
-                                    ),
-                                    child: Column(
-                                      children: [
-                                        Icon(
-                                          !_isLuxeTheme
-                                              ? Icons.check_circle
-                                              : Icons.circle_outlined,
-                                          color: Colors.white,
-                                          size: 20,
-                                        ),
-                                        const SizedBox(height: 5),
-                                        const Text(
-                                          'Cyber\nNeon',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                                child: _buildThemeCard(
+                                  1,
+                                  'Gold',
+                                  '🟡',
+                                  AppColors.gradient1,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildThemeCard(
+                                  2,
+                                  'Indigo',
+                                  '🔵',
+                                  AppColors.gradient2,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildThemeCard(
+                                  3,
+                                  'Purple',
+                                  '🟣',
+                                  AppColors.gradient3,
                                 ),
                               ),
                             ],
@@ -1980,7 +1571,7 @@ _drawerItem(
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: Text(
-                  "Version 1.0.0\nMade with â¤ï¸ by Bhai Bhai",
+                  "Version 1.0.0\nMade with ❤️ by Bhai Bhai",
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
                 ),
@@ -2116,11 +1707,9 @@ _drawerItem(
                   constraints: const BoxConstraints(),
                 ),
                 const SizedBox(width: 8),
-                StreamBuilder<PlayerState>(
-                  stream: _player.onPlayerStateChanged,
-                  builder: (context, snapshot) {
-                    final actuallyPlaying =
-                        snapshot.data == PlayerState.playing;
+                ValueListenableBuilder<bool>(
+                  valueListenable: _isPlayingNotifier,
+                  builder: (context, actuallyPlaying, child) {
                     return IconButton(
                       icon: Icon(
                         actuallyPlaying
@@ -2166,12 +1755,12 @@ _drawerItem(
 
   Widget _buildEmptyState() {
     String message = 'No songs found!';
-    String sub = 'Open menu â†’ Pick Songs or Scan';
+    String sub = 'Open menu → Pick Songs or Scan';
     IconData icon = Icons.music_off;
 
     if (_selectedTab == 1) {
       message = 'No favorites yet!';
-      sub = 'Long press a song â†’ Add to Favorites';
+      sub = 'Long press a song → Add to Favorites';
       icon = Icons.favorite_border;
     } else if (_selectedTab == 2) {
       message = 'No recent songs!';
@@ -2309,11 +1898,9 @@ _drawerItem(
               ),
             ),
             if (isSelected)
-              StreamBuilder<PlayerState>(
-                stream: _player.onPlayerStateChanged,
-                builder: (context, snapshot) {
-                  final actuallyPlaying =
-                      snapshot.data == PlayerState.playing;
+              ValueListenableBuilder<bool>(
+                valueListenable: _isPlayingNotifier,
+                builder: (context, actuallyPlaying, child) {
                   return IconButton(
                     icon: Icon(
                       actuallyPlaying
