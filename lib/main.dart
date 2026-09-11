@@ -1586,6 +1586,193 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
+// ← Yeh _buildDrawer ka closing bracket (line 1587)
+
+// ⬇️⬇️⬇️ YAHAN build() METHOD ADD KARO ⬇️⬇️⬇️
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    drawer: _buildDrawer(),
+    body: Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppTheme.bg, AppTheme.card],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            // HEADER
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Builder(
+                    builder: (context) => GestureDetector(
+                      onTap: () => Scaffold.of(context).openDrawer(),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: Colors.white.withOpacity(0.1)),
+                        ),
+                        child: const Icon(Icons.menu,
+                            color: Colors.white, size: 22),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 15),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                          colors: AppTheme.primaryGradient),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primaryGradient[0]
+                              .withOpacity(0.5),
+                          blurRadius: 15,
+                          spreadRadius: 3,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.music_note,
+                        color: Colors.white, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Bhai Bhai Music',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      Text(
+                        'Feel The Rhythm',
+                        style: TextStyle(color: Colors.grey, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  GestureDetector(
+                    onTap: _toggle3D,
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: is3DOn
+                            ? AppTheme.accent.withOpacity(0.2)
+                            : Colors.white.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: is3DOn
+                              ? AppTheme.accent
+                              : Colors.white.withOpacity(0.1),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Icon(
+                        is3DOn
+                            ? Icons.surround_sound
+                            : Icons.surround_sound_outlined,
+                        color: is3DOn ? AppTheme.accent : Colors.white70,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // SEARCH BAR
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: Colors.white.withOpacity(0.1)),
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (_) => _applyFilter(),
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Search songs...',
+                    hintStyle: TextStyle(color: Colors.grey.shade500),
+                    prefixIcon:
+                        const Icon(Icons.search, color: Colors.grey),
+                    border: InputBorder.none,
+                    contentPadding:
+                        const EdgeInsets.symmetric(vertical: 15),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 15),
+
+            // TABS
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                height: 45,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: Row(
+                  children: [
+                    _buildTab(0, '🎵 All'),
+                    _buildTab(1, '❤️ Favorites'),
+                    _buildTab(2, '🕒 Recent'),
+                    _buildTab(3, '📁 Playlists'),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 15),
+
+            // CONTENT
+            Expanded(
+              child: _selectedTab == 3
+                  ? _buildPlaylistsView()
+                  : _filteredSongs.isEmpty
+                      ? _buildEmptyState()
+                      : ListView.builder(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 15),
+                          itemCount: _filteredSongs.length,
+                          itemBuilder: (context, index) {
+                            return _buildSongTile(
+                                _filteredSongs[index], index);
+                          },
+                        ),
+            ),
+          ],
+        ),
+      ),
+    ),
+    bottomNavigationBar:
+        _currentSong != null ? _buildSlimMiniPlayer() : null,
+  );
+}
+// ⬆️⬆️⬆️ YAHAN build() METHOD ADD KARO ⬆️⬆️⬆️
+
+Widget _drawerItem({  // ← Line 1589
+  required IconData icon,
+  // ...
+  
   Widget _drawerItem({
     required IconData icon,
     required Color iconColor,
