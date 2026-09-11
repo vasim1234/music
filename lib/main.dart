@@ -1821,6 +1821,12 @@ _drawerItem(
         builder: (context) => EnhanceSoundScreen(
           player: _player,
           isDarkTheme: true,
+          onEffectsChanged: (bass, immersive) {
+            setState(() {
+              _bassLevel = bass;
+              _immersiveLevel = immersive;
+            });
+          },
         ),
       ),
     );
