@@ -1537,56 +1537,65 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                     ),
                   ),
                   const Spacer(),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      children: [
-                        SliderTheme(
-                          data: SliderThemeData(
-                            trackHeight: 4,
-                            activeTrackColor: AppTheme.primaryGradient[1],
-                            inactiveTrackColor:
-                                Colors.white.withOpacity(0.2),
-                            thumbColor: Colors.white,
-                            overlayColor: AppTheme.primaryGradient[1]
-                                .withOpacity(0.3),
-                            thumbShape: const RoundSliderThumbShape(
-                                enabledThumbRadius: 7),
-                          ),
-                          child: Slider(
-                            value: _position.inSeconds.toDouble().clamp(
-                                  0.0,
-                                  _duration.inSeconds.toDouble() > 0
-                                      ? _duration.inSeconds.toDouble()
-                                      : 1.0,
-                                ),
-                            max: _duration.inSeconds.toDouble() > 0
-                                ? _duration.inSeconds.toDouble()
-                                : 1.0,
-                            onChanged: (value) async {
-                              await _player
-                                  .seek(Duration(seconds: value.toInt()));
-                              setModalState(() {});
-                            },
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 15),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(formatTime(_position),
-                                  style: const TextStyle(
-                                      color: Colors.white54, fontSize: 12)),
-                              Text(formatTime(_duration),
-                                  style: const TextStyle(
-                                      color: Colors.white54, fontSize: 12)),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+// ✅ StreamBuilder - Real-time position update
+StreamBuilder<Duration>(
+  stream: _player.onPositionChanged,
+  builder: (context, snapshot) {
+    final currentPosition = snapshot.data ?? Duration.zero;
+    final maxDuration = _duration.inSeconds.toDouble() > 0
+        ? _duration.inSeconds.toDouble()
+        : 1.0;
+    final currentValue = currentPosition.inSeconds
+        .toDouble()
+        .clamp(0.0, maxDuration);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: [
+          SliderTheme(
+            data: SliderThemeData(
+              trackHeight: 4,
+              activeTrackColor: AppTheme.primaryGradient[1],
+              inactiveTrackColor: Colors.white.withOpacity(0.2),
+              thumbColor: Colors.white,
+              overlayColor:
+                  AppTheme.primaryGradient[1].withOpacity(0.3),
+              thumbShape: const RoundSliderThumbShape(
+                  enabledThumbRadius: 7),
+            ),
+            child: Slider(
+              value: currentValue,
+              max: maxDuration,
+              onChanged: (value) async {
+                await _player.seek(Duration(seconds: value.toInt()));
+                setModalState(() {});
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 15),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  formatTime(currentPosition), // ✅ Real-time position
+                  style: const TextStyle(
+                      color: Colors.white54, fontSize: 12),
+                ),
+                Text(
+                  formatTime(_duration),
+                  style: const TextStyle(
+                      color: Colors.white54, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  },
+),
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 30),
                     child: Row(
