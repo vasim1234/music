@@ -5,6 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'album_art_service.dart';
+import 'enhance_sound_screen.dart';
 
 // ✅ COLORS
 class AppColors {
@@ -84,7 +85,10 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   int _currentIndex = -1;
   int _selectedTab = 0;
   final TextEditingController _searchController = TextEditingController();
-
+// ✅ Enhance Sound variables
+double _bassLevel = 0.3;
+double _immersiveLevel = 0.3;
+  
   @override
   void initState() {
     super.initState();
@@ -1791,18 +1795,37 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       },
                     ),
                     _drawerItem(
-                      icon: Icons.playlist_play,
-                      iconColor: AppTheme.accent,
-                      title: 'Playlists',
-                      subtitle: '${_playlists.length} playlists',
-                      onTap: () {
-                        Navigator.pop(context);
-                        setState(() {
-                          _selectedTab = 3;
-                          _applyFilter();
-                        });
-                      },
-                    ),
+  icon: Icons.playlist_play,
+  iconColor: AppTheme.accent,
+  title: 'Playlists',
+  subtitle: '${_playlists.length} playlists',
+  onTap: () {
+    Navigator.pop(context);
+    setState(() {
+      _selectedTab = 3;
+      _applyFilter();
+    });
+  },
+),
+// ✅ NEW: Enhance Sound
+_drawerItem(
+  icon: Icons.graphic_eq,
+  iconColor: Colors.deepPurpleAccent,
+  title: 'Enhance Sound',
+  subtitle: 'Bass & Immersive audio',
+  onTap: () {
+    Navigator.pop(context);
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EnhanceSoundScreen(
+          player: _player,
+          isDarkTheme: true,
+        ),
+      ),
+    );
+  },
+),
                     Divider(color: Colors.grey.shade800, height: 1),
                     ListTile(
                       leading: Container(
