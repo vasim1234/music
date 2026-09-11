@@ -2286,23 +2286,21 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             ),
             // ✅ StreamBuilder - Real-time play/pause icon
             if (isSelected)
-              StreamBuilder<PlayerState>(
-                stream: _player.onPlayerStateChanged,
-                builder: (context, snapshot) {
-                  final actuallyPlaying =
-                      snapshot.data == PlayerState.playing;
-                  return IconButton(
-                    icon: Icon(
-                      actuallyPlaying
-                          ? Icons.pause_circle_filled
-                          : Icons.play_circle_filled,
-                      color: Colors.white,
-                      size: 32,
-                    ),
-                    onPressed: _togglePlay,
-                  );
-                },
-              ),
+  StreamBuilder<PlayerState>(
+    stream: _player.onPlayerStateChanged,
+    builder: (context, snapshot) {
+      final actuallyPlaying = snapshot.data == PlayerState.playing;
+      return IconButton(
+        icon: Icon(
+          actuallyPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
+          color: Colors.white,
+          size: 32,
+        ),
+        onPressed: _togglePlay,
+      );
+    },
+  ),
+
           ],
         ),
       ),
