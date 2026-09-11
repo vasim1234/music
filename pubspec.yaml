@@ -15,7 +15,10 @@ dependencies:
   shared_preferences: ^2.2.2
   audiotags: ^1.4.2
   path_provider: ^2.1.4
-
+dependencies:
+  just_audio: ^0.9.40
+  just_audio_equalizer: ^0.1.0
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
