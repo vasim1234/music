@@ -2256,23 +2256,39 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                     ),
                     const SizedBox(width: 15),
                     Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                            colors: AppTheme.primaryGradient),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.primaryGradient[0]
-                                .withOpacity(0.5),
-                            blurRadius: 15,
-                            spreadRadius: 3,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(Icons.music_note,
-                          color: Colors.white, size: 24),
-                    ),
+  padding: const EdgeInsets.all(2),
+  decoration: BoxDecoration(
+    gradient: LinearGradient(
+        colors: AppTheme.primaryGradient),
+    borderRadius: BorderRadius.circular(12),
+    boxShadow: [
+      BoxShadow(
+        color: AppTheme.primaryGradient[0]
+            .withOpacity(0.5),
+        blurRadius: 15,
+        spreadRadius: 3,
+      ),
+    ],
+  ),
+  child: Container(
+    height: 40,
+    width: 40,
+    decoration: BoxDecoration(
+      color: AppTheme.bg,
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Image.asset(
+        'assets/icon/logo.png',
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            const Icon(Icons.music_note,
+                color: Colors.white, size: 24),
+      ),
+    ),
+  ),
+),
                     const SizedBox(width: 12),
                     const Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
