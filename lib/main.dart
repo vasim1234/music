@@ -2390,59 +2390,7 @@ Widget build(BuildContext context) {
     );
   }
 
-  Widget _buildEmptyState() {
-    String message = 'No songs found!';
-    String sub = 'Open menu → Pick Songs or Scan';
-    IconData icon = Icons.music_off;
-
-    if (_selectedTab == 1) {
-      message = 'No favorites yet!';
-      sub = 'Long press a song → Add to Favorites';
-      icon = Icons.favorite_border;
-    } else if (_selectedTab == 2) {
-      message = 'No recent songs!';
-      sub = 'Play a song to add it here';
-      icon = Icons.history;
-    } else if (_openedPlaylist != null) {
-      message = 'Playlist is empty!';
-      sub = 'Add songs via long press';
-      icon = Icons.playlist_add;
-    }
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(30),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 80, color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            message,
-            style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 30),
-            child: Text(
-              sub,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
+ 
   Widget _buildSongTile(File song, int index,
       {bool isFromPlaylist = false}) {
     bool isSelected = _currentSong == song;
