@@ -1339,18 +1339,39 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(15),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                            colors: AppTheme.primaryGradient),
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.primaryGradient[0]
-                                .withOpacity(0.5),
-                            blurRadius: 20,
-                            spreadRadius: 5,
-                          ),
+  padding: const EdgeInsets.all(2),
+  decoration: BoxDecoration(
+    gradient: LinearGradient(
+        colors: AppTheme.primaryGradient),
+    borderRadius: BorderRadius.circular(15),
+    boxShadow: [
+      BoxShadow(
+        color: AppTheme.primaryGradient[0]
+            .withOpacity(0.5),
+        blurRadius: 20,
+        spreadRadius: 5,
+      ),
+    ],
+  ),
+  child: Container(
+    height: 65,
+    width: 65,
+    decoration: BoxDecoration(
+      color: AppTheme.bg,
+      borderRadius: BorderRadius.circular(13),
+    ),
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(13),
+      child: Image.asset(
+        'assets/icon/logo.png',
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            const Icon(Icons.headphones,
+                size: 35, color: Colors.white),
+      ),
+    ),
+  ),
+),
                         ],
                       ),
                       child: const Icon(Icons.headphones,
