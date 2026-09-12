@@ -1319,282 +1319,281 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   }
 
   Widget _buildDrawer() {
-    return Drawer(
-      backgroundColor: AppTheme.bg,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppTheme.bg, AppTheme.card],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+  return Drawer(
+    backgroundColor: AppTheme.bg,
+    child: Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppTheme.bg, AppTheme.card],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(25),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-  padding: const EdgeInsets.all(2),
-  decoration: BoxDecoration(
-    gradient: LinearGradient(
-        colors: AppTheme.primaryGradient),
-    borderRadius: BorderRadius.circular(15),
-    boxShadow: [
-      BoxShadow(
-        color: AppTheme.primaryGradient[0]
-            .withOpacity(0.5),
-        blurRadius: 20,
-        spreadRadius: 5,
       ),
-    ],
-  ),
-  child: Container(
-    height: 65,
-    width: 65,
-    decoration: BoxDecoration(
-      color: AppTheme.bg,
-      borderRadius: BorderRadius.circular(13),
-    ),
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(13),
-      child: Image.asset(
-        'assets/icon/logo.png',
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) =>
-            const Icon(Icons.headphones,
-                size: 35, color: Colors.white),
-      ),
-                        ],
-                      ),
-                      child: const Icon(Icons.headphones,
-                          size: 35, color: Colors.white),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(25),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ✅ LOGO CONTAINER (Fixed)
+                  Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                          colors: AppTheme.primaryGradient),
+                      borderRadius: BorderRadius.circular(15),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primaryGradient[0]
+                              .withOpacity(0.5),
+                          blurRadius: 20,
+                          spreadRadius: 5,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 15),
-                    const Text(
-                      'Bhai Bhai Music',
+                    child: Container(
+                      height: 65,
+                      width: 65,
+                      decoration: BoxDecoration(
+                        color: AppTheme.bg,
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(13),
+                        child: Image.asset(
+                          'assets/icon/logo.png',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(Icons.headphones,
+                                  size: 35, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  const Text(
+                    'Bhai Bhai Music',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    '${_songs.length} Local Tracks',
+                    style:
+                        const TextStyle(color: Colors.grey, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            Divider(color: Colors.grey.shade800, height: 1),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                children: [
+                  _drawerItem(
+                    icon: Icons.library_music,
+                    iconColor: Colors.cyan,
+                    title: 'Pick Songs',
+                    subtitle: 'Select from storage',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _pickSongs();
+                    },
+                  ),
+                  _drawerItem(
+                    icon: Icons.folder_open,
+                    iconColor: AppTheme.accent,
+                    title: 'Scan Music',
+                    subtitle: 'Auto scan folders',
+                    onTap: () {
+                      Navigator.pop(context);
+                      _scanDefaultFolder();
+                    },
+                  ),
+                  _drawerItem(
+                    icon: Icons.favorite,
+                    iconColor: Colors.pinkAccent,
+                    title: 'Favorites',
+                    subtitle: '${_favorites.length} songs',
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() {
+                        _selectedTab = 1;
+                        _applyFilter();
+                      });
+                    },
+                  ),
+                  _drawerItem(
+                    icon: Icons.history,
+                    iconColor: Colors.orangeAccent,
+                    title: 'Recent',
+                    subtitle: '${_recentSongs.length} songs',
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() {
+                        _selectedTab = 2;
+                        _applyFilter();
+                      });
+                    },
+                  ),
+                  _drawerItem(
+                    icon: Icons.playlist_play,
+                    iconColor: AppTheme.accent,
+                    title: 'Playlists',
+                    subtitle: '${_playlists.length} playlists',
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() {
+                        _selectedTab = 3;
+                        _applyFilter();
+                      });
+                    },
+                  ),
+                  _drawerItem(
+                    icon: Icons.graphic_eq,
+                    iconColor: Colors.deepPurpleAccent,
+                    title: 'Enhance Sound',
+                    subtitle: 'Bass & Immersive audio',
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EnhanceSoundScreen(
+                            player: _player,
+                            isDarkTheme: true,
+                            onEffectsChanged: (bass, immersive) {
+                              setState(() {
+                                _bassLevel = bass;
+                                _immersiveLevel = immersive;
+                              });
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  Divider(color: Colors.grey.shade800, height: 1),
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: (is3DOn ? AppTheme.accent : Colors.grey)
+                            .withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        is3DOn
+                            ? Icons.surround_sound
+                            : Icons.surround_sound_outlined,
+                        color: is3DOn ? AppTheme.accent : Colors.grey,
+                        size: 22,
+                      ),
+                    ),
+                    title: const Text(
+                      '3D Audio',
                       style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                      ),
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15),
                     ),
-                    const SizedBox(height: 5),
-                    Text(
-                      '${_songs.length} Local Tracks',
+                    subtitle: Text(
+                      is3DOn ? 'ON - Surround Sound' : 'OFF - Normal Audio',
                       style:
-                          const TextStyle(color: Colors.grey, fontSize: 13),
+                          const TextStyle(color: Colors.grey, fontSize: 11),
                     ),
-                  ],
-                ),
-              ),
-              Divider(color: Colors.grey.shade800, height: 1),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  children: [
-                    _drawerItem(
-                      icon: Icons.library_music,
-                      iconColor: Colors.cyan,
-                      title: 'Pick Songs',
-                      subtitle: 'Select from storage',
-                      onTap: () {
-                        Navigator.pop(context);
-                        _pickSongs();
-                      },
+                    trailing: Switch(
+                      value: is3DOn,
+                      onChanged: (value) => _toggle3D(),
+                      activeColor: AppTheme.accent,
                     ),
-                    _drawerItem(
-                      icon: Icons.folder_open,
-                      iconColor: AppTheme.accent,
-                      title: 'Scan Music',
-                      subtitle: 'Auto scan folders',
-                      onTap: () {
-                        Navigator.pop(context);
-                        _scanDefaultFolder();
-                      },
-                    ),
-                    _drawerItem(
-                      icon: Icons.favorite,
-                      iconColor: Colors.pinkAccent,
-                      title: 'Favorites',
-                      subtitle: '${_favorites.length} songs',
-                      onTap: () {
-                        Navigator.pop(context);
-                        setState(() {
-                          _selectedTab = 1;
-                          _applyFilter();
-                        });
-                      },
-                    ),
-                    _drawerItem(
-                      icon: Icons.history,
-                      iconColor: Colors.orangeAccent,
-                      title: 'Recent',
-                      subtitle: '${_recentSongs.length} songs',
-                      onTap: () {
-                        Navigator.pop(context);
-                        setState(() {
-                          _selectedTab = 2;
-                          _applyFilter();
-                        });
-                      },
-                    ),
-                    _drawerItem(
-                      icon: Icons.playlist_play,
-                      iconColor: AppTheme.accent,
-                      title: 'Playlists',
-                      subtitle: '${_playlists.length} playlists',
-                      onTap: () {
-                        Navigator.pop(context);
-                        setState(() {
-                          _selectedTab = 3;
-                          _applyFilter();
-                        });
-                      },
-                    ),
-                    _drawerItem(
-                      icon: Icons.graphic_eq,
-                      iconColor: Colors.deepPurpleAccent,
-                      title: 'Enhance Sound',
-                      subtitle: 'Bass & Immersive audio',
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => EnhanceSoundScreen(
-                              player: _player,
-                              isDarkTheme: true,
-                              onEffectsChanged: (bass, immersive) {
-                                setState(() {
-                                  _bassLevel = bass;
-                                  _immersiveLevel = immersive;
-                                });
-                              },
+                  ),
+                  Divider(color: Colors.grey.shade800, height: 1),
+                  Padding(
+                    padding: const EdgeInsets.all(15),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.only(left: 10, bottom: 10),
+                          child: Text(
+                            '🎨 Choose Theme',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        );
-                      },
-                    ),
-                    Divider(color: Colors.grey.shade800, height: 1),
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: (is3DOn ? AppTheme.accent : Colors.grey)
-                              .withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Icon(
-                          is3DOn
-                              ? Icons.surround_sound
-                              : Icons.surround_sound_outlined,
-                          color: is3DOn ? AppTheme.accent : Colors.grey,
-                          size: 22,
-                        ),
-                      ),
-                      title: const Text(
-                        '3D Audio',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15),
-                      ),
-                      subtitle: Text(
-                        is3DOn ? 'ON - Surround Sound' : 'OFF - Normal Audio',
-                        style:
-                            const TextStyle(color: Colors.grey, fontSize: 11),
-                      ),
-                      trailing: Switch(
-                        value: is3DOn,
-                        onChanged: (value) => _toggle3D(),
-                        activeColor: AppTheme.accent,
-                      ),
-                    ),
-                    Divider(color: Colors.grey.shade800, height: 1),
-                    Padding(
-                      padding: const EdgeInsets.all(15),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Padding(
-                            padding: EdgeInsets.only(left: 10, bottom: 10),
-                            child: Text(
-                              '🎨 Choose Theme',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildThemeCard(
+                                0,
+                                'Emerald',
+                                '🟢',
+                                AppColors.gradient0,
                               ),
                             ),
-                          ),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildThemeCard(
-                                  0,
-                                  'Emerald',
-                                  '🟢',
-                                  AppColors.gradient0,
-                                ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildThemeCard(
+                                1,
+                                'Gold',
+                                '🟡',
+                                AppColors.gradient1,
                               ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildThemeCard(
-                                  1,
-                                  'Gold',
-                                  '🟡',
-                                  AppColors.gradient1,
-                                ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildThemeCard(
+                                2,
+                                'Indigo',
+                                '🔵',
+                                AppColors.gradient2,
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildThemeCard(
-                                  2,
-                                  'Indigo',
-                                  '🔵',
-                                  AppColors.gradient2,
-                                ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildThemeCard(
+                                3,
+                                'Purple',
+                                '🟣',
+                                AppColors.gradient3,
                               ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildThemeCard(
-                                  3,
-                                  'Purple',
-                                  '🟣',
-                                  AppColors.gradient3,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Text(
-                  "Version 1.0.0\nMade with ❤️ by Bhai Bhai",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
-                ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                "Version 1.0.0\nMade with ❤️ by Bhai Bhai",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _drawerItem({
