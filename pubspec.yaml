@@ -15,15 +15,17 @@ dependencies:
   shared_preferences: ^2.2.2
   audiotags: ^1.4.2
   path_provider: ^2.1.4
-  flutter_local_notifications: ^17.1.2    # ✅ 2 SPACES INDENT
+  audio_service: ^0.18.15              # ✅ ADD KARO
+  just_audio: ^0.9.40                   # ✅ ADD KARO
+  flutter_local_notifications: ^17.1.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
-  flutter_launcher_icons: ^0.13.1    # ✅ 2 SPACES INDENT
+  flutter_launcher_icons: ^0.13.1
 
-flutter_launcher_icons:              # ✅ ROOT LEVEL
+flutter_launcher_icons:
   android: true
   ios: false
   image_path: "assets/icon/logo.png"
