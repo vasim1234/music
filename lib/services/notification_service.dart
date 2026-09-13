@@ -2,16 +2,17 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 
 class NotificationService {
-  static final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+  static final FlutterLocalNotificationsPlugin _notifications =
+      FlutterLocalNotificationsPlugin();
   static int _notificationId = 1;
-  
-  // Private callback variables
+
+  // ✅ Callbacks for notification actions
   static VoidCallback? _onPlayPause;
   static VoidCallback? _onNext;
   static VoidCallback? _onPrevious;
   static VoidCallback? _onClose;
 
-  // SetCallbacks method to safely assign functions from HomeScreen
+  // ✅ Set callbacks from HomeScreen
   static void setCallbacks({
     VoidCallback? onPlayPause,
     VoidCallback? onNext,
@@ -24,7 +25,6 @@ class NotificationService {
     _onClose = onClose;
   }
 
-  // Explicit Getters and Setters
   static VoidCallback? get onPlayPause => _onPlayPause;
   static set onPlayPause(VoidCallback? callback) => _onPlayPause = callback;
 
@@ -37,12 +37,21 @@ class NotificationService {
   static VoidCallback? get onClose => _onClose;
   static set onClose(VoidCallback? callback) => _onClose = callback;
 
+  // ✅ Initialize
   static Future<void> initialize() async {
-    const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const InitializationSettings settings = InitializationSettings(android: androidSettings);
-    await _notifications.initialize(settings, onDidReceiveNotificationResponse: _handleNotificationResponse);
+    const AndroidInitializationSettings androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    const InitializationSettings settings =
+        InitializationSettings(android: androidSettings);
+
+    await _notifications.initialize(
+      settings,
+      onDidReceiveNotificationResponse: _handleNotificationResponse,
+    );
   }
 
+  // ✅ Handle notification button clicks
   static void _handleNotificationResponse(NotificationResponse response) {
     switch (response.actionId) {
       case 'play_pause':
@@ -60,48 +69,49 @@ class NotificationService {
     }
   }
 
+  // ✅ Show Now Playing Notification
   static Future<void> showNowPlayingNotification({
     required String title,
     required String artist,
     required bool isPlaying,
   }) async {
-    final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+    final AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
       'music_player_channel',
       'Music Player',
       channelDescription: 'Now playing music controls',
       importance: Importance.high,
       priority: Priority.high,
       ongoing: true,
+      autoCancel: false,
       icon: '@mipmap/ic_launcher',
+      largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
       actions: <AndroidNotificationAction>[
         const AndroidNotificationAction(
           'previous',
           '⏮️ Prev',
-          // ✅ REMOVED: icon: AndroidBitmap.fromString('ic_skip_previous'),
           showsUserInterface: true,
         ),
         AndroidNotificationAction(
           'play_pause',
           isPlaying ? '⏸️ Pause' : '▶️ Play',
-          // ✅ REMOVED: icon: AndroidBitmap.fromString(isPlaying ? 'ic_pause' : 'ic_play_arrow'),
           showsUserInterface: true,
         ),
         const AndroidNotificationAction(
           'next',
           '⏭️ Next',
-          // ✅ REMOVED: icon: AndroidBitmap.fromString('ic_skip_next'),
           showsUserInterface: true,
         ),
         const AndroidNotificationAction(
           'close',
           '⏹️ Close',
-          // ✅ REMOVED: icon: AndroidBitmap.fromString('ic_close'),
           showsUserInterface: true,
         ),
       ],
     );
 
-    final NotificationDetails details = NotificationDetails(android: androidDetails);
+    final NotificationDetails details =
+        NotificationDetails(android: androidDetails);
 
     await _notifications.show(
       _notificationId,
@@ -112,7 +122,12 @@ class NotificationService {
     );
   }
 
-  static Future<void> updatePlayPauseButton(bool isPlaying, String title, String artist) async {
+  // ✅ Update Play/Pause button state
+  static Future<void> updatePlayPauseButton(
+    bool isPlaying,
+    String title,
+    String artist,
+  ) async {
     await showNowPlayingNotification(
       title: title,
       artist: artist,
@@ -120,6 +135,7 @@ class NotificationService {
     );
   }
 
+  // ✅ Cancel Notification
   static Future<void> cancelNotification() async {
     await _notifications.cancelAll();
   }
