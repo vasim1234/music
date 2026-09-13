@@ -15,6 +15,7 @@ dependencies:
   shared_preferences: ^2.2.2
   audiotags: ^1.4.2
   path_provider: ^2.1.4
+flutter_local_notifications: ^17.1.2    # ✅ YEH HONA CHAHIYE
 
 dev_dependencies:
   flutter_test:
