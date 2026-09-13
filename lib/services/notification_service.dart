@@ -108,33 +108,30 @@ class NotificationService {
       styleInformation: const MediaStyleInformation(
         showActionsInCompactView: true,
       ),
-      // ✅ Compact Media Actions (Bade icons)
+      // ✅ Compact Media Actions (Bade iconcolor
       actions: <AndroidNotificationAction>[
   const AndroidNotificationAction(
     'previous',
-    '',
-    icon: DrawableResourceAndroidBitmap('ic_skip_previous'),  // ✅ Custom Icon
+    'Previous',
+    icon: DrawableResourceAndroidBitmap('ic_skip_previous'), // ✅ Ye file ab exist karti hai
     showsUserInterface: false,
     cancelNotification: false,
-    semanticAction: SemanticAction.previous,
   ),
   AndroidNotificationAction(
     'play_pause',
-    '',
+    isPlaying ? 'Pause' : 'Play',
     icon: DrawableResourceAndroidBitmap(
-      isPlaying ? 'ic_pause' : 'ic_play_arrow'  // ✅ Custom Icon
+      isPlaying ? 'ic_pause' : 'ic_play_arrow',
     ),
     showsUserInterface: false,
     cancelNotification: false,
-    semanticAction: isPlaying ? SemanticAction.pause : SemanticAction.start,
   ),
   const AndroidNotificationAction(
     'next',
-    '',
-    icon: DrawableResourceAndroidBitmap('ic_skip_next'),  // ✅ Custom Icon
+    'Next',
+    icon: DrawableResourceAndroidBitmap('ic_skip_next'), // ✅ Ye file ab exist karti hai
     showsUserInterface: false,
     cancelNotification: false,
-    semanticAction: SemanticAction.next,
   ),
 ],
 
