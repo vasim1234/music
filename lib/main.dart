@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'album_art_service.dart';
 import 'enhance_sound_screen.dart';
+import 'services/notification_service.dart';
 
 // ✅ 4 PREMIUM THEMES
 class AppColors {
