@@ -140,25 +140,50 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   final TextEditingController _searchController = TextEditingController();
 
   @override
-  void initState() {
-    super.initState();
-    AlbumArtService.init();
+void initState() {
+  super.initState();
+  AlbumArtService.init();
+  NotificationService.initialize();
+  NotificationService.setCallbacks(
+    onPlayPause: _togglePlay,
+    onNext: _playNext,
+    onPrevious: _playPrevious,
+    onClose: () {
+      _player.stop();
+      setState(() {
+        _currentSong = null;
+        _currentIndex = -1;
+        isPlaying = false;
+        _isPlayingNotifier.value = false;
+      });
+      NotificationService.cancelNotification();
+    },
+  );
 
-    _player.onDurationChanged.listen((d) => setState(() => _duration = d));
-    _player.onPositionChanged.listen((p) => setState(() => _position = p));
-    _player.onPlayerStateChanged.listen((state) {
-      final playing = state == PlayerState.playing;
-      _isPlayingNotifier.value = playing;
-      if (mounted) {
-        setState(() => isPlaying = playing);
-      }
-    });
-    _player.onPlayerComplete.listen((_) => _playNext());
+  _player.onDurationChanged.listen((d) => setState(() => _duration = d));
+  _player.onPositionChanged.listen((p) => setState(() => _position = p));
+  _player.onPlayerStateChanged.listen((state) {
+    final playing = state == PlayerState.playing;
+    _isPlayingNotifier.value = playing;
+    if (mounted) {
+      setState(() => isPlaying = playing);
+    }
 
-    _checkPermission();
-    _loadSavedData();
-    _loadTheme();
-  }
+    // ✅ Notification update
+    if (_currentSong != null) {
+      NotificationService.showNowPlayingNotification(
+        title: getSongName(_currentSong!.path),
+        artist: "Bhai Bhai Music",
+        isPlaying: playing,
+      );
+    }
+  });
+  _player.onPlayerComplete.listen((_) => _playNext());
+
+  _checkPermission();
+  _loadSavedData();
+  _loadTheme();
+}
 
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
@@ -348,33 +373,40 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   }
 
   Future<void> _playSong(File song, int index) async {
-    if (_currentSong == song) {
-      _togglePlay();
-      return;
-    }
+  if (_currentSong == song) {
+    _togglePlay();
+    return;
+  }
 
-    setState(() {
-      _currentSong = song;
-      _currentIndex = index;
-      isPlaying = true;
-    });
-    _isPlayingNotifier.value = true;
+  setState(() {
+    _currentSong = song;
+    _currentIndex = index;
+    isPlaying = true;
+  });
+  _isPlayingNotifier.value = true;
 
-    if (!_recentSongs.contains(song.path)) {
-      _recentSongs.insert(0, song.path);
-      if (_recentSongs.length > 20) _recentSongs.removeLast();
-      await _saveRecent();
-    }
+  if (!_recentSongs.contains(song.path)) {
+    _recentSongs.insert(0, song.path);
+    if (_recentSongs.length > 20) _recentSongs.removeLast();
+    await _saveRecent();
+  }
 
-    await _player.play(DeviceFileSource(song.path));
+  await _player.play(DeviceFileSource(song.path));
 
-    if (is3DOn) {
-      await _player.setVolume(0.85);
-      await _player.setBalance(0.4);
-    } else {
-      await _player.setVolume(1.0);
-      await _player.setBalance(0.0);
-    }
+  if (is3DOn) {
+    await _player.setVolume(0.85);
+    await _player.setBalance(0.4);
+  } else {
+    await _player.setVolume(1.0);
+    await _player.setBalance(0.0);
+  }
+
+  // ✅ Show notification
+  await NotificationService.showNowPlayingNotification(
+    title: getSongName(song.path),
+    artist: "Bhai Bhai Music",
+    isPlaying: true,
+  );
   }
 
   Future<void> _togglePlay() async {
@@ -2230,12 +2262,13 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   }
 
   @override
-  void dispose() {
-    _isPlayingNotifier.dispose();
-    _player.dispose();
-    _searchController.dispose();
-    super.dispose();
-  }
+void dispose() {
+  _isPlayingNotifier.dispose();
+  _player.dispose();
+  _searchController.dispose();
+  NotificationService.cancelNotification();   // ✅ YEH ADD KARO
+  super.dispose();
+}
 
   @override
   Widget build(BuildContext context) {
