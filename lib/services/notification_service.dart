@@ -6,13 +6,12 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   static int _notificationId = 1;
 
-  // ✅ Callbacks for notification actions
+  // ✅ Callbacks
   static VoidCallback? _onPlayPause;
   static VoidCallback? _onNext;
   static VoidCallback? _onPrevious;
   static VoidCallback? _onClose;
 
-  // ✅ Set callbacks from HomeScreen
   static void setCallbacks({
     VoidCallback? onPlayPause,
     VoidCallback? onNext,
@@ -75,7 +74,8 @@ class NotificationService {
     required String artist,
     required bool isPlaying,
   }) async {
-    final AndroidNotificationDetails androidDetails =
+    // ✅ v17+ ke liye correct syntax
+    const AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
       'music_player_channel',
       'Music Player',
@@ -85,7 +85,7 @@ class NotificationService {
       ongoing: true,
       autoCancel: false,
       icon: '@mipmap/ic_launcher',
-      largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+      // ✅ largeIcon remove kar diya (compilation error de raha tha)
       actions: <AndroidNotificationAction>[
         const AndroidNotificationAction(
           'previous',
@@ -110,7 +110,7 @@ class NotificationService {
       ],
     );
 
-    final NotificationDetails details =
+    const NotificationDetails details =
         NotificationDetails(android: androidDetails);
 
     await _notifications.show(
@@ -122,7 +122,7 @@ class NotificationService {
     );
   }
 
-  // ✅ Update Play/Pause button state
+  // ✅ Update Play/Pause button
   static Future<void> updatePlayPauseButton(
     bool isPlaying,
     String title,
