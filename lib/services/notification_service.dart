@@ -1,12 +1,12 @@
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
   static int _notificationId = 1;
 
-  // ✅ Callbacks
   static VoidCallback? _onPlayPause;
   static VoidCallback? _onNext;
   static VoidCallback? _onPrevious;
@@ -24,19 +24,6 @@ class NotificationService {
     _onClose = onClose;
   }
 
-  static VoidCallback? get onPlayPause => _onPlayPause;
-  static set onPlayPause(VoidCallback? callback) => _onPlayPause = callback;
-
-  static VoidCallback? get onNext => _onNext;
-  static set onNext(VoidCallback? callback) => _onNext = callback;
-
-  static VoidCallback? get onPrevious => _onPrevious;
-  static set onPrevious(VoidCallback? callback) => _onPrevious = callback;
-
-  static VoidCallback? get onClose => _onClose;
-  static set onClose(VoidCallback? callback) => _onClose = callback;
-
-  // ✅ Initialize
   static Future<void> initialize() async {
     const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -48,9 +35,25 @@ class NotificationService {
       settings,
       onDidReceiveNotificationResponse: _handleNotificationResponse,
     );
+
+    // ✅ Create Notification Channel with Media Style
+    final androidPlugin =
+        _notifications.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+
+    await androidPlugin?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        'music_player_channel',
+        'Music Player',
+        description: 'Now playing music controls',
+        importance: Importance.high,
+        playSound: false,
+        enableVibration: false,
+        showBadge: false,
+      ),
+    );
   }
 
-  // ✅ Handle notification button clicks
   static void _handleNotificationResponse(NotificationResponse response) {
     switch (response.actionId) {
       case 'play_pause':
@@ -68,13 +71,20 @@ class NotificationService {
     }
   }
 
-  // ✅ Show Now Playing Notification
+  // ✅ MEDIA STYLE NOTIFICATION
   static Future<void> showNowPlayingNotification({
     required String title,
     required String artist,
     required bool isPlaying,
+    String? albumArtPath,
+    Color? accentColor,
   }) async {
-    // ✅ const hata kar final kar diya gaya hai
+    // Album art as large icon
+    AndroidBitmap<Object>? largeIcon;
+    if (albumArtPath != null && File(albumArtPath).existsSync()) {
+      largeIcon = FilePathAndroidBitmap(albumArtPath);
+    }
+
     final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
       'music_player_channel',
@@ -85,57 +95,64 @@ class NotificationService {
       ongoing: true,
       autoCancel: false,
       icon: '@mipmap/ic_launcher',
+      largeIcon: largeIcon,
+      color: accentColor ?? const Color(0xFF8B5CF6),
+      colorized: false, // ✅ Keep album art colors
+      playSound: false,
+      enableVibration: false,
+      showWhen: false,
+      onlyAlertOnce: true,
+      category: AndroidNotificationCategory.transport,
+      visibility: NotificationVisibility.public,
+      // ✅ MEDIA STYLE - yeh asli magic hai
+      styleInformation: const MediaStyleInformation(
+        showActionsInCompactView: true,
+      ),
+      // ✅ Compact Media Actions (Bade icons)
       actions: <AndroidNotificationAction>[
+        // Previous Button
         const AndroidNotificationAction(
           'previous',
-          '⏮️ Prev',
-          showsUserInterface: true,
+          '',
+          icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          showsUserInterface: false,
+          cancelNotification: false,
+          semanticAction: SemanticAction.previous,
         ),
+        // Play/Pause Button
         AndroidNotificationAction(
           'play_pause',
-          isPlaying ? '⏸️ Pause' : '▶️ Play',
-          showsUserInterface: true,
+          '',
+          icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          showsUserInterface: false,
+          cancelNotification: false,
+          semanticAction:
+              isPlaying ? SemanticAction.pause : SemanticAction.start,
         ),
+        // Next Button
         const AndroidNotificationAction(
           'next',
-          '⏭️ Next',
-          showsUserInterface: true,
-        ),
-        const AndroidNotificationAction(
-          'close',
-          '⏹️ Close',
-          showsUserInterface: true,
+          '',
+          icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+          showsUserInterface: false,
+          cancelNotification: false,
+          semanticAction: SemanticAction.next,
         ),
       ],
     );
 
-    // ✅ yahan se bhi const hata kar final kar diya gaya hai
-    final NotificationDetails details =
+    const NotificationDetails details =
         NotificationDetails(android: androidDetails);
 
     await _notifications.show(
       _notificationId,
-      isPlaying ? '▶️ Now Playing: $title' : '⏸️ Paused: $title',
+      title,
       artist,
       details,
       payload: 'now_playing',
     );
   }
 
-  // ✅ Update Play/Pause button
-  static Future<void> updatePlayPauseButton(
-    bool isPlaying,
-    String title,
-    String artist,
-  ) async {
-    await showNowPlayingNotification(
-      title: title,
-      artist: artist,
-      isPlaying: isPlaying,
-    );
-  }
-
-  // ✅ Cancel Notification
   static Future<void> cancelNotification() async {
     await _notifications.cancelAll();
   }
