@@ -85,7 +85,7 @@ class NotificationService {
       largeIcon = FilePathAndroidBitmap(albumArtPath);
     }
 
-    // 1. Pehle AndroidNotificationDetails banao
+    // 1. AndroidNotificationDetails banao
     final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
       'music_player_channel',
@@ -105,11 +105,13 @@ class NotificationService {
       onlyAlertOnce: true,
       category: AndroidNotificationCategory.transport,
       visibility: NotificationVisibility.public,
-      // ✅ Media Style
+
+      // ✅ Compact view mein 3 actions dikhane ke liye indices [0, 1, 2]
       styleInformation: const MediaStyleInformation(
-        showActionsInCompactView: true,
+        showActionsInCompactView: <int>[0, 1, 2],
       ),
-      // ✅ Actions (Bade icons)
+
+      // ✅ Actions
       actions: <AndroidNotificationAction>[
         const AndroidNotificationAction(
           'previous',
@@ -135,13 +137,13 @@ class NotificationService {
           cancelNotification: false,
         ),
       ],
-    ); // 👈 Yahan `);` aayega, `]` ke baad
+    );
 
-    // 2. Ab NotificationDetails banao
+    // 2. NotificationDetails
     final NotificationDetails details =
         NotificationDetails(android: androidDetails);
 
-    // 3. Notification show karo
+    // 3. Show notification
     await _notifications.show(
       _notificationId,
       title,
