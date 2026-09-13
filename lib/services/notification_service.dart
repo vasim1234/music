@@ -24,6 +24,7 @@ class NotificationService {
     _onClose = onClose;
   }
 
+  // ✅ Initialize & Request Permissions
   static Future<void> initialize() async {
     const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -36,11 +37,15 @@ class NotificationService {
       onDidReceiveNotificationResponse: _handleNotificationResponse,
     );
 
-    // ✅ Create Notification Channel
+    // Android Plugin for Channel & Permission
     final androidPlugin =
         _notifications.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
 
+    // ✅ Android 13+ runtime permission prompt
+    await androidPlugin?.requestNotificationsPermission();
+
+    // ✅ Create Notification Channel
     await androidPlugin?.createNotificationChannel(
       const AndroidNotificationChannel(
         'music_player_channel',
@@ -79,13 +84,11 @@ class NotificationService {
     String? albumArtPath,
     Color? accentColor,
   }) async {
-    // Album art as large icon
     AndroidBitmap<Object>? largeIcon;
     if (albumArtPath != null && File(albumArtPath).existsSync()) {
       largeIcon = FilePathAndroidBitmap(albumArtPath);
     }
 
-    // 1. AndroidNotificationDetails banao
     final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
       'music_player_channel',
@@ -105,11 +108,7 @@ class NotificationService {
       onlyAlertOnce: true,
       category: AndroidNotificationCategory.transport,
       visibility: NotificationVisibility.public,
-
-      // ✅ Fix: MediaStyleInformation ko sahi kar diya gaya hai
       styleInformation: const MediaStyleInformation(),
-
-      // ✅ Actions
       actions: <AndroidNotificationAction>[
         const AndroidNotificationAction(
           'previous',
@@ -137,17 +136,28 @@ class NotificationService {
       ],
     );
 
-    // 2. NotificationDetails
     final NotificationDetails details =
         NotificationDetails(android: androidDetails);
 
-    // 3. Show notification
     await _notifications.show(
       _notificationId,
       title,
       artist,
       details,
       payload: 'now_playing',
+    );
+  }
+
+  // ✅ Update helper method
+  static Future<void> updatePlayPauseButton(
+    bool isPlaying,
+    String title,
+    String artist,
+  ) async {
+    await showNowPlayingNotification(
+      title: title,
+      artist: artist,
+      isPlaying: isPlaying,
     );
   }
 
