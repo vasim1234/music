@@ -74,8 +74,8 @@ class NotificationService {
     required String artist,
     required bool isPlaying,
   }) async {
-    // ✅ v17+ ke liye correct syntax
-    const AndroidNotificationDetails androidDetails =
+    // ✅ const hata kar final kar diya gaya hai
+    final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
       'music_player_channel',
       'Music Player',
@@ -85,7 +85,6 @@ class NotificationService {
       ongoing: true,
       autoCancel: false,
       icon: '@mipmap/ic_launcher',
-      // ✅ largeIcon remove kar diya (compilation error de raha tha)
       actions: <AndroidNotificationAction>[
         const AndroidNotificationAction(
           'previous',
@@ -110,7 +109,8 @@ class NotificationService {
       ],
     );
 
-    const NotificationDetails details =
+    // ✅ yahan se bhi const hata kar final kar diya gaya hai
+    final NotificationDetails details =
         NotificationDetails(android: androidDetails);
 
     await _notifications.show(
