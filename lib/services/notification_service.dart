@@ -108,7 +108,7 @@ class NotificationService {
 
       // ✅ Compact view mein 3 actions dikhane ke liye indices [0, 1, 2]
       styleInformation: const MediaStyleInformation(
-        showActionsInCompactView: <int>[0, 1, 2],
+        styleInformation: const MediaStyleInformation(),
       ),
 
       // ✅ Actions
