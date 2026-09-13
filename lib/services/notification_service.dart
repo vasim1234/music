@@ -71,7 +71,7 @@ class NotificationService {
     }
   }
 
-  // ✅ MEDIA STYLE NOTIFICATION (Fixed Syntax)
+  // ✅ MEDIA STYLE NOTIFICATION
   static Future<void> showNowPlayingNotification({
     required String title,
     required String artist,
@@ -106,10 +106,8 @@ class NotificationService {
       category: AndroidNotificationCategory.transport,
       visibility: NotificationVisibility.public,
 
-      // ✅ Compact view mein 3 actions dikhane ke liye indices [0, 1, 2]
-      styleInformation: const MediaStyleInformation(
-        styleInformation: const MediaStyleInformation(),
-      ),
+      // ✅ Fix: MediaStyleInformation ko sahi kar diya gaya hai
+      styleInformation: const MediaStyleInformation(),
 
       // ✅ Actions
       actions: <AndroidNotificationAction>[
