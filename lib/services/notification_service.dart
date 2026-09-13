@@ -36,7 +36,7 @@ class NotificationService {
       onDidReceiveNotificationResponse: _handleNotificationResponse,
     );
 
-    // ✅ Create Notification Channel with Media Style
+    // ✅ Create Notification Channel
     final androidPlugin =
         _notifications.resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>();
@@ -71,7 +71,7 @@ class NotificationService {
     }
   }
 
-  // ✅ MEDIA STYLE NOTIFICATION
+  // ✅ MEDIA STYLE NOTIFICATION (Fixed Syntax)
   static Future<void> showNowPlayingNotification({
     required String title,
     required String artist,
@@ -85,6 +85,7 @@ class NotificationService {
       largeIcon = FilePathAndroidBitmap(albumArtPath);
     }
 
+    // 1. Pehle AndroidNotificationDetails banao
     final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
       'music_player_channel',
@@ -97,47 +98,50 @@ class NotificationService {
       icon: '@mipmap/ic_launcher',
       largeIcon: largeIcon,
       color: accentColor ?? const Color(0xFF8B5CF6),
-      colorized: false, // ✅ Keep album art colors
+      colorized: false,
       playSound: false,
       enableVibration: false,
       showWhen: false,
       onlyAlertOnce: true,
       category: AndroidNotificationCategory.transport,
       visibility: NotificationVisibility.public,
-      // ✅ MEDIA STYLE - yeh asli magic hai
+      // ✅ Media Style
       styleInformation: const MediaStyleInformation(
         showActionsInCompactView: true,
       ),
-      // ✅ Compact Media Actions (Bade iconcolor
+      // ✅ Actions (Bade icons)
       actions: <AndroidNotificationAction>[
-  const AndroidNotificationAction(
-    'previous',
-    'Previous',
-    icon: DrawableResourceAndroidBitmap('ic_skip_previous'), // ✅ Ye file ab exist karti hai
-    showsUserInterface: false,
-    cancelNotification: false,
-  ),
-  AndroidNotificationAction(
-    'play_pause',
-    isPlaying ? 'Pause' : 'Play',
-    icon: DrawableResourceAndroidBitmap(
-      isPlaying ? 'ic_pause' : 'ic_play_arrow',
-    ),
-    showsUserInterface: false,
-    cancelNotification: false,
-  ),
-  const AndroidNotificationAction(
-    'next',
-    'Next',
-    icon: DrawableResourceAndroidBitmap('ic_skip_next'), // ✅ Ye file ab exist karti hai
-    showsUserInterface: false,
-    cancelNotification: false,
-  ),
-],
+        const AndroidNotificationAction(
+          'previous',
+          'Previous',
+          icon: DrawableResourceAndroidBitmap('ic_skip_previous'),
+          showsUserInterface: false,
+          cancelNotification: false,
+        ),
+        AndroidNotificationAction(
+          'play_pause',
+          isPlaying ? 'Pause' : 'Play',
+          icon: DrawableResourceAndroidBitmap(
+            isPlaying ? 'ic_pause' : 'ic_play_arrow',
+          ),
+          showsUserInterface: false,
+          cancelNotification: false,
+        ),
+        const AndroidNotificationAction(
+          'next',
+          'Next',
+          icon: DrawableResourceAndroidBitmap('ic_skip_next'),
+          showsUserInterface: false,
+          cancelNotification: false,
+        ),
+      ],
+    ); // 👈 Yahan `);` aayega, `]` ke baad
 
-    const NotificationDetails details =
+    // 2. Ab NotificationDetails banao
+    final NotificationDetails details =
         NotificationDetails(android: androidDetails);
 
+    // 3. Notification show karo
     await _notifications.show(
       _notificationId,
       title,
