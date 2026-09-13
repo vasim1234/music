@@ -110,36 +110,33 @@ class NotificationService {
       ),
       // ✅ Compact Media Actions (Bade icons)
       actions: <AndroidNotificationAction>[
-        // Previous Button
-        const AndroidNotificationAction(
-          'previous',
-          '',
-          icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-          showsUserInterface: false,
-          cancelNotification: false,
-          semanticAction: SemanticAction.previous,
-        ),
-        // Play/Pause Button
-        AndroidNotificationAction(
-          'play_pause',
-          '',
-          icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-          showsUserInterface: false,
-          cancelNotification: false,
-          semanticAction:
-              isPlaying ? SemanticAction.pause : SemanticAction.start,
-        ),
-        // Next Button
-        const AndroidNotificationAction(
-          'next',
-          '',
-          icon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-          showsUserInterface: false,
-          cancelNotification: false,
-          semanticAction: SemanticAction.next,
-        ),
-      ],
-    );
+  const AndroidNotificationAction(
+    'previous',
+    '',
+    icon: DrawableResourceAndroidBitmap('ic_skip_previous'),  // ✅ Custom Icon
+    showsUserInterface: false,
+    cancelNotification: false,
+    semanticAction: SemanticAction.previous,
+  ),
+  AndroidNotificationAction(
+    'play_pause',
+    '',
+    icon: DrawableResourceAndroidBitmap(
+      isPlaying ? 'ic_pause' : 'ic_play_arrow'  // ✅ Custom Icon
+    ),
+    showsUserInterface: false,
+    cancelNotification: false,
+    semanticAction: isPlaying ? SemanticAction.pause : SemanticAction.start,
+  ),
+  const AndroidNotificationAction(
+    'next',
+    '',
+    icon: DrawableResourceAndroidBitmap('ic_skip_next'),  // ✅ Custom Icon
+    showsUserInterface: false,
+    cancelNotification: false,
+    semanticAction: SemanticAction.next,
+  ),
+],
 
     const NotificationDetails details =
         NotificationDetails(android: androidDetails);
