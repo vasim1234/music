@@ -58,3 +58,66 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
+
+  Future<List<File>> _getAudioFilesSafely(Directory dir) async {
+    try {
+      List<File> audioFiles = [];
+      final List<FileSystemEntity> entities = await dir.list().toList();
+      for (var entity in entities) {
+        if (entity is File) {
+          String extension = entity.path.split(".").last.toLowerCase();
+          if (["mp3", "wav", "aac", "flac", "m4a", "ogg"].contains(extension)) {
+            audioFiles.add(entity);
+          }
+        } else if (entity is Directory) {
+          audioFiles.addAll(await _getAudioFilesSafely(entity));
+        }
+      }
+      return audioFiles;
+    } catch (e) {
+      print("Error: $e");
+      return [];
+    }
+  }
+
+  Future<List<File>> _getAudioFilesSafely(Directory dir) async {
+    try {
+      List<File> audioFiles = [];
+      final List<FileSystemEntity> entities = await dir.list().toList();
+      for (var entity in entities) {
+        if (entity is File) {
+          String extension = entity.path.split(".").last.toLowerCase();
+          if (["mp3", "wav", "aac", "flac", "m4a", "ogg"].contains(extension)) {
+            audioFiles.add(entity);
+          }
+        } else if (entity is Directory) {
+          audioFiles.addAll(await _getAudioFilesSafely(entity));
+        }
+      }
+      return audioFiles;
+    } catch (e) {
+      print("Error: $e");
+      return [];
+    }
+  }
+
+  Future<List<File>> _getAudioFilesSafely(Directory dir) async {
+    try {
+      List<File> audioFiles = [];
+      final List<FileSystemEntity> entities = await dir.list().toList();
+      for (var entity in entities) {
+        if (entity is File) {
+          String extension = entity.path.split(".").last.toLowerCase();
+          if (["mp3", "wav", "aac", "flac", "m4a", "ogg"].contains(extension)) {
+            audioFiles.add(entity);
+          }
+        } else if (entity is Directory) {
+          audioFiles.addAll(await _getAudioFilesSafely(entity));
+        }
+      }
+      return audioFiles;
+    } catch (e) {
+      print("Error: $e");
+      return [];
+    }
+  }
