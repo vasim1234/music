@@ -70,12 +70,13 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-
-        <queries>
-            <intent>
-                <action android:name="android.intent.action.PROCESS_TEXT"/>
-                <data android:mimeType="text/plain"/>
-            </intent>
-        </queries>
     </application>
+
+    <!-- ✅ Queries ab application ke BAHAR hai -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
 </manifest>
