@@ -7,9 +7,9 @@ class HomeScreen extends StatefulWidget {
   final bool? isDarkMode;
 
   const HomeScreen({
-    super.key, 
-    this.onThemeChanged, 
-    this.isDarkMode
+    super.key,
+    this.onThemeChanged,
+    this.isDarkMode,
   });
 
   @override
@@ -39,6 +39,28 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  // ✅ Ye function ab class ke ANDAR hai (sirf ek baar)
+  Future<List<File>> _getAudioFilesSafely(Directory dir) async {
+    try {
+      List<File> audioFiles = [];
+      final List<FileSystemEntity> entities = await dir.list().toList();
+      for (var entity in entities) {
+        if (entity is File) {
+          String extension = entity.path.split(".").last.toLowerCase();
+          if (["mp3", "wav", "aac", "flac", "m4a", "ogg"].contains(extension)) {
+            audioFiles.add(entity);
+          }
+        } else if (entity is Directory) {
+          audioFiles.addAll(await _getAudioFilesSafely(entity));
+        }
+      }
+      return audioFiles;
+    } catch (e) {
+      debugPrint("Error: $e");
+      return [];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -59,66 +81,3 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
-
-  Future<List<File>> _getAudioFilesSafely(Directory dir) async {
-    try {
-      List<File> audioFiles = [];
-      final List<FileSystemEntity> entities = await dir.list().toList();
-      for (var entity in entities) {
-        if (entity is File) {
-          String extension = entity.path.split(".").last.toLowerCase();
-          if (["mp3", "wav", "aac", "flac", "m4a", "ogg"].contains(extension)) {
-            audioFiles.add(entity);
-          }
-        } else if (entity is Directory) {
-          audioFiles.addAll(await _getAudioFilesSafely(entity));
-        }
-      }
-      return audioFiles;
-    } catch (e) {
-      print("Error: $e");
-      return [];
-    }
-  }
-
-  Future<List<File>> _getAudioFilesSafely(Directory dir) async {
-    try {
-      List<File> audioFiles = [];
-      final List<FileSystemEntity> entities = await dir.list().toList();
-      for (var entity in entities) {
-        if (entity is File) {
-          String extension = entity.path.split(".").last.toLowerCase();
-          if (["mp3", "wav", "aac", "flac", "m4a", "ogg"].contains(extension)) {
-            audioFiles.add(entity);
-          }
-        } else if (entity is Directory) {
-          audioFiles.addAll(await _getAudioFilesSafely(entity));
-        }
-      }
-      return audioFiles;
-    } catch (e) {
-      print("Error: $e");
-      return [];
-    }
-  }
-
-  Future<List<File>> _getAudioFilesSafely(Directory dir) async {
-    try {
-      List<File> audioFiles = [];
-      final List<FileSystemEntity> entities = await dir.list().toList();
-      for (var entity in entities) {
-        if (entity is File) {
-          String extension = entity.path.split(".").last.toLowerCase();
-          if (["mp3", "wav", "aac", "flac", "m4a", "ogg"].contains(extension)) {
-            audioFiles.add(entity);
-          }
-        } else if (entity is Directory) {
-          audioFiles.addAll(await _getAudioFilesSafely(entity));
-        }
-      }
-      return audioFiles;
-    } catch (e) {
-      print("Error: $e");
-      return [];
-    }
-  }
