@@ -82,7 +82,7 @@ Future<void> main() async {
 
   try {
   print('⏳ Initializing AudioService...');
-  // await initAudioService();   // ← Comment kar do (temporarily)
+  await initAudioService();   // ✅ // hata do
   print('✅✅✅ AUDIO SERVICE INITIALIZED ✅✅✅');
 } catch (e, stackTrace) {
   print('❌❌❌ AUDIO SERVICE ERROR: $e');
