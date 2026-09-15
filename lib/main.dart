@@ -148,10 +148,30 @@ void initState() {
   if (audioHandler == null) {
     _setupFallbackPlayer();
   } else {
-    audioHandler!.playingStream.listen((playing) { ... });
-    audioHandler!.positionStream.listen((pos) { ... });
-    audioHandler!.durationStream.listen((dur) { ... });
-    audioHandler!.mediaItem.listen((item) { ... });
+    audioHandler!.playingStream.listen((playing) {
+  if (mounted) {
+    setState(() => isPlaying = playing);
+    _isPlayingNotifier.value = playing;
+  }
+});
+
+audioHandler!.positionStream.listen((pos) {
+  if (mounted) setState(() => _position = pos);
+});
+
+audioHandler!.durationStream.listen((dur) {
+  if (mounted && dur != null) setState(() => _duration = dur);
+});
+
+audioHandler!.mediaItem.listen((item) {
+  if (item != null && mounted) {
+    setState(() {
+      _currentSong = File(item.id);
+      _currentIndex = _filteredSongs.indexWhere((f) => f.path == item.id);
+      if (_currentIndex == -1) _currentIndex = 0;
+    });
+  }
+});
   }
 
   _checkPermission();
