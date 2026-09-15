@@ -145,14 +145,19 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     super.initState();
     AlbumArtService.init();
 
-    // ✅ YEH CHECK ZAROORI HAI - agar audioHandler null hai toh crash nahi hoga
-    if (audioHandler == null) {
-      debugPrint('❌ audioHandler is NULL - AudioService failed to initialize!');
-      _checkPermission();
-      _loadSavedData();
-      _loadTheme();
-      return;
-    }
+    @override
+void initState() {
+  super.initState();
+  AlbumArtService.init();
+  
+  // ✅ Agar audioHandler null hai, toh direct just_audio use karo
+  if (audioHandler == null) {
+    debugPrint('❌ audioHandler null - using direct player');
+    _checkPermission();
+    _loadSavedData();
+    _loadTheme();
+    return;
+  }
 
     // ✅ Ab audioHandler! (with !) use karo kyunki wo nullable hai
     audioHandler!.playingStream.listen((playing) {
@@ -342,30 +347,35 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   }
 
   Future<void> _playSong(File song, int index) async {
-    if (_currentSong == song) {
-      _togglePlay();
-      return;
-    }
-    setState(() {
-      _currentSong = song;
-      _currentIndex = index;
-      isPlaying = true;
-    });
-    _isPlayingNotifier.value = true;
+  if (_currentSong == song) {
+    _togglePlay();
+    return;
+  }
+  
+  setState(() {
+    _currentSong = song;
+    _currentIndex = index;
+    isPlaying = true;
+  });
+  _isPlayingNotifier.value = true;
 
-    if (!_recentSongs.contains(song.path)) {
-      _recentSongs.insert(0, song.path);
-      if (_recentSongs.length > 20) _recentSongs.removeLast();
-      await _saveRecent();
-    }
+  if (!_recentSongs.contains(song.path)) {
+    _recentSongs.insert(0, song.path);
+    if (_recentSongs.length > 20) _recentSongs.removeLast();
+    await _saveRecent();
+  }
 
-    if (audioHandler == null) {
-      _showSnackBar('⚠️ Audio service not ready', Colors.orange);
-      return;
-    }
+  // ✅ Direct just_audio use karo (temporary)
+  if (audioHandler == null) {
+    final player = AudioPlayer();
+    await player.setFilePath(song.path);
+    player.play();
+    _showSnackBar('🎵 Playing (no service)', Colors.orange);
+    return;
+  }
 
-    List<String> paths = _filteredSongs.map((f) => f.path).toList();
-    await audioHandler!.setQueue(paths, index);
+  List<String> paths = _filteredSongs.map((f) => f.path).toList();
+  await audioHandler!.setQueue(paths, index);
   }
 
   Future<void> _togglePlay() async {
