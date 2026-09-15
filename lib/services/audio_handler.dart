@@ -148,10 +148,11 @@ Future<void> initAudioService() async {
   audioHandler = await AudioService.init(
     builder: () => MyAudioHandler(),
     config: const AudioServiceConfig(
-      androidNotificationChannelId: 'com.bhaibhai.music.channel.audio',
-      androidNotificationChannelName: 'Bhai Bhai Music',
-      androidNotificationOngoing: true,
-      androidStopForegroundOnPause: false,
+  androidNotificationChannelId: 'com.bhaibhai.music.channel.audio',
+  androidNotificationChannelName: 'Bhai Bhai Music',
+  androidNotificationOngoing: true,
+  androidStopForegroundOnPause: true,  // ✅ Ye sahi hai
+),
     ),
   );
 }
