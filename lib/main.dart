@@ -7,6 +7,7 @@ import 'album_art_service.dart';
 import 'enhance_sound_screen.dart';
 import 'services/audio_handler.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:just_audio/just_audio.dart';
 
 // ✅ 4 PREMIUM THEMES
 class AppColors {
@@ -77,19 +78,16 @@ class AppTheme {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  print('🚀🚀🚀 APP STARTING NOW 🚀🚀🚀');
-
+  print('🚀 APP STARTING NOW 🚀');
   try {
-  print('⏳ Initializing AudioService...');
-  await initAudioService();   // ✅ // hata do
-  print('✅✅✅ AUDIO SERVICE INITIALIZED ✅✅✅');
-} catch (e, stackTrace) {
-  print('❌❌❌ AUDIO SERVICE ERROR: $e');
-  print('STACK: $stackTrace');
+    print('⏳ Initializing AudioService...');
+    await initAudioService();
+    print('✅ AUDIO SERVICE INITIALIZED ✅');
+  } catch (e, stackTrace) {
+    print('❌ AUDIO SERVICE ERROR: $e');
+    print('STACK: $stackTrace');
   }
-
-  print('🎵🎵🎵 RUNNING APP NOW 🎵🎵🎵');
+  print('🎵 RUNNING APP NOW 🎵');
   runApp(const MyApp());
 }
 
@@ -140,54 +138,76 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   double _immersiveLevel = 0.3;
   final TextEditingController _searchController = TextEditingController();
 
+  // ✅ Fallback player for direct play (jab audio_service fail ho)
+  final AudioPlayer _fallbackPlayer = AudioPlayer();
+
+  // ✅ SIRF EK initState() - duplicate hata diya
   @override
   void initState() {
     super.initState();
     AlbumArtService.init();
 
-    @override
-void initState() {
-  super.initState();
-  AlbumArtService.init();
-  
-  // ✅ Agar audioHandler null hai, toh direct just_audio use karo
-  if (audioHandler == null) {
-    debugPrint('❌ audioHandler null - using direct player');
+    if (audioHandler == null) {
+      debugPrint('❌ audioHandler null - using fallback player');
+      _setupFallbackPlayer();
+    } else {
+      audioHandler!.playingStream.listen((playing) {
+        if (mounted) {
+          setState(() => isPlaying = playing);
+          _isPlayingNotifier.value = playing;
+        }
+      });
+
+      audioHandler!.positionStream.listen((pos) {
+        if (mounted) setState(() => _position = pos);
+      });
+
+      audioHandler!.durationStream.listen((dur) {
+        if (mounted && dur != null) setState(() => _duration = dur);
+      });
+
+      audioHandler!.mediaItem.listen((item) {
+        if (item != null && mounted) {
+          setState(() {
+            _currentSong = File(item.id);
+            _currentIndex = _filteredSongs.indexWhere((f) => f.path == item.id);
+            if (_currentIndex == -1) _currentIndex = 0;
+          });
+        }
+      });
+    }
+
     _checkPermission();
     _loadSavedData();
     _loadTheme();
-    return;
   }
 
-    // ✅ Ab audioHandler! (with !) use karo kyunki wo nullable hai
-    audioHandler!.playingStream.listen((playing) {
+  void _setupFallbackPlayer() {
+    _fallbackPlayer.onPlayerStateChanged.listen((state) {
+      final playing = state == PlayerState.playing;
       if (mounted) {
         setState(() => isPlaying = playing);
         _isPlayingNotifier.value = playing;
       }
     });
 
-    audioHandler!.positionStream.listen((pos) {
+    _fallbackPlayer.onDurationChanged.listen((dur) {
+      if (mounted) setState(() => _duration = dur);
+    });
+
+    _fallbackPlayer.onPositionChanged.listen((pos) {
       if (mounted) setState(() => _position = pos);
     });
 
-    audioHandler!.durationStream.listen((dur) {
-      if (mounted && dur != null) setState(() => _duration = dur);
+    _fallbackPlayer.onPlayerComplete.listen((_) {
+      _playNextFallback();
     });
+  }
 
-    audioHandler!.mediaItem.listen((item) {
-      if (item != null && mounted) {
-        setState(() {
-          _currentSong = File(item.id);
-          _currentIndex = _filteredSongs.indexWhere((f) => f.path == item.id);
-          if (_currentIndex == -1) _currentIndex = 0;
-        });
-      }
-    });
-
-    _checkPermission();
-    _loadSavedData();
-    _loadTheme();
+  void _playNextFallback() {
+    if (_filteredSongs.isEmpty) return;
+    final next = (_currentIndex + 1) % _filteredSongs.length;
+    _playSong(_filteredSongs[next], next);
   }
 
   Future<void> _loadTheme() async {
@@ -347,39 +367,49 @@ void initState() {
   }
 
   Future<void> _playSong(File song, int index) async {
-  if (_currentSong == song) {
-    _togglePlay();
-    return;
-  }
-  
-  setState(() {
-    _currentSong = song;
-    _currentIndex = index;
-    isPlaying = true;
-  });
-  _isPlayingNotifier.value = true;
+    if (_currentSong == song) {
+      _togglePlay();
+      return;
+    }
 
-  if (!_recentSongs.contains(song.path)) {
-    _recentSongs.insert(0, song.path);
-    if (_recentSongs.length > 20) _recentSongs.removeLast();
-    await _saveRecent();
-  }
+    setState(() {
+      _currentSong = song;
+      _currentIndex = index;
+      isPlaying = true;
+    });
+    _isPlayingNotifier.value = true;
 
-  // ✅ Direct just_audio use karo (temporary)
-  if (audioHandler == null) {
-    final player = AudioPlayer();
-    await player.setFilePath(song.path);
-    player.play();
-    _showSnackBar('🎵 Playing (no service)', Colors.orange);
-    return;
-  }
+    if (!_recentSongs.contains(song.path)) {
+      _recentSongs.insert(0, song.path);
+      if (_recentSongs.length > 20) _recentSongs.removeLast();
+      await _saveRecent();
+    }
 
-  List<String> paths = _filteredSongs.map((f) => f.path).toList();
-  await audioHandler!.setQueue(paths, index);
+    // ✅ Agar audio_service fail hua, toh fallback player use karo
+    if (audioHandler == null) {
+      try {
+        await _fallbackPlayer.setFilePath(song.path);
+        _fallbackPlayer.play();
+        _showSnackBar('🎵 Playing: ${getSongName(song.path)}', Colors.green);
+      } catch (e) {
+        _showSnackBar('⚠️ Play error: $e', Colors.red);
+      }
+      return;
+    }
+
+    List<String> paths = _filteredSongs.map((f) => f.path).toList();
+    await audioHandler!.setQueue(paths, index);
   }
 
   Future<void> _togglePlay() async {
-    if (audioHandler == null) return;
+    if (audioHandler == null) {
+      if (_fallbackPlayer.playing) {
+        await _fallbackPlayer.pause();
+      } else {
+        await _fallbackPlayer.resume();
+      }
+      return;
+    }
     if (isPlaying) {
       await audioHandler!.pause();
     } else {
@@ -388,12 +418,20 @@ void initState() {
   }
 
   void _playNext() {
-    if (audioHandler == null) return;
+    if (audioHandler == null) {
+      _playNextFallback();
+      return;
+    }
     audioHandler!.skipToNext();
   }
 
   void _playPrevious() {
-    if (audioHandler == null) return;
+    if (audioHandler == null) {
+      if (_filteredSongs.isEmpty) return;
+      final prev = _currentIndex > 0 ? _currentIndex - 1 : _filteredSongs.length - 1;
+      _playSong(_filteredSongs[prev], prev);
+      return;
+    }
     audioHandler!.skipToPrevious();
   }
 
@@ -430,6 +468,7 @@ void initState() {
     setState(() {
       if (song == _currentSong) {
         if (audioHandler != null) audioHandler!.stop();
+        _fallbackPlayer.stop();
         _currentSong = null;
         _currentIndex = -1;
         isPlaying = false;
@@ -781,41 +820,46 @@ void initState() {
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
                 const Spacer(),
-                if (audioHandler != null)
-                  StreamBuilder<Duration>(
-                    stream: audioHandler!.positionStream,
-                    builder: (context, snapshot) {
-                      final pos = snapshot.data ?? Duration.zero;
-                      final maxDur = _duration.inSeconds.toDouble() > 0
-                          ? _duration.inSeconds.toDouble()
-                          : 1.0;
-                      final val = pos.inSeconds.toDouble().clamp(0.0, maxDur);
-                      return Column(
-                        children: [
-                          Slider(
-                            value: val, max: maxDur,
-                            activeColor: AppTheme.primaryGradient[1],
-                            onChanged: (value) async {
-                              await audioHandler!.seek(Duration(seconds: value.toInt()));
-                              setModalState(() {});
-                            },
+                // ✅ Slider - audio_service ya fallback dono ke liye
+                StreamBuilder<Duration>(
+                  stream: audioHandler != null
+                      ? audioHandler!.positionStream
+                      : _fallbackPlayer.positionStream,
+                  builder: (context, snapshot) {
+                    final pos = snapshot.data ?? Duration.zero;
+                    final maxDur = _duration.inSeconds.toDouble() > 0
+                        ? _duration.inSeconds.toDouble()
+                        : 1.0;
+                    final val = pos.inSeconds.toDouble().clamp(0.0, maxDur);
+                    return Column(
+                      children: [
+                        Slider(
+                          value: val, max: maxDur,
+                          activeColor: AppTheme.primaryGradient[1],
+                          onChanged: (value) async {
+                            final target = Duration(seconds: value.toInt());
+                            if (audioHandler != null) {
+                              await audioHandler!.seek(target);
+                            } else {
+                              await _fallbackPlayer.seek(target);
+                            }
+                            setModalState(() {});
+                          },
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 30),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(formatTime(pos), style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                              Text(formatTime(_duration), style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                            ],
                           ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 30),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(formatTime(pos), style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                                Text(formatTime(_duration), style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                              ],
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  )
-                else
-                  const SizedBox(height: 60),
+                        ),
+                      ],
+                    );
+                  },
+                ),
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 30),
                   child: Row(
@@ -1271,6 +1315,7 @@ void initState() {
   void dispose() {
     _isPlayingNotifier.dispose();
     _searchController.dispose();
+    _fallbackPlayer.dispose();
     super.dispose();
   }
 
