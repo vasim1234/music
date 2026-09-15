@@ -142,7 +142,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   Stream<bool> get playingStream => _player.playingStream;
 }
 
-late MyAudioHandler audioHandler;
+MyAudioHandler? audioHandler;  // ✅ Nullable kar do
 
 Future<void> initAudioService() async {
   audioHandler = await AudioService.init(
