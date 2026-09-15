@@ -14,6 +14,7 @@ dependencies:
   shared_preferences: ^2.2.2
   audiotags: ^1.4.2
   path_provider: ^2.1.4
+  audio_service: ^0.18.15
   just_audio: ^0.9.40
 
 dev_dependencies:
