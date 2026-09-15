@@ -77,9 +77,9 @@ class AppTheme {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   print('🚀🚀🚀 APP STARTING NOW 🚀🚀🚀');
-  
+
   try {
     print('⏳ Initializing AudioService...');
     await initAudioService();
@@ -88,7 +88,7 @@ Future<void> main() async {
     print('❌❌❌ AUDIO SERVICE ERROR: $e');
     print('STACK: $stackTrace');
   }
-  
+
   print('🎵🎵🎵 RUNNING APP NOW 🎵🎵🎵');
   runApp(const MyApp());
 }
@@ -145,22 +145,32 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     super.initState();
     AlbumArtService.init();
 
-    audioHandler.playingStream.listen((playing) {
+    // ✅ YEH CHECK ZAROORI HAI - agar audioHandler null hai toh crash nahi hoga
+    if (audioHandler == null) {
+      debugPrint('❌ audioHandler is NULL - AudioService failed to initialize!');
+      _checkPermission();
+      _loadSavedData();
+      _loadTheme();
+      return;
+    }
+
+    // ✅ Ab audioHandler! (with !) use karo kyunki wo nullable hai
+    audioHandler!.playingStream.listen((playing) {
       if (mounted) {
         setState(() => isPlaying = playing);
         _isPlayingNotifier.value = playing;
       }
     });
 
-    audioHandler.positionStream.listen((pos) {
+    audioHandler!.positionStream.listen((pos) {
       if (mounted) setState(() => _position = pos);
     });
 
-    audioHandler.durationStream.listen((dur) {
+    audioHandler!.durationStream.listen((dur) {
       if (mounted && dur != null) setState(() => _duration = dur);
     });
 
-    audioHandler.mediaItem.listen((item) {
+    audioHandler!.mediaItem.listen((item) {
       if (item != null && mounted) {
         setState(() {
           _currentSong = File(item.id);
@@ -349,20 +359,33 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       await _saveRecent();
     }
 
+    if (audioHandler == null) {
+      _showSnackBar('⚠️ Audio service not ready', Colors.orange);
+      return;
+    }
+
     List<String> paths = _filteredSongs.map((f) => f.path).toList();
-    await audioHandler.setQueue(paths, index);
+    await audioHandler!.setQueue(paths, index);
   }
 
   Future<void> _togglePlay() async {
+    if (audioHandler == null) return;
     if (isPlaying) {
-      await audioHandler.pause();
+      await audioHandler!.pause();
     } else {
-      await audioHandler.play();
+      await audioHandler!.play();
     }
   }
 
-  void _playNext() => audioHandler.skipToNext();
-  void _playPrevious() => audioHandler.skipToPrevious();
+  void _playNext() {
+    if (audioHandler == null) return;
+    audioHandler!.skipToNext();
+  }
+
+  void _playPrevious() {
+    if (audioHandler == null) return;
+    audioHandler!.skipToPrevious();
+  }
 
   void _applyFilter() {
     List<File> baseList = [];
@@ -396,7 +419,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   void _deleteSongPermanently(File song) {
     setState(() {
       if (song == _currentSong) {
-        audioHandler.stop();
+        if (audioHandler != null) audioHandler!.stop();
         _currentSong = null;
         _currentIndex = -1;
         isPlaying = false;
@@ -748,38 +771,41 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
                 const Spacer(),
-                StreamBuilder<Duration>(
-                  stream: audioHandler.positionStream,
-                  builder: (context, snapshot) {
-                    final pos = snapshot.data ?? Duration.zero;
-                    final maxDur = _duration.inSeconds.toDouble() > 0
-                        ? _duration.inSeconds.toDouble()
-                        : 1.0;
-                    final val = pos.inSeconds.toDouble().clamp(0.0, maxDur);
-                    return Column(
-                      children: [
-                        Slider(
-                          value: val, max: maxDur,
-                          activeColor: AppTheme.primaryGradient[1],
-                          onChanged: (value) async {
-                            await audioHandler.seek(Duration(seconds: value.toInt()));
-                            setModalState(() {});
-                          },
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 30),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(formatTime(pos), style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                              Text(formatTime(_duration), style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                            ],
+                if (audioHandler != null)
+                  StreamBuilder<Duration>(
+                    stream: audioHandler!.positionStream,
+                    builder: (context, snapshot) {
+                      final pos = snapshot.data ?? Duration.zero;
+                      final maxDur = _duration.inSeconds.toDouble() > 0
+                          ? _duration.inSeconds.toDouble()
+                          : 1.0;
+                      final val = pos.inSeconds.toDouble().clamp(0.0, maxDur);
+                      return Column(
+                        children: [
+                          Slider(
+                            value: val, max: maxDur,
+                            activeColor: AppTheme.primaryGradient[1],
+                            onChanged: (value) async {
+                              await audioHandler!.seek(Duration(seconds: value.toInt()));
+                              setModalState(() {});
+                            },
                           ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 30),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(formatTime(pos), style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                                Text(formatTime(_duration), style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  )
+                else
+                  const SizedBox(height: 60),
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 30),
                   child: Row(
