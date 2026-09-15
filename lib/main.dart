@@ -81,12 +81,12 @@ Future<void> main() async {
   print('🚀🚀🚀 APP STARTING NOW 🚀🚀🚀');
 
   try {
-    print('⏳ Initializing AudioService...');
-    await initAudioService();
-    print('✅✅✅ AUDIO SERVICE INITIALIZED ✅✅✅');
-  } catch (e, stackTrace) {
-    print('❌❌❌ AUDIO SERVICE ERROR: $e');
-    print('STACK: $stackTrace');
+  print('⏳ Initializing AudioService...');
+  // await initAudioService();   // ← Comment kar do (temporarily)
+  print('✅✅✅ AUDIO SERVICE INITIALIZED ✅✅✅');
+} catch (e, stackTrace) {
+  print('❌❌❌ AUDIO SERVICE ERROR: $e');
+  print('STACK: $stackTrace');
   }
 
   print('🎵🎵🎵 RUNNING APP NOW 🎵🎵🎵');
