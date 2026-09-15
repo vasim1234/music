@@ -126,22 +126,18 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   String? _openedPlaylist;
   File? _currentSong;
   bool isPlaying = false;
-  bool isShuffle = false;
-  bool isRepeat = false;
   bool is3DOn = false;
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
   int _currentIndex = -1;
   int _selectedTab = 0;
   int _themeIndex = 0;
-  double _bassLevel = 0.3;
-  double _immersiveLevel = 0.3;
+
   final TextEditingController _searchController = TextEditingController();
 
-  // ✅ Fallback player for direct play (jab audio_service fail ho)
+  // ✅ Fallback player (jab audio_service fail ho)
   final AudioPlayer _fallbackPlayer = AudioPlayer();
 
-  // ✅ SIRF EK initState() - duplicate hata diya
   @override
   void initState() {
     super.initState();
@@ -182,25 +178,25 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _loadTheme();
   }
 
+  // ✅ just_audio ke sahi streams
   void _setupFallbackPlayer() {
-    _fallbackPlayer.onPlayerStateChanged.listen((state) {
-      final playing = state == PlayerState.playing;
+    _fallbackPlayer.playerStateStream.listen((state) {
+      final playing = state.playing;
       if (mounted) {
         setState(() => isPlaying = playing);
         _isPlayingNotifier.value = playing;
       }
+      if (state.processingState == ProcessingState.completed) {
+        _playNextFallback();
+      }
     });
 
-    _fallbackPlayer.onDurationChanged.listen((dur) {
-      if (mounted) setState(() => _duration = dur);
+    _fallbackPlayer.durationStream.listen((dur) {
+      if (mounted && dur != null) setState(() => _duration = dur);
     });
 
-    _fallbackPlayer.onPositionChanged.listen((pos) {
+    _fallbackPlayer.positionStream.listen((pos) {
       if (mounted) setState(() => _position = pos);
-    });
-
-    _fallbackPlayer.onPlayerComplete.listen((_) {
-      _playNextFallback();
     });
   }
 
@@ -385,7 +381,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       await _saveRecent();
     }
 
-    // ✅ Agar audio_service fail hua, toh fallback player use karo
+    // ✅ Fallback player use karo agar audio_service fail hai
     if (audioHandler == null) {
       try {
         await _fallbackPlayer.setFilePath(song.path);
@@ -406,7 +402,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       if (_fallbackPlayer.playing) {
         await _fallbackPlayer.pause();
       } else {
-        await _fallbackPlayer.resume();
+        await _fallbackPlayer.play();
       }
       return;
     }
@@ -820,7 +816,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
                 const Spacer(),
-                // ✅ Slider - audio_service ya fallback dono ke liye
+                // ✅ Slider - dono ke liye
                 StreamBuilder<Duration>(
                   stream: audioHandler != null
                       ? audioHandler!.positionStream
@@ -983,12 +979,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                           MaterialPageRoute(
                             builder: (context) => EnhanceSoundScreen(
                               isDarkTheme: true,
-                              onEffectsChanged: (bass, immersive) {
-                                setState(() {
-                                  _bassLevel = bass;
-                                  _immersiveLevel = immersive;
-                                });
-                              },
+                              onEffectsChanged: (bass, immersive) {},
                             ),
                           ),
                         );
