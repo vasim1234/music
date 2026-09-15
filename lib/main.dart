@@ -80,18 +80,16 @@ class AppTheme {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  print('🚀 APP STARTING NOW');
+  print('🚀 APP STARTING');
   
   try {
-    print('⏳ Initializing AudioService...');
     await initAudioService();
     print('✅ AUDIO SERVICE INITIALIZED');
-  } catch (e, stackTrace) {
+  } catch (e) {
     print('❌ AUDIO SERVICE ERROR: $e');
-    print('STACK: $stackTrace');
   }
   
-  print('🎵 RUNNING APP NOW');
+  print('🎵 RUNNING APP');
   runApp(const MyApp());
 }
 
@@ -143,44 +141,23 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   final AudioPlayer _fallbackPlayer = AudioPlayer();
 
   @override
-  void initState() {
-    super.initState();
-    AlbumArtService.init();
+void initState() {
+  super.initState();
+  AlbumArtService.init();
 
-    if (audioHandler == null) {
-      debugPrint('❌ audioHandler null - using fallback player');
-      _setupFallbackPlayer();
-    } else {
-      audioHandler!.playingStream.listen((playing) {
-        if (mounted) {
-          setState(() => isPlaying = playing);
-          _isPlayingNotifier.value = playing;
-        }
-      });
-
-      audioHandler!.positionStream.listen((pos) {
-        if (mounted) setState(() => _position = pos);
-      });
-
-      audioHandler!.durationStream.listen((dur) {
-        if (mounted && dur != null) setState(() => _duration = dur);
-      });
-
-      audioHandler!.mediaItem.listen((item) {
-        if (item != null && mounted) {
-          setState(() {
-            _currentSong = File(item.id);
-            _currentIndex = _filteredSongs.indexWhere((f) => f.path == item.id);
-            if (_currentIndex == -1) _currentIndex = 0;
-          });
-        }
-      });
-    }
-
-    _checkPermission();
-    _loadSavedData();
-    _loadTheme();
+  if (audioHandler == null) {
+    _setupFallbackPlayer();
+  } else {
+    audioHandler!.playingStream.listen((playing) { ... });
+    audioHandler!.positionStream.listen((pos) { ... });
+    audioHandler!.durationStream.listen((dur) { ... });
+    audioHandler!.mediaItem.listen((item) { ... });
   }
+
+  _checkPermission();
+  _loadSavedData();
+  _loadTheme();
+}
 
   // ✅ just_audio ke sahi streams
   void _setupFallbackPlayer() {
