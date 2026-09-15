@@ -146,7 +146,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 MyAudioHandler? audioHandler;
 
 Future<void> initAudioService() async {
-  debugPrint('🔄 initAudioService START');
+  print('🔄 initAudioService START');
   try {
     audioHandler = await AudioService.init(
       builder: () => MyAudioHandler(),
@@ -157,8 +157,8 @@ Future<void> initAudioService() async {
         androidStopForegroundOnPause: true,
       ),
     );
-    debugPrint('✅ audioHandler SET: ${audioHandler != null}');
+    print('✅ audioHandler SET: ${audioHandler != null}');
   } catch (e) {
-    debugPrint('❌ initAudioService ERROR: $e');
+    print('❌ initAudioService ERROR: $e');
   }
 }
