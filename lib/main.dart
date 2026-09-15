@@ -80,22 +80,18 @@ class AppTheme {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  debugPrint('🚀 APP STARTING NOW');
+  print('🚀 APP STARTING NOW');
   
   try {
-    debugPrint('⏳ Initializing AudioService...');
+    print('⏳ Initializing AudioService...');
     await initAudioService();
-    debugPrint('✅ AUDIO SERVICE INITIALIZED');
+    print('✅ AUDIO SERVICE INITIALIZED');
   } catch (e, stackTrace) {
-    debugPrint('❌ AUDIO SERVICE ERROR: $e');
-    debugPrint('STACK: $stackTrace');
+    print('❌ AUDIO SERVICE ERROR: $e');
+    print('STACK: $stackTrace');
   }
   
-  debugPrint('🎵 RUNNING APP NOW');
-  runApp(const MyApp());
-}
-  
-  debugPrint('🎵 RUNNING APP NOW 🎵');
+  print('🎵 RUNNING APP NOW');
   runApp(const MyApp());
 }
 
