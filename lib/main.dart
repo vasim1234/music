@@ -5,8 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'album_art_service.dart';
 import 'enhance_sound_screen.dart';
-import 'services/audio_handler.dart';
-import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:flutter/foundation.dart';  // ✅ Ye add karo
 
