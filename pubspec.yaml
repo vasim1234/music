@@ -1,26 +1,38 @@
-name: music_player
-description: A local music player app
-publish_to: 'none'
-version: 1.0.0+1
+name: Music App Build
 
-environment:
-  sdk: ">=3.0.0 <4.0.0"
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
 
-dependencies:
-  flutter:
-    sdk: flutter
-  file_picker: ^8.0.0
-  permission_handler: ^11.3.1
-  shared_preferences: ^2.2.2
-  audiotags: ^1.4.2
-  path_provider: ^2.1.4
-  audio_service: ^0.18.15
-  just_audio: ^0.9.40
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^4.0.0
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-flutter:
-  uses-material-design: true
+      - name: Set up Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.0'
+          channel: 'stable'
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build APK (Split per ABI)
+        run: flutter build apk --release --split-per-abi
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: MusicApp-Build-${{ github.run_number }}
+          path: build/app/outputs/flutter-apk/*.apk
