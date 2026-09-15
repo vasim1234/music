@@ -7,6 +7,8 @@ import 'album_art_service.dart';
 import 'enhance_sound_screen.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:flutter/foundation.dart';  // ✅ Ye add karo
+import 'services/audio_handler.dart';
+import 'package:audio_service/audio_service.dart';
 
 // ✅ 4 PREMIUM THEMES
 class AppColors {
