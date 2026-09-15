@@ -26,17 +26,13 @@ jobs:
           channel: 'stable'
 
       - name: Install Dependencies
-        run: |
-          flutter pub get
+        run: flutter pub get
 
       - name: Build APK
-        run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleRelease --warning-mode all
+        run: flutter build apk --release
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MusicApp-Build-${{ github.run_number }}.apk
+          name: MusicApp-Build-${{ github.run_number }}
           path: build/app/outputs/flutter-apk/app-release.apk
