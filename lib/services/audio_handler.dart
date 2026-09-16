@@ -146,17 +146,18 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 MyAudioHandler? audioHandler;
 
 Future<void> initAudioService() async {
-  print('🔄 initAudioService START');
-  try {
-    audioHandler = await AudioService.init(
-      builder: () => MyAudioHandler(),
-      config: const AudioServiceConfig(
-        androidNotificationChannelId: 'com.bhaibhai.music.channel.audio',
-        androidNotificationChannelName: 'Bhai Bhai Music',
-        androidNotificationOngoing: true,
-        androidStopForegroundOnPause: true,
-      ),
-    );
+  audioHandler = await AudioService.init(
+    builder: () => MyAudioHandler(),
+    config: const AudioServiceConfig(
+      androidNotificationChannelId: 'com.bhaibhai.music.channel.audio',
+      androidNotificationChannelName: 'Bhai Bhai Music',
+      androidNotificationOngoing: true,
+      androidStopForegroundOnPause: false,  // ✅ false karo
+      androidNotificationIcon: 'mipmap/ic_launcher',
+      androidShowNotificationBadge: false,
+    ),
+  );
+}
     print('✅ audioHandler SET: ${audioHandler != null}');
   } catch (e) {
     print('❌ initAudioService ERROR: $e');
