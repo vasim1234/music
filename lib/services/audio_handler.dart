@@ -175,7 +175,7 @@ Future<void> initAudioService() async {
         androidNotificationChannelId: 'com.bhaibhai.music.channel.audio',
         androidNotificationChannelName: 'Bhai Bhai Music',
         androidNotificationOngoing: true,
-        androidStopForegroundOnPause: false,
+        androidStopForegroundOnPause: true,   // ✅ true karo
         androidNotificationIcon: 'mipmap/ic_launcher',
         androidShowNotificationBadge: false,
       ),
@@ -185,3 +185,4 @@ Future<void> initAudioService() async {
     debugPrint('❌ initAudioService ERROR: $e');
   }
 }
+
