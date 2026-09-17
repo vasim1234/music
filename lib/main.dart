@@ -140,43 +140,55 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   // ✅ Fallback player (jab audio_service fail ho)
   final AudioPlayer _fallbackPlayer = AudioPlayer();
 
-  @override
+ @override
 void initState() {
   super.initState();
   AlbumArtService.init();
+
+  // ✅ Notification permission request karo (buttons kaam karne ke liye)
+  _requestNotificationPermission();
 
   if (audioHandler == null) {
     _setupFallbackPlayer();
   } else {
     audioHandler!.playingStream.listen((playing) {
-  if (mounted) {
-    setState(() => isPlaying = playing);
-    _isPlayingNotifier.value = playing;
-  }
-});
-
-audioHandler!.positionStream.listen((pos) {
-  if (mounted) setState(() => _position = pos);
-});
-
-audioHandler!.durationStream.listen((dur) {
-  if (mounted && dur != null) setState(() => _duration = dur);
-});
-
-audioHandler!.mediaItem.listen((item) {
-  if (item != null && mounted) {
-    setState(() {
-      _currentSong = File(item.id);
-      _currentIndex = _filteredSongs.indexWhere((f) => f.path == item.id);
-      if (_currentIndex == -1) _currentIndex = 0;
+      if (mounted) {
+        setState(() => isPlaying = playing);
+        _isPlayingNotifier.value = playing;
+      }
     });
-  }
-});
+
+    audioHandler!.positionStream.listen((pos) {
+      if (mounted) setState(() => _position = pos);
+    });
+
+    audioHandler!.durationStream.listen((dur) {
+      if (mounted && dur != null) setState(() => _duration = dur);
+    });
+
+    audioHandler!.mediaItem.listen((item) {
+      if (item != null && mounted) {
+        setState(() {
+          _currentSong = File(item.id);
+          _currentIndex = _filteredSongs.indexWhere((f) => f.path == item.id);
+          if (_currentIndex == -1) _currentIndex = 0;
+        });
+      }
+    });
   }
 
   _checkPermission();
   _loadSavedData();
   _loadTheme();
+}
+
+// ✅ Ye naya method add karo
+Future<void> _requestNotificationPermission() async {
+  if (Platform.isAndroid) {
+    if (await Permission.notification.isDenied) {
+      await Permission.notification.request();
+    }
+  }
 }
 
   // ✅ just_audio ke sahi streams
