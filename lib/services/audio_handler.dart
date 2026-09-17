@@ -9,50 +9,57 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   int _currentIndex = 0;
 
   MyAudioHandler() {
-    playbackState.add(PlaybackState(
+  // ✅ Yeh zaroori hai - initial playback state
+  playbackState.add(PlaybackState(
+    controls: [
+      MediaControl.skipToPrevious,
+      MediaControl.play,       // ← Play icon
+      MediaControl.skipToNext,
+    ],
+    systemActions: const {MediaAction.seek},
+    androidCompactActionIndices: const [0, 1, 2],
+    processingState: AudioProcessingState.idle,
+    playing: false,
+  ));
+
+  mediaItem.add(null);
+
+  // ✅ Duration update
+  _player.durationStream.listen((duration) {
+    final item = mediaItem.value;
+    if (item != null && duration != null) {
+      mediaItem.add(item.copyWith(duration: duration));
+    }
+  });
+
+  // ✅ Position update
+  _player.positionStream.listen((position) {
+    playbackState.add(playbackState.value.copyWith(
+      updatePosition: position,
+    ));
+  });
+
+  // ✅ Playing state update - YEH BUTTONS KE LIYE ZAROORI HAI
+  _player.playerStateStream.listen((state) {
+    final playing = state.playing;
+    playbackState.add(playbackState.value.copyWith(
+      playing: playing,
       controls: [
         MediaControl.skipToPrevious,
-        MediaControl.play,
+        playing ? MediaControl.pause : MediaControl.play,  // ← Play/Pause toggle
         MediaControl.skipToNext,
       ],
-      systemActions: const {MediaAction.seek},
       androidCompactActionIndices: const [0, 1, 2],
-      processingState: AudioProcessingState.idle,
-      playing: false,
+      processingState: _getProcessingState(state.processingState),
     ));
+  });
 
-    mediaItem.add(null);
-
-    _player.durationStream.listen((duration) {
-      final item = mediaItem.value;
-      if (item != null && duration != null) {
-        mediaItem.add(item.copyWith(duration: duration));
-      }
-    });
-
-    _player.positionStream.listen((position) {
-      playbackState.add(playbackState.value.copyWith(updatePosition: position));
-    });
-
-    _player.playerStateStream.listen((state) {
-      final playing = state.playing;
-      playbackState.add(playbackState.value.copyWith(
-        playing: playing,
-        controls: [
-          MediaControl.skipToPrevious,
-          playing ? MediaControl.pause : MediaControl.play,
-          MediaControl.skipToNext,
-        ],
-        androidCompactActionIndices: const [0, 1, 2],
-        processingState: _getProcessingState(state.processingState),
-      ));
-    });
-
-    _player.processingStateStream.listen((state) {
-      if (state == ProcessingState.completed) {
-        skipToNext();
-      }
-    });
+  // ✅ Auto next on complete
+  _player.processingStateStream.listen((state) {
+    if (state == ProcessingState.completed) {
+      skipToNext();
+    }
+  });
   }
 
   AudioProcessingState _getProcessingState(ProcessingState state) {
