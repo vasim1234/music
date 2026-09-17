@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:flutter/foundation.dart';  // ✅ Ye add karo
+import 'package:flutter/foundation.dart';
 
 class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   final AudioPlayer _player = AudioPlayer();
@@ -9,86 +9,97 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   int _currentIndex = 0;
 
   MyAudioHandler() {
-  // ✅ Yeh zaroori hai - initial playback state
-  playbackState.add(PlaybackState(
-    controls: [
-      MediaControl.skipToPrevious,
-      MediaControl.play,       // ← Play icon
-      MediaControl.skipToNext,
-    ],
-    systemActions: const {MediaAction.seek},
-    androidCompactActionIndices: const [0, 1, 2],
-    processingState: AudioProcessingState.idle,
-    playing: false,
-  ));
-
-  mediaItem.add(null);
-
-  // ✅ Duration update
-  _player.durationStream.listen((duration) {
-    final item = mediaItem.value;
-    if (item != null && duration != null) {
-      mediaItem.add(item.copyWith(duration: duration));
-    }
-  });
-
-  // ✅ Position update
-  _player.positionStream.listen((position) {
-    playbackState.add(playbackState.value.copyWith(
-      updatePosition: position,
-    ));
-  });
-
-  // ✅ Playing state update - YEH BUTTONS KE LIYE ZAROORI HAI
-  _player.playerStateStream.listen((state) {
-    final playing = state.playing;
-    playbackState.add(playbackState.value.copyWith(
-      playing: playing,
+    playbackState.add(PlaybackState(
       controls: [
         MediaControl.skipToPrevious,
-        playing ? MediaControl.pause : MediaControl.play,  // ← Play/Pause toggle
+        MediaControl.play,
         MediaControl.skipToNext,
       ],
+      systemActions: const {MediaAction.seek},
       androidCompactActionIndices: const [0, 1, 2],
-      processingState: _getProcessingState(state.processingState),
+      processingState: AudioProcessingState.idle,
+      playing: false,
     ));
-  });
 
-  // ✅ Auto next on complete
-  _player.processingStateStream.listen((state) {
-    if (state == ProcessingState.completed) {
-      skipToNext();
-    }
-  });
+    mediaItem.add(null);
+
+    _player.durationStream.listen((duration) {
+      final item = mediaItem.value;
+      if (item != null && duration != null) {
+        mediaItem.add(item.copyWith(duration: duration));
+      }
+    });
+
+    _player.positionStream.listen((position) {
+      playbackState.add(playbackState.value.copyWith(
+        updatePosition: position,
+      ));
+    });
+
+    _player.playerStateStream.listen((state) {
+      final playing = state.playing;
+      playbackState.add(playbackState.value.copyWith(
+        playing: playing,
+        controls: [
+          MediaControl.skipToPrevious,
+          playing ? MediaControl.pause : MediaControl.play,
+          MediaControl.skipToNext,
+        ],
+        androidCompactActionIndices: const [0, 1, 2],
+        processingState: _getProcessingState(state.processingState),
+      ));
+    });
+
+    _player.processingStateStream.listen((state) {
+      if (state == ProcessingState.completed) {
+        skipToNext();
+      }
+    });
   }
 
   AudioProcessingState _getProcessingState(ProcessingState state) {
     switch (state) {
-      case ProcessingState.idle: return AudioProcessingState.idle;
-      case ProcessingState.loading: return AudioProcessingState.loading;
-      case ProcessingState.buffering: return AudioProcessingState.buffering;
-      case ProcessingState.ready: return AudioProcessingState.ready;
-      case ProcessingState.completed: return AudioProcessingState.completed;
+      case ProcessingState.idle:
+        return AudioProcessingState.idle;
+      case ProcessingState.loading:
+        return AudioProcessingState.loading;
+      case ProcessingState.buffering:
+        return AudioProcessingState.buffering;
+      case ProcessingState.ready:
+        return AudioProcessingState.ready;
+      case ProcessingState.completed:
+        return AudioProcessingState.completed;
     }
   }
 
   @override
-  Future<void> play() => _player.play();
+  Future<void> play() {
+    debugPrint('▶️ play() called from notification');
+    return _player.play();
+  }
 
   @override
-  Future<void> pause() => _player.pause();
+  Future<void> pause() {
+    debugPrint('⏸️ pause() called from notification');
+    return _player.pause();
+  }
 
   @override
   Future<void> stop() async {
+    debugPrint('⏹️ stop() called');
     await _player.stop();
     await super.stop();
   }
 
   @override
-  Future<void> seek(Duration position) => _player.seek(position);
+  Future<void> seek(Duration position) {
+    debugPrint('⏩ seek() called: $position');
+    return _player.seek(position);
+  }
 
   @override
   Future<void> skipToNext() async {
+    debugPrint('⏭️ skipToNext() called');
     if (_queue.isEmpty) return;
     _currentIndex = (_currentIndex + 1) % _queue.length;
     await _playCurrent();
@@ -96,6 +107,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   @override
   Future<void> skipToPrevious() async {
+    debugPrint('⏮️ skipToPrevious() called');
     if (_queue.isEmpty) return;
     _currentIndex = _currentIndex > 0 ? _currentIndex - 1 : _queue.length - 1;
     await _playCurrent();
@@ -103,6 +115,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 
   @override
   Future<void> skipToQueueItem(int index) async {
+    debugPrint('⏯️ skipToQueueItem() called: $index');
     if (index < 0 || index >= _queue.length) return;
     _currentIndex = index;
     await _playCurrent();
@@ -115,8 +128,9 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     try {
       await _player.setAudioSource(AudioSource.uri(Uri.file(item.id)));
       _player.play();
+      debugPrint('✅ Playing: ${item.title}');
     } catch (e) {
-      print('❌ Error playing: $e');
+      debugPrint('❌ Error playing: $e');
     }
   }
 
@@ -153,20 +167,21 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
 MyAudioHandler? audioHandler;
 
 Future<void> initAudioService() async {
-  audioHandler = await AudioService.init(
-    builder: () => MyAudioHandler(),
-    config: const AudioServiceConfig(
-      androidNotificationChannelId: 'com.bhaibhai.music.channel.audio',
-      androidNotificationChannelName: 'Bhai Bhai Music',
-      androidNotificationOngoing: true,
-      androidStopForegroundOnPause: false,  // ✅ false karo
-      androidNotificationIcon: 'mipmap/ic_launcher',
-      androidShowNotificationBadge: false,
-    ),
-  );
-}
-    print('✅ audioHandler SET: ${audioHandler != null}');
+  debugPrint('🔄 initAudioService START');
+  try {
+    audioHandler = await AudioService.init(
+      builder: () => MyAudioHandler(),
+      config: const AudioServiceConfig(
+        androidNotificationChannelId: 'com.bhaibhai.music.channel.audio',
+        androidNotificationChannelName: 'Bhai Bhai Music',
+        androidNotificationOngoing: true,
+        androidStopForegroundOnPause: false,
+        androidNotificationIcon: 'mipmap/ic_launcher',
+        androidShowNotificationBadge: false,
+      ),
+    );
+    debugPrint('✅ audioHandler SET: ${audioHandler != null}');
   } catch (e) {
-    print('❌ initAudioService ERROR: $e');
+    debugPrint('❌ initAudioService ERROR: $e');
   }
 }
