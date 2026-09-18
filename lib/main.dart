@@ -817,10 +817,33 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   }
 
   String getSongName(String path) {
-    String name = path.split('/').last;
-    name = name.replaceAll(
-        RegExp(r'\.(mp3|m4a|wav|aac|ogg|flac)$', caseSensitive: false), '');
-    return name.replaceAll('_', ' ').trim();
+  String name = path.split('/').last;
+  
+  // ✅ Extra tags hatao: (MP3 320K), [320kbps], (Official Video), etc.
+  name = name.replaceAll(
+      RegExp(r'\.(mp3|m4a|wav|aac|ogg|flac)$', caseSensitive: false), '');
+  name = name.replaceAll(
+      RegExp(r'\s*\(MP3\s*\d*K?\)', caseSensitive: false), '');
+  name = name.replaceAll(
+      RegExp(r'\s*\[\d+\s*kbps\]', caseSensitive: false), '');
+  name = name.replaceAll(
+      RegExp(r'\s*\(Official\s*Video\)', caseSensitive: false), '');
+  name = name.replaceAll(
+      RegExp(r'\s*\(Lyrical\)', caseSensitive: false), '');
+  name = name.replaceAll(
+      RegExp(r'\s*\(Audio\)', caseSensitive: false), '');
+  name = name.replaceAll(
+      RegExp(r'\s*\(Full\s*Song\)', caseSensitive: false), '');
+  name = name.replaceAll(
+      RegExp(r'\s*\(HD\)', caseSensitive: false), '');
+  name = name.replaceAll(
+      RegExp(r'\s*\(\d{3,4}K\)', caseSensitive: false), '');
+  
+  // ✅ Extra spaces hatao
+  name = name.replaceAll(RegExp(r'\s+'), ' ').trim();
+  name = name.replaceAll('_', ' ').trim();
+  
+  return name;
   }
 
   // ✅ Queue Bottom Sheet (Up Next list)
@@ -1433,9 +1456,16 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(getSongName(song.path), maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: Colors.white,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, fontSize: 14)),
+                  Text(
+  getSongName(song.path),
+  maxLines: 1,
+  overflow: TextOverflow.ellipsis,
+  style: TextStyle(
+    color: isSelected ? AppTheme.accent : Colors.white,   // ✅ Active song theme accent color
+    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+    fontSize: 14,
+  ),
+),
                   const SizedBox(height: 4),
                   Row(
                     children: [
