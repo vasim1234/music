@@ -822,25 +822,18 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     name = name.replaceAll(
         RegExp(r'\.(mp3|m4a|wav|aac|ogg|flac)$', caseSensitive: false), '');
 
-    // Extra tags hatao
-    name = name.replaceAll(
-        RegExp(r'\s*\(MP3\s*\d*K?\)', caseSensitive: false), '');
-    name = name.replaceAll(
-        RegExp(r'\s*\[\d+\s*kbps\]', caseSensitive: false), '');
-    name = name.replaceAll(
-        RegExp(r'\s*\(Official\s*Video\)', caseSensitive: false), '');
-    name = name.replaceAll(
-        RegExp(r'\s*\(Lyrical\)', caseSensitive: false), '');
-    name = name.replaceAll(
-        RegExp(r'\s*\(Audio\)', caseSensitive: false), '');
-    name = name.replaceAll(
-        RegExp(r'\s*\(Full\s*Song\)', caseSensitive: false), '');
-    name = name.replaceAll(
-        RegExp(r'\s*\(HD\)', caseSensitive: false), '');
-    name = name.replaceAll(
-        RegExp(r'\s*\(\d{3,4}K\)', caseSensitive: false), '');
-    name = name.replaceAll(
-        RegExp(r'\s*\(320K\)', caseSensitive: false), '');
+// ✅ Extra tags hatao
+name = name.replaceAll(RegExp(r'\(MP3\s*\d*K?\)', caseSensitive: false), '');
+name = name.replaceAll(RegExp(r'\[MP3\s*\d*K?\]', caseSensitive: false), '');
+name = name.replaceAll(RegExp(r'\(320K\)', caseSensitive: false), '');
+name = name.replaceAll(RegExp(r'\(320\s*kbps\)', caseSensitive: false), '');
+name = name.replaceAll(RegExp(r'\[320\s*kbps\]', caseSensitive: false), '');
+name = name.replaceAll(RegExp(r'\(Official\s*Video\)', caseSensitive: false), '');
+name = name.replaceAll(RegExp(r'\(Lyrical\)', caseSensitive: false), '');
+name = name.replaceAll(RegExp(r'\(Audio\)', caseSensitive: false), '');
+name = name.replaceAll(RegExp(r'\(Full\s*Song\)', caseSensitive: false), '');
+name = name.replaceAll(RegExp(r'\(HD\)', caseSensitive: false), '');
+name = name.replaceAll(RegExp(r'\(\d{3,4}K\)', caseSensitive: false), '');
 
     // Extra spaces hatao
     name = name.replaceAll(RegExp(r'\s+'), ' ').trim();
