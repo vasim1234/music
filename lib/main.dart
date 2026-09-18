@@ -433,8 +433,17 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       return;
     }
 
-    List<String> paths = _filteredSongs.map((f) => f.path).toList();
-    await audioHandler!.setQueue(paths, index);
+   List<String> paths = _filteredSongs.map((f) => f.path).toList();
+await audioHandler!.setQueue(paths, index);
+
+// ✅ Ye add karo - play call
+await audioHandler!.play();
+
+// ✅ Ye add karo - isPlaying update
+if (mounted) {
+  setState(() => isPlaying = true);
+  _isPlayingNotifier.value = true;
+}
   }
 
   Future<void> _togglePlay() async {
