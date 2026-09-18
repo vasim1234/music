@@ -815,38 +815,46 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   }
 
   // ✅ Clean song name - saare extra tags hataata hai
-  String getSongName(String path) {
+ String getSongName(String path) {
   String name = path.split('/').last;
 
-  // ✅ Extension hatao
+  // ✅ Extension hatao (.mp3, .m4a, etc.)
   name = name.replaceAll(
       RegExp(r'\.(mp3|m4a|wav|aac|ogg|flac)$', caseSensitive: false), '');
 
-  // ✅ Extra tags hatao - SIMPLE STRING REPLACE
-  // Ye 100% kaam karega, regex ki zaroorat nahi
-  name = name.replaceAll('(MP3 320K)', '');
-  name = name.replaceAll('(MP3 320k)', '');
-  name = name.replaceAll('(MP3 128K)', '');
-  name = name.replaceAll('(MP3 192K)', '');
-  name = name.replaceAll('(MP3 256K)', '');
-  name = name.replaceAll('(320K)', '');
-  name = name.replaceAll('(128K)', '');
-  name = name.replaceAll('(192K)', '');
-  name = name.replaceAll('(256K)', '');
-  name = name.replaceAll('[320kbps]', '');
-  name = name.replaceAll('[128kbps]', '');
-  name = name.replaceAll('(Official Video)', '');
-  name = name.replaceAll('(Lyrical)', '');
-  name = name.replaceAll('(Audio)', '');
-  name = name.replaceAll('(Full Song)', '');
-  name = name.replaceAll('(HD)', '');
+  // ✅ "(MP3" ya "[MP3" ke PEHLE tak ka naam lo
+  // Ye 100% kaam karega
+  int mp3Index = name.toUpperCase().indexOf('(MP3');
+  if (mp3Index == -1) {
+    mp3Index = name.toUpperCase().indexOf('[MP3');
+  }
+  if (mp3Index == -1) {
+    mp3Index = name.toUpperCase().indexOf('(320K');
+  }
+  if (mp3Index == -1) {
+    mp3Index = name.toUpperCase().indexOf('(128K');
+  }
+  if (mp3Index == -1) {
+    mp3Index = name.toUpperCase().indexOf('(192K');
+  }
+  if (mp3Index == -1) {
+    mp3Index = name.toUpperCase().indexOf('(256K');
+  }
+  if (mp3Index == -1) {
+    mp3Index = name.toUpperCase().indexOf('[320K');
+  }
+
+  // Agar MP3 ya 320K mila, toh usse pehle ka naam lo
+  if (mp3Index != -1) {
+    name = name.substring(0, mp3Index);
+  }
 
   // ✅ Extra spaces hatao
   name = name.replaceAll(RegExp(r'\s+'), ' ').trim();
   name = name.replaceAll('_', ' ').trim();
 
   return name;
-  }
+ }
 
   void _showQueueSheet() {
     showModalBottomSheet(
