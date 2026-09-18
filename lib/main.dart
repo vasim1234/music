@@ -816,30 +816,31 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
   // ✅ Clean song name - saare extra tags hataata hai
   String getSongName(String path) {
-    String name = path.split('/').last;
+  String name = path.split('/').last;
 
-    // Extension hatao
-    name = name.replaceAll(
-        RegExp(r'\.(mp3|m4a|wav|aac|ogg|flac)$', caseSensitive: false), '');
+  // Extension hatao
+  name = name.replaceAll(
+      RegExp(r'\.(mp3|m4a|wav|aac|ogg|flac)$', caseSensitive: false), '');
 
-// ✅ Extra tags hatao
-name = name.replaceAll(RegExp(r'\(MP3\s*\d*K?\)', caseSensitive: false), '');
-name = name.replaceAll(RegExp(r'\[MP3\s*\d*K?\]', caseSensitive: false), '');
-name = name.replaceAll(RegExp(r'\(320K\)', caseSensitive: false), '');
-name = name.replaceAll(RegExp(r'\(320\s*kbps\)', caseSensitive: false), '');
-name = name.replaceAll(RegExp(r'\[320\s*kbps\]', caseSensitive: false), '');
-name = name.replaceAll(RegExp(r'\(Official\s*Video\)', caseSensitive: false), '');
-name = name.replaceAll(RegExp(r'\(Lyrical\)', caseSensitive: false), '');
-name = name.replaceAll(RegExp(r'\(Audio\)', caseSensitive: false), '');
-name = name.replaceAll(RegExp(r'\(Full\s*Song\)', caseSensitive: false), '');
-name = name.replaceAll(RegExp(r'\(HD\)', caseSensitive: false), '');
-name = name.replaceAll(RegExp(r'\(\d{3,4}K\)', caseSensitive: false), '');
+  // ✅ Simple approach - "(MP3 320K)" string ko directly hatao
+  name = name.replaceAll('(MP3 320K)', '');
+  name = name.replaceAll('(MP3 320k)', '');
+  name = name.replaceAll('(MP3 128K)', '');
+  name = name.replaceAll('(MP3 192K)', '');
+  name = name.replaceAll('(MP3 256K)', '');
+  name = name.replaceAll('(MP3 320 K)', '');
+  name = name.replaceAll('[320kbps]', '');
+  name = name.replaceAll('(Official Video)', '');
+  name = name.replaceAll('(Lyrical)', '');
+  name = name.replaceAll('(Audio)', '');
+  name = name.replaceAll('(Full Song)', '');
+  name = name.replaceAll('(HD)', '');
 
-    // Extra spaces hatao
-    name = name.replaceAll(RegExp(r'\s+'), ' ').trim();
-    name = name.replaceAll('_', ' ').trim();
+  // Extra spaces hatao
+  name = name.replaceAll(RegExp(r'\s+'), ' ').trim();
+  name = name.replaceAll('_', ' ').trim();
 
-    return name;
+  return name;
   }
 
   void _showQueueSheet() {
