@@ -1457,34 +1457,45 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             AlbumArtWidget(audioPath: song.path, size: 45, isPlaying: isSelected && isPlaying),
             const SizedBox(width: 15),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ✅ Active song ka color theme accent, baaki white
-                 Text(
-  getSongName(song.path),
-  maxLines: 1,
-  overflow: TextOverflow.ellipsis,
-  style: TextStyle(
-    color: isSelected ? AppTheme.accent : Colors.white,
-    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-    fontSize: 14,
-  ),
-),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      if (isFav) ...[
-                        const Icon(Icons.favorite, color: Colors.pinkAccent, size: 11),
-                        const SizedBox(width: 4),
-                      ],
-                      Text(isSelected && isPlaying ? 'Now Playing' : 'Local Audio',
-                          style: TextStyle(color: isSelected ? Colors.white70 : Colors.grey.shade500, fontSize: 11)),
-                    ],
-                  ),
-                ],
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        children: [
+          // ✅ Agar song chal raha hai, toh nishan dikhao
+          if (isSelected && isPlaying)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _PlayingIndicator(color: AppTheme.accent),
+            ),
+          Expanded(
+            child: Text(
+              getSongName(song.path),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: isSelected ? AppTheme.accent : Colors.white,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                fontSize: 14,
               ),
             ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 4),
+      Row(
+        children: [
+          if (isFav) ...[
+            const Icon(Icons.favorite, color: Colors.pinkAccent, size: 11),
+            const SizedBox(width: 4),
+          ],
+          Text(isSelected && isPlaying ? 'Now Playing' : 'Local Audio',
+              style: TextStyle(color: isSelected ? Colors.white70 : Colors.grey.shade500, fontSize: 11)),
+        ],
+      ),
+    ],
+  ),
+),
             if (isSelected)
               ValueListenableBuilder<bool>(
                 valueListenable: _isPlayingNotifier,
