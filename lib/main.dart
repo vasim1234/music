@@ -252,19 +252,19 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   await prefs.setBool('is3DOn', is3DOn);
 
   if (is3DOn) {
-    // Volume thoda kam karo (bass boost feel)
+    // ✅ Bass Boost ON - Volume 60% karo
     if (audioHandler != null) {
-      await _fallbackPlayer.setVolume(0.85);
-    } else {
-      await _fallbackPlayer.setVolume(0.85);
+      await audioHandler!.setVolume(0.6);
     }
-    _showSnackBar('🎧 3D Audio ON', AppTheme.accent);
+    await _fallbackPlayer.setVolume(0.6);
+    _showSnackBar('🎧 Bass Boost ON', AppTheme.accent);
   } else {
-    // Normal volume
-    if (audioHandler == null) {
-      await _fallbackPlayer.setVolume(1.0);
+    // ✅ Normal Volume - 100%
+    if (audioHandler != null) {
+      await audioHandler!.setVolume(1.0);
     }
-    _showSnackBar('🔊 3D Audio OFF', Colors.grey);
+    await _fallbackPlayer.setVolume(1.0);
+    _showSnackBar('🔊 Normal Audio', Colors.grey);
   }
   }
 
@@ -418,46 +418,51 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   }
 
   Future<void> _playSong(File song, int index) async {
-    if (_currentSong == song) {
-      _togglePlay();
-      return;
-    }
+  if (_currentSong == song) {
+    _togglePlay();
+    return;
+  }
 
-    setState(() {
-      _currentSong = song;
-      _currentIndex = index;
-      isPlaying = true;
-    });
-    _isPlayingNotifier.value = true;
-
-    if (!_recentSongs.contains(song.path)) {
-      _recentSongs.insert(0, song.path);
-      if (_recentSongs.length > 20) _recentSongs.removeLast();
-      await _saveRecent();
-    }
-
-    if (audioHandler == null) {
-      try {
-        await _fallbackPlayer.setFilePath(song.path);
-        _fallbackPlayer.play();
-        _showSnackBar('🎵 Playing: ${getSongName(song.path)}', Colors.green);
-      } catch (e) {
-        _showSnackBar('⚠️ Play error: $e', Colors.red);
-      }
-      return;
-    }
-
-   List<String> paths = _filteredSongs.map((f) => f.path).toList();
-await audioHandler!.setQueue(paths, index);
-
-// ✅ Ye add karo - play call
-await audioHandler!.play();
-
-// ✅ Ye add karo - isPlaying update
-if (mounted) {
-  setState(() => isPlaying = true);
+  setState(() {
+    _currentSong = song;
+    _currentIndex = index;
+    isPlaying = true;
+  });
   _isPlayingNotifier.value = true;
-}
+
+  if (!_recentSongs.contains(song.path)) {
+    _recentSongs.insert(0, song.path);
+    if (_recentSongs.length > 20) _recentSongs.removeLast();
+    await _saveRecent();
+  }
+
+  if (audioHandler == null) {
+    try {
+      await _fallbackPlayer.setFilePath(song.path);
+      _fallbackPlayer.play();
+      _showSnackBar('🎵 Playing: ${getSongName(song.path)}', Colors.green);
+    } catch (e) {
+      _showSnackBar('⚠️ Play error: $e', Colors.red);
+    }
+    return;
+  }
+
+  List<String> paths = _filteredSongs.map((f) => f.path).toList();
+  await audioHandler!.setQueue(paths, index);
+  await audioHandler!.play();
+
+  // ✅ Ye 3 lines add karo
+  if (is3DOn) {
+    await audioHandler!.setVolume(0.6);
+  } else {
+    await audioHandler!.setVolume(1.0);
+  }
+
+  // ✅ Ye bhi add karo
+  if (mounted) {
+    setState(() => isPlaying = true);
+    _isPlayingNotifier.value = true;
+  }
   }
 
   Future<void> _togglePlay() async {
