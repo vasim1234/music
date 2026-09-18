@@ -1604,3 +1604,60 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 }
+// ✅ Playing Indicator (animated bars)
+class _PlayingIndicator extends StatefulWidget {
+  final Color color;
+  const _PlayingIndicator({required this.color});
+
+  @override
+  State<_PlayingIndicator> createState() => _PlayingIndicatorState();
+}
+
+class _PlayingIndicatorState extends State<_PlayingIndicator>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 14,
+      height: 14,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: List.generate(3, (index) {
+              final heights = [0.5, 1.0, 0.7];
+              final animatedHeight = heights[index] * _controller.value;
+              return Container(
+                width: 3,
+                height: 14 * animatedHeight.clamp(0.3, 1.0),
+                decoration: BoxDecoration(
+                  color: widget.color,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              );
+            }),
+          );
+        },
+      ),
+    );
+  }
+}
