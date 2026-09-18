@@ -6,7 +6,7 @@ import 'dart:io';
 import 'album_art_service.dart';
 import 'enhance_sound_screen.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:flutter/foundation.dart';  // ✅ Ye add karo
+import 'package:flutter/foundation.dart';
 import 'services/audio_handler.dart';
 import 'package:audio_service/audio_service.dart';
 
@@ -79,17 +79,17 @@ class AppTheme {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  print('🚀 APP STARTING');
-  
+
+  debugPrint('🚀 APP STARTING');
+
   try {
     await initAudioService();
-    print('✅ AUDIO SERVICE INITIALIZED');
+    debugPrint('✅ AUDIO SERVICE INITIALIZED');
   } catch (e) {
-    print('❌ AUDIO SERVICE ERROR: $e');
+    debugPrint('❌ AUDIO SERVICE ERROR: $e');
   }
-  
-  print('🎵 RUNNING APP');
+
+  debugPrint('🎵 RUNNING APP');
   runApp(const MyApp());
 }
 
@@ -129,6 +129,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   File? _currentSong;
   bool isPlaying = false;
   bool is3DOn = false;
+  // ✅ Naye state variables
+  bool isShuffle = false;
+  bool isRepeat = false;
+  bool isRepeatOne = false;
+
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
   int _currentIndex = -1;
@@ -136,62 +141,56 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   int _themeIndex = 0;
 
   final TextEditingController _searchController = TextEditingController();
-
-  // ✅ Fallback player (jab audio_service fail ho)
   final AudioPlayer _fallbackPlayer = AudioPlayer();
 
- @override
-void initState() {
-  super.initState();
-  AlbumArtService.init();
+  @override
+  void initState() {
+    super.initState();
+    AlbumArtService.init();
+    _requestNotificationPermission();
 
-  // ✅ Notification permission request karo (buttons kaam karne ke liye)
-  _requestNotificationPermission();
+    if (audioHandler == null) {
+      _setupFallbackPlayer();
+    } else {
+      audioHandler!.playingStream.listen((playing) {
+        if (mounted) {
+          setState(() => isPlaying = playing);
+          _isPlayingNotifier.value = playing;
+        }
+      });
 
-  if (audioHandler == null) {
-    _setupFallbackPlayer();
-  } else {
-    audioHandler!.playingStream.listen((playing) {
-      if (mounted) {
-        setState(() => isPlaying = playing);
-        _isPlayingNotifier.value = playing;
-      }
-    });
+      audioHandler!.positionStream.listen((pos) {
+        if (mounted) setState(() => _position = pos);
+      });
 
-    audioHandler!.positionStream.listen((pos) {
-      if (mounted) setState(() => _position = pos);
-    });
+      audioHandler!.durationStream.listen((dur) {
+        if (mounted && dur != null) setState(() => _duration = dur);
+      });
 
-    audioHandler!.durationStream.listen((dur) {
-      if (mounted && dur != null) setState(() => _duration = dur);
-    });
+      audioHandler!.mediaItem.listen((item) {
+        if (item != null && mounted) {
+          setState(() {
+            _currentSong = File(item.id);
+            _currentIndex = _filteredSongs.indexWhere((f) => f.path == item.id);
+            if (_currentIndex == -1) _currentIndex = 0;
+          });
+        }
+      });
+    }
 
-    audioHandler!.mediaItem.listen((item) {
-      if (item != null && mounted) {
-        setState(() {
-          _currentSong = File(item.id);
-          _currentIndex = _filteredSongs.indexWhere((f) => f.path == item.id);
-          if (_currentIndex == -1) _currentIndex = 0;
-        });
-      }
-    });
+    _checkPermission();
+    _loadSavedData();
+    _loadTheme();
   }
 
-  _checkPermission();
-  _loadSavedData();
-  _loadTheme();
-}
-
-// ✅ Ye naya method add karo
-Future<void> _requestNotificationPermission() async {
-  if (Platform.isAndroid) {
-    if (await Permission.notification.isDenied) {
-      await Permission.notification.request();
+  Future<void> _requestNotificationPermission() async {
+    if (Platform.isAndroid) {
+      if (await Permission.notification.isDenied) {
+        await Permission.notification.request();
+      }
     }
   }
-}
 
-  // ✅ just_audio ke sahi streams
   void _setupFallbackPlayer() {
     _fallbackPlayer.playerStateStream.listen((state) {
       final playing = state.playing;
@@ -215,7 +214,14 @@ Future<void> _requestNotificationPermission() async {
 
   void _playNextFallback() {
     if (_filteredSongs.isEmpty) return;
-    final next = (_currentIndex + 1) % _filteredSongs.length;
+    int next;
+    if (isShuffle) {
+      next = DateTime.now().millisecondsSinceEpoch % _filteredSongs.length;
+    } else if (isRepeatOne) {
+      next = _currentIndex;
+    } else {
+      next = (_currentIndex + 1) % _filteredSongs.length;
+    }
     _playSong(_filteredSongs[next], next);
   }
 
@@ -247,6 +253,30 @@ Future<void> _requestNotificationPermission() async {
     await prefs.setBool('is3DOn', is3DOn);
     _showSnackBar(is3DOn ? '🎧 3D Audio ON' : '🔊 3D Audio OFF',
         is3DOn ? AppTheme.accent : Colors.grey);
+  }
+
+  // ✅ Shuffle / Repeat cycle
+  void _toggleShuffleRepeat() {
+    setState(() {
+      if (!isShuffle && !isRepeat && !isRepeatOne) {
+        isShuffle = true;
+      } else if (isShuffle) {
+        isShuffle = false;
+        isRepeat = true;
+      } else if (isRepeat) {
+        isRepeat = false;
+        isRepeatOne = true;
+      } else {
+        isRepeatOne = false;
+        isShuffle = false;
+      }
+    });
+    _showSnackBar(
+      isShuffle
+          ? '🔀 Shuffle ON'
+          : (isRepeat ? '🔁 Repeat All' : (isRepeatOne ? '🔂 Repeat One' : '➡️ Normal')),
+      AppTheme.accent,
+    );
   }
 
   Future<void> _checkPermission() async {
@@ -394,7 +424,6 @@ Future<void> _requestNotificationPermission() async {
       await _saveRecent();
     }
 
-    // ✅ Fallback player use karo agar audio_service fail hai
     if (audioHandler == null) {
       try {
         await _fallbackPlayer.setFilePath(song.path);
@@ -794,6 +823,95 @@ Future<void> _requestNotificationPermission() async {
     return name.replaceAll('_', ' ').trim();
   }
 
+  // ✅ Queue Bottom Sheet (Up Next list)
+  void _showQueueSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: BoxDecoration(
+          color: AppTheme.card,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Container(
+                width: 50, height: 5,
+                margin: const EdgeInsets.only(top: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade700,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    const Icon(Icons.queue_music, color: Colors.white, size: 28),
+                    const SizedBox(width: 12),
+                    const Text('Up Next',
+                        style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                    const Spacer(),
+                    Text('${_filteredSongs.length} songs',
+                        style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                  ],
+                ),
+              ),
+              Divider(color: Colors.grey.shade800, height: 1),
+              Expanded(
+                child: _filteredSongs.isEmpty
+                    ? const Center(
+                        child: Text('Queue is empty',
+                            style: TextStyle(color: Colors.grey)),
+                      )
+                    : ListView.builder(
+                        itemCount: _filteredSongs.length,
+                        itemBuilder: (context, index) {
+                          final song = _filteredSongs[index];
+                          final isCurrent = _currentSong == song;
+                          return ListTile(
+                            leading: AlbumArtWidget(
+                              audioPath: song.path,
+                              size: 45,
+                              isPlaying: isCurrent && isPlaying,
+                            ),
+                            title: Text(
+                              getSongName(song.path),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: isCurrent ? AppTheme.accent : Colors.white,
+                                fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
+                                fontSize: 14,
+                              ),
+                            ),
+                            subtitle: Text(
+                              isCurrent ? 'Now Playing' : 'Local Audio',
+                              style: TextStyle(
+                                color: isCurrent ? AppTheme.accent : Colors.grey,
+                                fontSize: 11,
+                              ),
+                            ),
+                            trailing: isCurrent
+                                ? Icon(Icons.graphic_eq, color: AppTheme.accent, size: 20)
+                                : null,
+                            onTap: () {
+                              Navigator.pop(context);
+                              _playSong(song, index);
+                            },
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showFullScreenPlayer() {
     if (_currentSong == null) return;
     showModalBottomSheet(
@@ -829,7 +947,6 @@ Future<void> _requestNotificationPermission() async {
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
                 const Spacer(),
-                // ✅ Slider - dono ke liye
                 StreamBuilder<Duration>(
                   stream: audioHandler != null
                       ? audioHandler!.positionStream
@@ -869,15 +986,39 @@ Future<void> _requestNotificationPermission() async {
                     );
                   },
                 ),
+                // ✅ Naye 5 buttons: Shuffle | Previous | Play/Pause | Next | Queue
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 30),
+                  padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 10),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      // 1. Shuffle/Repeat
+                      IconButton(
+                        icon: Icon(
+                          isShuffle
+                              ? Icons.shuffle
+                              : (isRepeatOne
+                                  ? Icons.repeat_one
+                                  : (isRepeat ? Icons.repeat : Icons.shuffle)),
+                          color: (isShuffle || isRepeat || isRepeatOne)
+                              ? AppTheme.primaryGradient[1]
+                              : Colors.white54,
+                          size: 26,
+                        ),
+                        onPressed: () {
+                          _toggleShuffleRepeat();
+                          setModalState(() {});
+                        },
+                      ),
+                      // 2. Previous
                       IconButton(
                         icon: const Icon(Icons.skip_previous, color: Colors.white, size: 45),
-                        onPressed: _playPrevious,
+                        onPressed: () {
+                          _playPrevious();
+                          setModalState(() {});
+                        },
                       ),
+                      // 3. Play/Pause
                       ValueListenableBuilder<bool>(
                         valueListenable: _isPlayingNotifier,
                         builder: (context, playing, child) => Container(
@@ -893,9 +1034,18 @@ Future<void> _requestNotificationPermission() async {
                           ),
                         ),
                       ),
+                      // 4. Next
                       IconButton(
                         icon: const Icon(Icons.skip_next, color: Colors.white, size: 45),
-                        onPressed: _playNext,
+                        onPressed: () {
+                          _playNext();
+                          setModalState(() {});
+                        },
+                      ),
+                      // 5. Queue
+                      IconButton(
+                        icon: const Icon(Icons.queue_music, color: Colors.white54, size: 26),
+                        onPressed: () => _showQueueSheet(),
                       ),
                     ],
                   ),
