@@ -503,8 +503,14 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       return;
     }
 
-    List<String> paths = _filteredSongs.map((f) => f.path).toList();
-    await audioHandler!.setQueue(paths, index);
+    // ✅ Agar folder selected hai, toh folder ke songs use karo
+List<String> paths;
+if (_selectedFolder != null && _songsByFolder.containsKey(_selectedFolder)) {
+  paths = _songsByFolder[_selectedFolder]!.map((f) => f.path).toList();
+} else {
+  paths = _filteredSongs.map((f) => f.path).toList();
+}
+await audioHandler!.setQueue(paths, index);
     await audioHandler!.play();
 
     if (is3DOn) {
@@ -1478,12 +1484,15 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           Expanded(
             child: _filteredSongs.isEmpty
                 ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 15),
-                    itemCount: _filteredSongs.length,
-                    itemBuilder: (context, index) =>
-                        _buildSongTile(_filteredSongs[index], index, isFromPlaylist: true),
-                  ),
+                ListView.builder(
+  padding: const EdgeInsets.symmetric(horizontal: 15),
+  itemCount: folderSongs.length,
+  itemBuilder: (context, index) => _buildFolderSongTile(
+    folderSongs[index],
+    index,
+    folderSongs,
+  ),
+),
           ),
         ],
       );
@@ -1831,7 +1840,90 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 }
+// ✅ Folder ke andar song click karne pe, folder ki list play karo
+Widget _buildFolderSongTile(File song, int index, List<File> folderSongs) {
+  bool isSelected = _currentSong == song;
+  bool isFav = _favorites.contains(song.path);
 
+  return GestureDetector(
+    onTap: () {
+      // ✅ Folder ke songs ko _filteredSongs mein set karo
+      setState(() {
+        _filteredSongs = folderSongs;
+        _currentIndex = index;
+      });
+
+      // ✅ Ab song play karo
+      _playSong(song, index);
+    },
+    onLongPress: () => _showMainSongOptions(song),
+    child: Container(
+      margin: const EdgeInsets.symmetric(vertical: 5),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: isSelected ? LinearGradient(colors: AppTheme.primaryGradient) : null,
+        color: isSelected ? null : Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Row(
+        children: [
+          AlbumArtWidget(audioPath: song.path, size: 45, isPlaying: isSelected && isPlaying),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    if (isSelected && isPlaying)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: _PlayingIndicator(color: AppTheme.accent),
+                      ),
+                    Expanded(
+                      child: Text(
+                        getSongName(song.path),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: isSelected ? AppTheme.accent : Colors.white,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    if (isFav) ...[
+                      const Icon(Icons.favorite, color: Colors.pinkAccent, size: 11),
+                      const SizedBox(width: 4),
+                    ],
+                    Text(isSelected && isPlaying ? 'Now Playing' : 'Local Audio',
+                        style: TextStyle(
+                            color: isSelected ? Colors.white70 : Colors.grey.shade500,
+                            fontSize: 11)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          if (isSelected)
+            ValueListenableBuilder<bool>(
+              valueListenable: _isPlayingNotifier,
+              builder: (context, playing, child) => IconButton(
+                icon: Icon(playing ? Icons.pause_circle_filled : Icons.play_circle_filled,
+                    color: Colors.white, size: 32),
+                onPressed: _togglePlay,
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
+}
 // ✅ Playing Indicator (animated bars)
 class _PlayingIndicator extends StatefulWidget {
   final Color color;
