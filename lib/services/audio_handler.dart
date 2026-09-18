@@ -120,7 +120,11 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     _currentIndex = index;
     await _playCurrent();
   }
-
+// ✅ Volume control method (3D Audio / Bass Boost ke liye)
+Future<void> setVolume(double volume) async {
+  await _player.setVolume(volume);
+  debugPrint('🔊 Volume set to: $volume');
+}
   Future<void> _playCurrent() async {
     if (_queue.isEmpty) return;
     final item = _queue[_currentIndex];
