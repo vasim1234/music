@@ -818,25 +818,30 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   String getSongName(String path) {
   String name = path.split('/').last;
 
-  // Extension hatao
+  // ✅ Extension hatao
   name = name.replaceAll(
       RegExp(r'\.(mp3|m4a|wav|aac|ogg|flac)$', caseSensitive: false), '');
 
-  // ✅ Simple approach - "(MP3 320K)" string ko directly hatao
+  // ✅ Extra tags hatao - SIMPLE STRING REPLACE
+  // Ye 100% kaam karega, regex ki zaroorat nahi
   name = name.replaceAll('(MP3 320K)', '');
   name = name.replaceAll('(MP3 320k)', '');
   name = name.replaceAll('(MP3 128K)', '');
   name = name.replaceAll('(MP3 192K)', '');
   name = name.replaceAll('(MP3 256K)', '');
-  name = name.replaceAll('(MP3 320 K)', '');
+  name = name.replaceAll('(320K)', '');
+  name = name.replaceAll('(128K)', '');
+  name = name.replaceAll('(192K)', '');
+  name = name.replaceAll('(256K)', '');
   name = name.replaceAll('[320kbps]', '');
+  name = name.replaceAll('[128kbps]', '');
   name = name.replaceAll('(Official Video)', '');
   name = name.replaceAll('(Lyrical)', '');
   name = name.replaceAll('(Audio)', '');
   name = name.replaceAll('(Full Song)', '');
   name = name.replaceAll('(HD)', '');
 
-  // Extra spaces hatao
+  // ✅ Extra spaces hatao
   name = name.replaceAll(RegExp(r'\s+'), ' ').trim();
   name = name.replaceAll('_', ' ').trim();
 
@@ -1448,16 +1453,16 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ✅ Active song ka color theme accent, baaki white
-                  Text(
-                    getSongName(song.path),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: isSelected ? AppTheme.accent : Colors.white,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                      fontSize: 14,
-                    ),
-                  ),
+                 Text(
+  getSongName(song.path),
+  maxLines: 1,
+  overflow: TextOverflow.ellipsis,
+  style: TextStyle(
+    color: isSelected ? AppTheme.accent : Colors.white,
+    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+    fontSize: 14,
+  ),
+),
                   const SizedBox(height: 4),
                   Row(
                     children: [
