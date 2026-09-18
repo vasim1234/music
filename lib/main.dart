@@ -129,7 +129,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   File? _currentSong;
   bool isPlaying = false;
   bool is3DOn = false;
-  // ✅ Naye state variables
   bool isShuffle = false;
   bool isRepeat = false;
   bool isRepeatOne = false;
@@ -255,7 +254,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         is3DOn ? AppTheme.accent : Colors.grey);
   }
 
-  // ✅ Shuffle / Repeat cycle
   void _toggleShuffleRepeat() {
     setState(() {
       if (!isShuffle && !isRepeat && !isRepeatOne) {
@@ -816,37 +814,41 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     return '${twoDigits(d.inMinutes)}:${twoDigits(d.inSeconds.remainder(60))}';
   }
 
+  // ✅ Clean song name - saare extra tags hataata hai
   String getSongName(String path) {
-  String name = path.split('/').last;
-  
-  // ✅ Extra tags hatao: (MP3 320K), [320kbps], (Official Video), etc.
-  name = name.replaceAll(
-      RegExp(r'\.(mp3|m4a|wav|aac|ogg|flac)$', caseSensitive: false), '');
-  name = name.replaceAll(
-      RegExp(r'\s*\(MP3\s*\d*K?\)', caseSensitive: false), '');
-  name = name.replaceAll(
-      RegExp(r'\s*\[\d+\s*kbps\]', caseSensitive: false), '');
-  name = name.replaceAll(
-      RegExp(r'\s*\(Official\s*Video\)', caseSensitive: false), '');
-  name = name.replaceAll(
-      RegExp(r'\s*\(Lyrical\)', caseSensitive: false), '');
-  name = name.replaceAll(
-      RegExp(r'\s*\(Audio\)', caseSensitive: false), '');
-  name = name.replaceAll(
-      RegExp(r'\s*\(Full\s*Song\)', caseSensitive: false), '');
-  name = name.replaceAll(
-      RegExp(r'\s*\(HD\)', caseSensitive: false), '');
-  name = name.replaceAll(
-      RegExp(r'\s*\(\d{3,4}K\)', caseSensitive: false), '');
-  
-  // ✅ Extra spaces hatao
-  name = name.replaceAll(RegExp(r'\s+'), ' ').trim();
-  name = name.replaceAll('_', ' ').trim();
-  
-  return name;
+    String name = path.split('/').last;
+
+    // Extension hatao
+    name = name.replaceAll(
+        RegExp(r'\.(mp3|m4a|wav|aac|ogg|flac)$', caseSensitive: false), '');
+
+    // Extra tags hatao
+    name = name.replaceAll(
+        RegExp(r'\s*\(MP3\s*\d*K?\)', caseSensitive: false), '');
+    name = name.replaceAll(
+        RegExp(r'\s*\[\d+\s*kbps\]', caseSensitive: false), '');
+    name = name.replaceAll(
+        RegExp(r'\s*\(Official\s*Video\)', caseSensitive: false), '');
+    name = name.replaceAll(
+        RegExp(r'\s*\(Lyrical\)', caseSensitive: false), '');
+    name = name.replaceAll(
+        RegExp(r'\s*\(Audio\)', caseSensitive: false), '');
+    name = name.replaceAll(
+        RegExp(r'\s*\(Full\s*Song\)', caseSensitive: false), '');
+    name = name.replaceAll(
+        RegExp(r'\s*\(HD\)', caseSensitive: false), '');
+    name = name.replaceAll(
+        RegExp(r'\s*\(\d{3,4}K\)', caseSensitive: false), '');
+    name = name.replaceAll(
+        RegExp(r'\s*\(320K\)', caseSensitive: false), '');
+
+    // Extra spaces hatao
+    name = name.replaceAll(RegExp(r'\s+'), ' ').trim();
+    name = name.replaceAll('_', ' ').trim();
+
+    return name;
   }
 
-  // ✅ Queue Bottom Sheet (Up Next list)
   void _showQueueSheet() {
     showModalBottomSheet(
       context: context,
@@ -1009,13 +1011,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                     );
                   },
                 ),
-                // ✅ Naye 5 buttons: Shuffle | Previous | Play/Pause | Next | Queue
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 10),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // 1. Shuffle/Repeat
                       IconButton(
                         icon: Icon(
                           isShuffle
@@ -1033,7 +1033,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                           setModalState(() {});
                         },
                       ),
-                      // 2. Previous
                       IconButton(
                         icon: const Icon(Icons.skip_previous, color: Colors.white, size: 45),
                         onPressed: () {
@@ -1041,7 +1040,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                           setModalState(() {});
                         },
                       ),
-                      // 3. Play/Pause
                       ValueListenableBuilder<bool>(
                         valueListenable: _isPlayingNotifier,
                         builder: (context, playing, child) => Container(
@@ -1057,7 +1055,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                           ),
                         ),
                       ),
-                      // 4. Next
                       IconButton(
                         icon: const Icon(Icons.skip_next, color: Colors.white, size: 45),
                         onPressed: () {
@@ -1065,7 +1062,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                           setModalState(() {});
                         },
                       ),
-                      // 5. Queue
                       IconButton(
                         icon: const Icon(Icons.queue_music, color: Colors.white54, size: 26),
                         onPressed: () => _showQueueSheet(),
@@ -1427,6 +1423,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
+  // ✅ Song tile - Active song highlight ke saath
   Widget _buildSongTile(File song, int index, {bool isFromPlaylist = false}) {
     bool isSelected = _currentSong == song;
     bool isFav = _favorites.contains(song.path);
@@ -1456,16 +1453,17 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ✅ Active song ka color theme accent, baaki white
                   Text(
-  getSongName(song.path),
-  maxLines: 1,
-  overflow: TextOverflow.ellipsis,
-  style: TextStyle(
-    color: isSelected ? AppTheme.accent : Colors.white,   // ✅ Active song theme accent color
-    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-    fontSize: 14,
-  ),
-),
+                    getSongName(song.path),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: isSelected ? AppTheme.accent : Colors.white,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                      fontSize: 14,
+                    ),
+                  ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
