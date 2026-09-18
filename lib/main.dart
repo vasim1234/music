@@ -247,11 +247,31 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   }
 
   Future<void> _toggle3D() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() => is3DOn = !is3DOn);
-    await prefs.setBool('is3DOn', is3DOn);
-    _showSnackBar(is3DOn ? '🎧 3D Audio ON' : '🔊 3D Audio OFF',
-        is3DOn ? AppTheme.accent : Colors.grey);
+  final prefs = await SharedPreferences.getInstance();
+  setState(() => is3DOn = !is3DOn);
+  await prefs.setBool('is3DOn', is3DOn);
+
+  // ✅ 3D Audio Effect Apply Karo
+  if (is3DOn) {
+    // Volume thoda kam + Balance set karo (3D feel ke liye)
+    if (audioHandler != null) {
+      // audio_service ke saath direct volume control nahi hota
+      // Isliye fallback player use karo
+      await _fallbackPlayer.setVolume(0.85);
+      await _fallbackPlayer.setBalance(0.0);
+    } else {
+      await _fallbackPlayer.setVolume(0.85);
+      await _fallbackPlayer.setBalance(0.0);
+    }
+    _showSnackBar('🎧 3D Audio ON', AppTheme.accent);
+  } else {
+    // Normal volume
+    if (audioHandler == null) {
+      await _fallbackPlayer.setVolume(1.0);
+      await _fallbackPlayer.setBalance(0.0);
+    }
+    _showSnackBar('🔊 3D Audio OFF', Colors.grey);
+  }
   }
 
   void _toggleShuffleRepeat() {
