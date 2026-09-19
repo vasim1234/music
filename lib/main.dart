@@ -1924,6 +1924,7 @@ Widget _buildFolderSongTile(File song, int index, List<File> folderSongs) {
     ),
   );
 }
+
 // ✅ Playing Indicator (animated bars)
 class _PlayingIndicator extends StatefulWidget {
   final Color color;
