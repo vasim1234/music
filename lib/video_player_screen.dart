@@ -22,6 +22,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   // ✅ Volume
   double _volume = 1.0;
 
+  // ✅ Gesture ke liye
+  double _gestureStartX = 0;
+  double _gestureStartY = 0;
+  double _gestureStartVolume = 1.0;
+  double _gestureStartBrightness = 0.5;
+  bool _showVolumeIndicator = false;
+  bool _showBrightnessIndicator = false;
+
   @override
   void initState() {
     super.initState();
@@ -81,11 +89,55 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   Future<void> _setVolume(double value) async {
     try {
-      await _videoController.setVolume(value);
-      setState(() => _volume = value);
+      await _videoController.setVolume(value.clamp(0.0, 1.0));
+      setState(() => _volume = value.clamp(0.0, 1.0));
     } catch (e) {
       debugPrint('Volume set error: $e');
     }
+  }
+
+  // ✅ Gesture Handling
+  void _onGestureStart(DragStartDetails details, Size screenSize) {
+    _gestureStartX = details.localPosition.dx;
+    _gestureStartY = details.localPosition.dy;
+    _gestureStartVolume = _volume;
+    _gestureStartBrightness = _brightness;
+  }
+
+  void _onGestureUpdate(DragUpdateDetails details, Size screenSize) {
+    // ✅ Left half = Volume, Right half = Brightness
+    bool isLeftSide = _gestureStartX < screenSize.width / 2;
+
+    if (isLeftSide) {
+      // Volume
+      double delta = (details.localPosition.dy - _gestureStartY) / screenSize.height;
+      double newVolume = (_gestureStartVolume - delta).clamp(0.0, 1.0);
+      _setVolume(newVolume);
+      setState(() {
+        _showVolumeIndicator = true;
+        _showBrightnessIndicator = false;
+      });
+    } else {
+      // Brightness
+      double delta = (details.localPosition.dy - _gestureStartY) / screenSize.height;
+      double newBrightness = (_gestureStartBrightness - delta).clamp(0.0, 1.0);
+      _setBrightness(newBrightness);
+      setState(() {
+        _showBrightnessIndicator = true;
+        _showVolumeIndicator = false;
+      });
+    }
+  }
+
+  void _onGestureEnd(DragEndDetails details) {
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) {
+        setState(() {
+          _showVolumeIndicator = false;
+          _showBrightnessIndicator = false;
+        });
+      }
+    });
   }
 
   // ✅ Brightness Bottom Sheet
@@ -190,13 +242,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   void dispose() {
     _videoController.dispose();
     _chewieController?.dispose();
-    // ✅ Brightness reset karo
     ScreenBrightness().resetApplicationScreenBrightness();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -209,13 +262,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
-          // ✅ Brightness button
           IconButton(
             icon: const Icon(Icons.brightness_6, color: Colors.white),
             tooltip: 'Brightness',
             onPressed: _showBrightnessSheet,
           ),
-          // ✅ Volume button
           IconButton(
             icon: const Icon(Icons.volume_up, color: Colors.white),
             tooltip: 'Volume',
@@ -223,11 +274,72 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           ),
         ],
       ),
-      body: Center(
-        child: _chewieController != null &&
-                _chewieController!.videoPlayerController.value.isInitialized
-            ? Chewie(controller: _chewieController!)
-            : const CircularProgressIndicator(color: Color(0xFF34D399)),
+      body: GestureDetector(
+        // ✅ Gesture handling
+        onPanStart: (details) => _onGestureStart(details, screenSize),
+        onPanUpdate: (details) => _onGestureUpdate(details, screenSize),
+        onPanEnd: _onGestureEnd,
+        child: Stack(
+          children: [
+            // ✅ Video
+            Center(
+              child: _chewieController != null &&
+                      _chewieController!.videoPlayerController.value.isInitialized
+                  ? Chewie(controller: _chewieController!)
+                  : const CircularProgressIndicator(color: Color(0xFF34D399)),
+            ),
+
+            // ✅ Volume Indicator (Left side)
+            if (_showVolumeIndicator)
+              Positioned(
+                left: 40,
+                top: screenSize.height / 2 - 40,
+                child: Container(
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.volume_up, color: Colors.white, size: 35),
+                      const SizedBox(height: 10),
+                      Text(
+                        '${(_volume * 100).toInt()}%',
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+            // ✅ Brightness Indicator (Right side)
+            if (_showBrightnessIndicator)
+              Positioned(
+                right: 40,
+                top: screenSize.height / 2 - 40,
+                child: Container(
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.brightness_6, color: Colors.white, size: 35),
+                      const SizedBox(height: 10),
+                      Text(
+                        '${(_brightness * 100).toInt()}%',
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
