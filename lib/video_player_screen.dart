@@ -18,13 +18,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   late VideoPlayerController _videoController;
   ChewieController? _chewieController;
 
-  // ✅ Brightness
+  // ✅ Brightness & Volume
   double _brightness = 0.5;
+  double _volume = 1.0; // Max 2.0 (200%)
 
-  // ✅ Volume
-  double _volume = 1.0;
+  // ✅ Pinch-to-Zoom Scale
+  double _scaleFactor = 1.0;
+  double _baseScaleFactor = 1.0;
 
-  // ✅ Gesture
+  // ✅ Gesture Controls
   double _gestureStartX = 0;
   double _gestureStartY = 0;
   double _gestureStartVolume = 1.0;
@@ -32,17 +34,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _showVolumeIndicator = false;
   bool _showBrightnessIndicator = false;
 
-  // ✅ Title auto-hide
+  // ✅ UI Controls
   bool _showTitle = true;
   Timer? _titleTimer;
-
-  // ✅ Playback Speed
   double _playbackSpeed = 1.0;
-
-  // ✅ Aspect Ratio
   double _aspectRatio = 1.0;
-
-  // ✅ Loop
   bool _isLooping = false;
 
   @override
@@ -76,7 +72,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     });
   }
 
-  // ✅ ChewieController recreate karne ka method
   void _recreateChewieController() {
     if (_chewieController != null) {
       _chewieController!.dispose();
@@ -89,7 +84,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       allowFullScreen: false,
       allowMuting: true,
       showControls: true,
-      showOptions: false, // ✅ Ye line add
+      showOptions: false, // Default 3-dots option hide kiya
       materialProgressColors: ChewieProgressColors(
         playedColor: const Color(0xFF34D399),
         handleColor: const Color(0xFF34D399),
@@ -121,7 +116,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   Future<void> _setBrightness(double value) async {
     try {
       await ScreenBrightness().setApplicationScreenBrightness(value);
-      setState(() => _brightness = value);
+      setState(() => _brightness = value.clamp(0.0, 1.0));
     } catch (e) {
       debugPrint('Brightness set error: $e');
     }
@@ -129,14 +124,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   Future<void> _setVolume(double value) async {
     try {
-      await _videoController.setVolume(value.clamp(0.0, 1.0));
-      setState(() => _volume = value.clamp(0.0, 1.0));
+      // ✅ 0.0 se 2.0 tak support (200% boost)
+      double targetVol = value.clamp(0.0, 2.0);
+      await _videoController.setVolume(targetVol > 1.0 ? 1.0 : targetVol);
+      setState(() => _volume = targetVol);
     } catch (e) {
       debugPrint('Volume set error: $e');
     }
   }
 
-  // ✅ Gesture Handling
   void _onGestureStart(DragStartDetails details, Size screenSize) {
     _gestureStartX = details.localPosition.dx;
     _gestureStartY = details.localPosition.dy;
@@ -149,8 +145,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
     if (isLeftSide) {
       double delta =
-          (details.localPosition.dy - _gestureStartY) / screenSize.height;
-      double newVolume = (_gestureStartVolume - delta).clamp(0.0, 1.0);
+          (details.localPosition.dy - _gestureStartY) / (screenSize.height * 0.7);
+      double newVolume = (_gestureStartVolume - delta).clamp(0.0, 2.0);
       _setVolume(newVolume);
       setState(() {
         _showVolumeIndicator = true;
@@ -158,7 +154,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       });
     } else {
       double delta =
-          (details.localPosition.dy - _gestureStartY) / screenSize.height;
+          (details.localPosition.dy - _gestureStartY) / (screenSize.height * 0.7);
       double newBrightness =
           (_gestureStartBrightness - delta).clamp(0.0, 1.0);
       _setBrightness(newBrightness);
@@ -191,7 +187,63 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
-  // ✅ Brightness Sheet
+  // ✅ Volume Sheet (Up to 200%)
+  void _showVolumeSheet() {
+    _startTitleTimer();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.black87,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) => Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Volume Boost (Max 200%)',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 15),
+              Row(
+                children: [
+                  const Icon(Icons.volume_mute, color: Colors.white, size: 22),
+                  Expanded(
+                    child: Slider(
+                      value: _volume,
+                      min: 0.0,
+                      max: 2.0, // ✅ 200% Volume
+                      activeColor: const Color(0xFF34D399),
+                      inactiveColor: Colors.grey.shade700,
+                      onChanged: (value) {
+                        _setVolume(value);
+                        setModalState(() {});
+                      },
+                    ),
+                  ),
+                  const Icon(Icons.volume_up, color: Colors.white, size: 22),
+                ],
+              ),
+              const SizedBox(height: 5),
+              Text(
+                'Volume: ${(_volume * 100).toInt()}%',
+                style: TextStyle(
+                    color: _volume > 1.0 ? Colors.orangeAccent : Colors.white70,
+                    fontSize: 13,
+                    fontWeight: _volume > 1.0 ? FontWeight.bold : FontWeight.normal),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showBrightnessSheet() {
     _startTitleTimer();
     showModalBottomSheet(
@@ -208,8 +260,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.brightness_low,
-                      color: Colors.white, size: 22),
+                  const Icon(Icons.brightness_low, color: Colors.white, size: 22),
                   Expanded(
                     child: Slider(
                       value: _brightness,
@@ -223,8 +274,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                       },
                     ),
                   ),
-                  const Icon(Icons.brightness_high,
-                      color: Colors.white, size: 22),
+                  const Icon(Icons.brightness_high, color: Colors.white, size: 22),
                 ],
               ),
               const SizedBox(height: 5),
@@ -239,61 +289,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
-  // ✅ Volume Sheet
-  void _showVolumeSheet() {
-    _startTitleTimer();
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.black87,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Volume Boost',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 15),
-              Row(
-                children: [
-                  const Icon(Icons.volume_mute, color: Colors.white, size: 22),
-                  Expanded(
-                    child: Slider(
-                      value: _volume,
-                      min: 0.0,
-                      max: 1.0,
-                      activeColor: const Color(0xFF34D399),
-                      inactiveColor: Colors.grey.shade700,
-                      onChanged: (value) {
-                        _setVolume(value);
-                        setModalState(() {});
-                      },
-                    ),
-                  ),
-                  const Icon(Icons.volume_up, color: Colors.white, size: 22),
-                ],
-              ),
-              const SizedBox(height: 5),
-              Text(
-                'Volume: ${(_volume * 100).toInt()}%',
-                style: const TextStyle(color: Colors.white70, fontSize: 13),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ✅ Playback Speed Sheet
   void _showSpeedSheet() {
     _startTitleTimer();
     showModalBottomSheet(
@@ -322,17 +317,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               return ListTile(
                 leading: Icon(
                   isSelected ? Icons.check_circle : Icons.circle_outlined,
-                  color: isSelected
-                      ? const Color(0xFF34D399)
-                      : Colors.white54,
+                  color: isSelected ? const Color(0xFF34D399) : Colors.white54,
                 ),
                 title: Text(
                   '${speed}x',
                   style: TextStyle(
-                    color:
-                        isSelected ? const Color(0xFF34D399) : Colors.white,
-                    fontWeight:
-                        isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected ? const Color(0xFF34D399) : Colors.white,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
                 onTap: () {
@@ -348,7 +339,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
-  // ✅ Aspect Ratio Sheet
   void _showAspectRatioSheet() {
     _startTitleTimer();
     showModalBottomSheet(
@@ -374,10 +364,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             Divider(color: Colors.grey.shade800, height: 1),
             ListTile(
               leading: const Icon(Icons.crop_original, color: Colors.white),
-              title: const Text('Fit (Original)',
-                  style: TextStyle(color: Colors.white)),
+              title: const Text('Fit (Original)', style: TextStyle(color: Colors.white)),
               onTap: () {
                 setState(() {
+                  _scaleFactor = 1.0;
                   _aspectRatio = _videoController.value.aspectRatio;
                   _recreateChewieController();
                 });
@@ -386,10 +376,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.crop_free, color: Colors.white),
-              title: const Text('Fill (Cover)',
-                  style: TextStyle(color: Colors.white)),
+              title: const Text('Fill (Cover)', style: TextStyle(color: Colors.white)),
               onTap: () {
                 setState(() {
+                  _scaleFactor = 1.0;
                   _aspectRatio = MediaQuery.of(context).size.aspectRatio;
                   _recreateChewieController();
                 });
@@ -398,10 +388,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.fullscreen, color: Colors.white),
-              title: const Text('Stretch (16:9)',
-                  style: TextStyle(color: Colors.white)),
+              title: const Text('Stretch (16:9)', style: TextStyle(color: Colors.white)),
               onTap: () {
                 setState(() {
+                  _scaleFactor = 1.0;
                   _aspectRatio = 16 / 9;
                   _recreateChewieController();
                 });
@@ -414,7 +404,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
-  // ✅ Loop Toggle
   void _toggleLoop() {
     _startTitleTimer();
     setState(() {
@@ -424,7 +413,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _showSnackBar(_isLooping ? '🔁 Loop ON' : '➡️ Loop OFF');
   }
 
-  // ✅ Fullscreen Toggle
   Future<void> _toggleFullscreen() async {
     if (MediaQuery.of(context).orientation == Orientation.portrait) {
       await SystemChrome.setPreferredOrientations([
@@ -446,7 +434,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         _recreateChewieController();
       });
     }
-    setState(() {});
   }
 
   @override
@@ -455,9 +442,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _videoController.dispose();
     _chewieController?.dispose();
     ScreenBrightness().resetApplicationScreenBrightness();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-    ]);
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
@@ -468,28 +453,39 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      // ✅ AppBar yahan se hata diya gaya hai taaki upar ki kaali patti (space) chali jaye
       body: Listener(
-        onPointerDown: (event) {
-          _startTitleTimer();
-        },
+        onPointerDown: (_) => _startTitleTimer(),
         behavior: HitTestBehavior.translucent,
         child: GestureDetector(
+          onScaleStart: (details) {
+            _baseScaleFactor = _scaleFactor;
+          },
+          onScaleUpdate: (details) {
+            // ✅ Pinch to zoom support
+            if (details.scale != 1.0) {
+              setState(() {
+                _scaleFactor = (_baseScaleFactor * details.scale).clamp(1.0, 3.0);
+              });
+            }
+          },
           onPanStart: (details) => _onGestureStart(details, screenSize),
           onPanUpdate: (details) => _onGestureUpdate(details, screenSize),
           onPanEnd: _onGestureEnd,
           child: Stack(
             children: [
-              // ✅ 1. Video Player poori screen cover karega
+              // ✅ 1. Pinch-to-Zoom enabled Video View
               Center(
-                child: _chewieController != null &&
-                        _chewieController!
-                            .videoPlayerController.value.isInitialized
-                    ? Chewie(controller: _chewieController!)
-                    : const CircularProgressIndicator(color: Color(0xFF34D399)),
+                child: Transform.scale(
+                  scale: _scaleFactor,
+                  child: _chewieController != null &&
+                          _chewieController!
+                              .videoPlayerController.value.isInitialized
+                      ? Chewie(controller: _chewieController!)
+                      : const CircularProgressIndicator(color: Color(0xFF34D399)),
+                ),
               ),
 
-              // ✅ 2. Top AppBar ko overlay ki tarah video ke upar lagaya hai
+              // ✅ 2. Top Transparent Overlay Navigation Bar
               Positioned(
                 top: 0,
                 left: 0,
@@ -500,7 +496,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   child: IgnorePointer(
                     ignoring: !_showTitle,
                     child: Container(
-                      // Halki si shadow taaki title aur icons video par clear dikhein
                       decoration: const BoxDecoration(
                         gradient: LinearGradient(
                           colors: [Colors.black87, Colors.transparent],
@@ -509,7 +504,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                         ),
                       ),
                       child: AppBar(
-                        backgroundColor: Colors.transparent, // Background transparent kar diya
+                        backgroundColor: Colors.transparent,
                         elevation: 0,
                         iconTheme: const IconThemeData(color: Colors.white),
                         title: Text(
@@ -522,13 +517,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                           IconButton(
                             iconSize: 22,
                             icon: const Icon(Icons.speed, color: Colors.white),
-                            tooltip: 'Playback Speed',
                             onPressed: _showSpeedSheet,
                           ),
                           IconButton(
                             iconSize: 22,
                             icon: const Icon(Icons.aspect_ratio, color: Colors.white),
-                            tooltip: 'Aspect Ratio',
                             onPressed: _showAspectRatioSheet,
                           ),
                           IconButton(
@@ -537,25 +530,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                               _isLooping ? Icons.repeat_one : Icons.repeat,
                               color: _isLooping ? const Color(0xFF34D399) : Colors.white,
                             ),
-                            tooltip: 'Loop',
                             onPressed: _toggleLoop,
                           ),
                           IconButton(
                             iconSize: 22,
                             icon: const Icon(Icons.brightness_6, color: Colors.white),
-                            tooltip: 'Brightness',
                             onPressed: _showBrightnessSheet,
                           ),
                           IconButton(
                             iconSize: 22,
                             icon: const Icon(Icons.volume_up, color: Colors.white),
-                            tooltip: 'Volume',
                             onPressed: _showVolumeSheet,
                           ),
                           IconButton(
                             iconSize: 22,
                             icon: const Icon(Icons.fullscreen, color: Colors.white),
-                            tooltip: 'Fullscreen',
                             onPressed: _toggleFullscreen,
                           ),
                         ],
@@ -565,56 +554,101 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ),
               ),
 
-              // ✅ Volume Indicator (Left side)
+              // ✅ 3. Patla aur Lamba Volume Overlay (MX-Player style)
               if (_showVolumeIndicator)
                 Positioned(
-                  left: 40,
-                  top: screenSize.height / 2 - 40,
+                  left: 20,
+                  top: screenSize.height * 0.25,
                   child: Container(
-                    padding: const EdgeInsets.all(15),
+                    width: 45,
+                    height: 180,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(15),
+                      color: Colors.black.withOpacity(0.75),
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(color: Colors.white24, width: 0.8),
                     ),
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Icon(Icons.volume_up,
-                            color: Colors.white, size: 35),
-                        const SizedBox(height: 10),
+                        Icon(
+                          _volume == 0
+                              ? Icons.volume_off
+                              : _volume > 1.0
+                                  ? Icons.volume_up_outlined
+                                  : Icons.volume_up,
+                          color: _volume > 1.0 ? Colors.orangeAccent : Colors.white,
+                          size: 20,
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: RotatedBox(
+                              quarterTurns: 3,
+                              child: LinearProgressIndicator(
+                                value: _volume / 2.0, // 200% scale
+                                backgroundColor: Colors.white24,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  _volume > 1.0
+                                      ? Colors.orangeAccent
+                                      : const Color(0xFF34D399),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                         Text(
                           '${(_volume * 100).toInt()}%',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            color: _volume > 1.0 ? Colors.orangeAccent : Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ),
 
-              // ✅ Brightness Indicator (Right side)
+              // ✅ 4. Patla aur Lamba Brightness Overlay (MX-Player style)
               if (_showBrightnessIndicator)
                 Positioned(
-                  right: 40,
-                  top: screenSize.height / 2 - 40,
+                  right: 20,
+                  top: screenSize.height * 0.25,
                   child: Container(
-                    padding: const EdgeInsets.all(15),
+                    width: 45,
+                    height: 180,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(15),
+                      color: Colors.black.withOpacity(0.75),
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(color: Colors.white24, width: 0.8),
                     ),
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Icon(Icons.brightness_6,
-                            color: Colors.white, size: 35),
-                        const SizedBox(height: 10),
+                        const Icon(Icons.brightness_6, color: Colors.white, size: 20),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: RotatedBox(
+                              quarterTurns: 3,
+                              child: LinearProgressIndicator(
+                                value: _brightness,
+                                backgroundColor: Colors.white24,
+                                valueColor: const AlwaysStoppedAnimation<Color>(
+                                    Color(0xFF34D399)),
+                              ),
+                            ),
+                          ),
+                        ),
                         Text(
                           '${(_brightness * 100).toInt()}%',
                           style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold),
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
