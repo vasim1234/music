@@ -534,79 +534,83 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           ),
         ),
       ),
-      body: GestureDetector(
-        onTap: () {
+      // ✅ Yahan Listener add kiya gaya hai screen taps catch karne ke liye
+      body: Listener(
+        onPointerDown: (event) {
           _startTitleTimer();
         },
-        onPanStart: (details) => _onGestureStart(details, screenSize),
-        onPanUpdate: (details) => _onGestureUpdate(details, screenSize),
-        onPanEnd: _onGestureEnd,
-        child: Stack(
-          children: [
-            Center(
-              child: _chewieController != null &&
-                      _chewieController!
-                          .videoPlayerController.value.isInitialized
-                  ? Chewie(controller: _chewieController!)
-                  : const CircularProgressIndicator(color: Color(0xFF34D399)),
-            ),
-
-            // ✅ Volume Indicator (Left side)
-            if (_showVolumeIndicator)
-              Positioned(
-                left: 40,
-                top: screenSize.height / 2 - 40,
-                child: Container(
-                  padding: const EdgeInsets.all(15),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Column(
-                    children: [
-                      const Icon(Icons.volume_up,
-                          color: Colors.white, size: 35),
-                      const SizedBox(height: 10),
-                      Text(
-                        '${(_volume * 100).toInt()}%',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
+        behavior: HitTestBehavior.translucent,
+        child: GestureDetector(
+          onPanStart: (details) => _onGestureStart(details, screenSize),
+          onPanUpdate: (details) => _onGestureUpdate(details, screenSize),
+          onPanEnd: _onGestureEnd,
+          child: Stack(
+            children: [
+              Center(
+                child: _chewieController != null &&
+                        _chewieController!
+                            .videoPlayerController.value.isInitialized
+                    ? Chewie(controller: _chewieController!)
+                    : const CircularProgressIndicator(color: Color(0xFF34D399)),
               ),
 
-            // ✅ Brightness Indicator (Right side)
-            if (_showBrightnessIndicator)
-              Positioned(
-                right: 40,
-                top: screenSize.height / 2 - 40,
-                child: Container(
-                  padding: const EdgeInsets.all(15),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Column(
-                    children: [
-                      const Icon(Icons.brightness_6,
-                          color: Colors.white, size: 35),
-                      const SizedBox(height: 10),
-                      Text(
-                        '${(_brightness * 100).toInt()}%',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold),
-                      ),
-                    ],
+              // ✅ Volume Indicator (Left side)
+              if (_showVolumeIndicator)
+                Positioned(
+                  left: 40,
+                  top: screenSize.height / 2 - 40,
+                  child: Container(
+                    padding: const EdgeInsets.all(15),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.volume_up,
+                            color: Colors.white, size: 35),
+                        const SizedBox(height: 10),
+                        Text(
+                          '${(_volume * 100).toInt()}%',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-          ],
+
+              // ✅ Brightness Indicator (Right side)
+              if (_showBrightnessIndicator)
+                Positioned(
+                  right: 40,
+                  top: screenSize.height / 2 - 40,
+                  child: Container(
+                    padding: const EdgeInsets.all(15),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.brightness_6,
+                            color: Colors.white, size: 35),
+                        const SizedBox(height: 10),
+                        Text(
+                          '${(_brightness * 100).toInt()}%',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
