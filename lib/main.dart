@@ -137,6 +137,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   // ✅ Folder-wise songs
   Map<String, List<File>> _songsByFolder = {};
   String? _selectedFolder;
+  List<File> _videos = [];
+Map<String, List<File>> _videosByFolder = {};
 
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
