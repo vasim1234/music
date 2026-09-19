@@ -24,7 +24,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   // ✅ Volume
   double _volume = 1.0;
 
-  // ✅ Gesture ke liye
+  // ✅ Gesture
   double _gestureStartX = 0;
   double _gestureStartY = 0;
   double _gestureStartVolume = 1.0;
@@ -32,9 +32,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _showVolumeIndicator = false;
   bool _showBrightnessIndicator = false;
 
-  // ✅ Title auto-hide ke liye
+  // ✅ Title auto-hide
   bool _showTitle = true;
   Timer? _titleTimer;
+
+  // ✅ Playback Speed
+  double _playbackSpeed = 1.0;
+
+  // ✅ Aspect Ratio
+  double _aspectRatio = 1.0;
+
+  // ✅ Loop
+  bool _isLooping = false;
 
   @override
   void initState() {
@@ -43,7 +52,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _initBrightness();
     _startTitleTimer();
 
-    // ✅ Screen rotation allow karo
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.landscapeLeft,
@@ -73,12 +81,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       _videoController = VideoPlayerController.file(widget.videoFile);
       await _videoController.initialize();
 
+      _aspectRatio = _videoController.value.aspectRatio;
+
       _chewieController = ChewieController(
         videoPlayerController: _videoController,
         autoPlay: true,
-        looping: false,
-        aspectRatio: _videoController.value.aspectRatio,
-        allowFullScreen: false,   // ✅ Chewie ka fullscreen band (duplicate na ho)
+        looping: _isLooping,
+        aspectRatio: _aspectRatio,
+        allowFullScreen: false,
         allowMuting: true,
         showControls: true,
         materialProgressColors: ChewieProgressColors(
@@ -124,14 +134,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _gestureStartY = details.localPosition.dy;
     _gestureStartVolume = _volume;
     _gestureStartBrightness = _brightness;
-    _startTitleTimer();
+    // ✅ Title timer nahi, sirf gesture
   }
 
   void _onGestureUpdate(DragUpdateDetails details, Size screenSize) {
     bool isLeftSide = _gestureStartX < screenSize.width / 2;
 
     if (isLeftSide) {
-      double delta = (details.localPosition.dy - _gestureStartY) / screenSize.height;
+      double delta =
+          (details.localPosition.dy - _gestureStartY) / screenSize.height;
       double newVolume = (_gestureStartVolume - delta).clamp(0.0, 1.0);
       _setVolume(newVolume);
       setState(() {
@@ -139,8 +150,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         _showBrightnessIndicator = false;
       });
     } else {
-      double delta = (details.localPosition.dy - _gestureStartY) / screenSize.height;
-      double newBrightness = (_gestureStartBrightness - delta).clamp(0.0, 1.0);
+      double delta =
+          (details.localPosition.dy - _gestureStartY) / screenSize.height;
+      double newBrightness =
+          (_gestureStartBrightness - delta).clamp(0.0, 1.0);
       _setBrightness(newBrightness);
       setState(() {
         _showBrightnessIndicator = true;
@@ -160,7 +173,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     });
   }
 
-  // ✅ Brightness Bottom Sheet
+  // ✅ SnackBar
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFF34D399),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // ✅ Brightness Sheet
   void _showBrightnessSheet() {
     _startTitleTimer();
     showModalBottomSheet(
@@ -177,7 +202,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.brightness_low, color: Colors.white, size: 22),
+                  const Icon(Icons.brightness_low,
+                      color: Colors.white, size: 22),
                   Expanded(
                     child: Slider(
                       value: _brightness,
@@ -191,7 +217,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                       },
                     ),
                   ),
-                  const Icon(Icons.brightness_high, color: Colors.white, size: 22),
+                  const Icon(Icons.brightness_high,
+                      color: Colors.white, size: 22),
                 ],
               ),
               const SizedBox(height: 5),
@@ -206,7 +233,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
-  // ✅ Volume Bottom Sheet
+  // ✅ Volume Sheet
   void _showVolumeSheet() {
     _startTitleTimer();
     showModalBottomSheet(
@@ -260,14 +287,143 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
+  // ✅ Playback Speed Sheet
+  void _showSpeedSheet() {
+    _startTitleTimer();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.black87,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(15),
+              child: Text(
+                'Playback Speed',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold),
+              ),
+            ),
+            Divider(color: Colors.grey.shade800, height: 1),
+            ...[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((speed) {
+              bool isSelected = _playbackSpeed == speed;
+              return ListTile(
+                leading: Icon(
+                  isSelected ? Icons.check_circle : Icons.circle_outlined,
+                  color: isSelected
+                      ? const Color(0xFF34D399)
+                      : Colors.white54,
+                ),
+                title: Text(
+                  '${speed}x',
+                  style: TextStyle(
+                    color:
+                        isSelected ? const Color(0xFF34D399) : Colors.white,
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+                onTap: () {
+                  _videoController.setPlaybackSpeed(speed);
+                  setState(() => _playbackSpeed = speed);
+                  Navigator.pop(context);
+                },
+              );
+            }).toList(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ✅ Aspect Ratio Sheet
+  void _showAspectRatioSheet() {
+    _startTitleTimer();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.black87,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(15),
+              child: Text(
+                'Aspect Ratio',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold),
+              ),
+            ),
+            Divider(color: Colors.grey.shade800, height: 1),
+            ListTile(
+              leading: const Icon(Icons.crop_original, color: Colors.white),
+              title: const Text('Fit (Original)',
+                  style: TextStyle(color: Colors.white)),
+              onTap: () {
+                setState(() {
+                  _aspectRatio = _videoController.value.aspectRatio;
+                  _chewieController?.aspectRatio = _aspectRatio;
+                });
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.crop_free, color: Colors.white),
+              title: const Text('Fill (Cover)',
+                  style: TextStyle(color: Colors.white)),
+              onTap: () {
+                setState(() {
+                  _aspectRatio = MediaQuery.of(context).size.aspectRatio;
+                  _chewieController?.aspectRatio = _aspectRatio;
+                });
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.fullscreen, color: Colors.white),
+              title: const Text('Stretch (16:9)',
+                  style: TextStyle(color: Colors.white)),
+              onTap: () {
+                setState(() {
+                  _aspectRatio = 16 / 9;
+                  _chewieController?.aspectRatio = _aspectRatio;
+                });
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ✅ Loop Toggle
+  void _toggleLoop() {
+    _startTitleTimer();
+    setState(() {
+      _isLooping = !_isLooping;
+      _chewieController?.looping = _isLooping;
+    });
+    _showSnackBar(_isLooping ? '🔁 Loop ON' : '➡️ Loop OFF');
+  }
+
   @override
   void dispose() {
     _titleTimer?.cancel();
     _videoController.dispose();
     _chewieController?.dispose();
     ScreenBrightness().resetApplicationScreenBrightness();
-
-    // ✅ Portrait pe wapas
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
     ]);
@@ -281,7 +437,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      // ✅ AppBar bhi title ke saath hide hoga
       appBar: PreferredSize(
         preferredSize:
             _showTitle ? const Size.fromHeight(kToolbarHeight) : Size.zero,
@@ -298,20 +453,48 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               overflow: TextOverflow.ellipsis,
             ),
             actions: [
-              // ✅ Brightness button
+              // ✅ Playback Speed
               IconButton(
+                iconSize: 22,
+                icon: const Icon(Icons.speed, color: Colors.white),
+                tooltip: 'Playback Speed',
+                onPressed: _showSpeedSheet,
+              ),
+              // ✅ Aspect Ratio
+              IconButton(
+                iconSize: 22,
+                icon: const Icon(Icons.aspect_ratio, color: Colors.white),
+                tooltip: 'Aspect Ratio',
+                onPressed: _showAspectRatioSheet,
+              ),
+              // ✅ Loop
+              IconButton(
+                iconSize: 22,
+                icon: Icon(
+                  _isLooping ? Icons.repeat_one : Icons.repeat,
+                  color:
+                      _isLooping ? const Color(0xFF34D399) : Colors.white,
+                ),
+                tooltip: 'Loop',
+                onPressed: _toggleLoop,
+              ),
+              // ✅ Brightness
+              IconButton(
+                iconSize: 22,
                 icon: const Icon(Icons.brightness_6, color: Colors.white),
                 tooltip: 'Brightness',
                 onPressed: _showBrightnessSheet,
               ),
-              // ✅ Volume button
+              // ✅ Volume
               IconButton(
+                iconSize: 22,
                 icon: const Icon(Icons.volume_up, color: Colors.white),
                 tooltip: 'Volume',
                 onPressed: _showVolumeSheet,
               ),
-              // ✅ Fullscreen button (AppBar wala, kyunki Chewie ka band hai)
+              // ✅ Fullscreen
               IconButton(
+                iconSize: 22,
                 icon: const Icon(Icons.fullscreen, color: Colors.white),
                 tooltip: 'Fullscreen',
                 onPressed: () async {
@@ -338,8 +521,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         ),
       ),
       body: GestureDetector(
+        // ✅ Sirf tap se AppBar aayega
         onTap: () {
-          // ✅ Tap karne pe title wapas dikhega
           _startTitleTimer();
         },
         onPanStart: (details) => _onGestureStart(details, screenSize),
@@ -352,7 +535,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                       _chewieController!
                           .videoPlayerController.value.isInitialized
                   ? Chewie(controller: _chewieController!)
-                  : const CircularProgressIndicator(color: Color(0xFF34D399)),
+                  : const CircularProgressIndicator(
+                      color: Color(0xFF34D399)),
             ),
 
             // ✅ Volume Indicator (Left side)
