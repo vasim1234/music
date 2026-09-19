@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:screen_brightness/screen_brightness.dart';
+import 'package:flutter/services.dart';
 
 class VideoPlayerScreen extends StatefulWidget {
   final File videoFile;
@@ -253,27 +254,49 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: Text(
-          widget.videoFile.path.split('/').last,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.brightness_6, color: Colors.white),
-            tooltip: 'Brightness',
-            onPressed: _showBrightnessSheet,
-          ),
-          IconButton(
-            icon: const Icon(Icons.volume_up, color: Colors.white),
-            tooltip: 'Volume',
-            onPressed: _showVolumeSheet,
-          ),
-        ],
-      ),
+  backgroundColor: Colors.black,
+  iconTheme: const IconThemeData(color: Colors.white),
+  title: Text(
+    widget.videoFile.path.split('/').last,
+    style: const TextStyle(color: Colors.white, fontSize: 14),
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+  ),
+  actions: [
+    // ✅ Brightness button
+    IconButton(
+      icon: const Icon(Icons.brightness_6, color: Colors.white),
+      tooltip: 'Brightness',
+      onPressed: _showBrightnessSheet,
+    ),
+    // ✅ Volume button
+    IconButton(
+      icon: const Icon(Icons.volume_up, color: Colors.white),
+      tooltip: 'Volume',
+      onPressed: _showVolumeSheet,
+    ),
+    // ✅ YAHAN FULLSCREEN BUTTON DAALO
+    IconButton(
+      icon: const Icon(Icons.fullscreen, color: Colors.white),
+      tooltip: 'Fullscreen',
+      onPressed: () async {
+        if (MediaQuery.of(context).orientation == Orientation.portrait) {
+          await SystemChrome.setPreferredOrientations([
+            DeviceOrientation.landscapeLeft,
+            DeviceOrientation.landscapeRight,
+          ]);
+          await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+        } else {
+          await SystemChrome.setPreferredOrientations([
+            DeviceOrientation.portraitUp,
+          ]);
+          await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+        }
+        setState(() {});
+      },
+    ),
+  ],
+),
       body: GestureDetector(
         // ✅ Gesture handling
         onPanStart: (details) => _onGestureStart(details, screenSize),
