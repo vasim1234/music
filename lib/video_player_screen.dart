@@ -42,6 +42,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _initializePlayer();
     _initBrightness();
     _startTitleTimer();
+
+    // ✅ Screen rotation allow karo
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
   }
 
   Future<void> _initBrightness() async {
@@ -71,7 +78,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         autoPlay: true,
         looping: false,
         aspectRatio: _videoController.value.aspectRatio,
-        allowFullScreen: true,
+        allowFullScreen: false,   // ✅ Chewie ka fullscreen band (duplicate na ho)
         allowMuting: true,
         showControls: true,
         materialProgressColors: ChewieProgressColors(
@@ -117,7 +124,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _gestureStartY = details.localPosition.dy;
     _gestureStartVolume = _volume;
     _gestureStartBrightness = _brightness;
-    _startTitleTimer();   // ✅ Swipe karne pe title dikhe
+    _startTitleTimer();
   }
 
   void _onGestureUpdate(DragUpdateDetails details, Size screenSize) {
@@ -155,6 +162,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   // ✅ Brightness Bottom Sheet
   void _showBrightnessSheet() {
+    _startTitleTimer();
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.black87,
@@ -200,6 +208,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   // ✅ Volume Bottom Sheet
   void _showVolumeSheet() {
+    _startTitleTimer();
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.black87,
@@ -257,6 +266,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _videoController.dispose();
     _chewieController?.dispose();
     ScreenBrightness().resetApplicationScreenBrightness();
+
+    // ✅ Portrait pe wapas
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
     ]);
@@ -270,54 +281,65 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: AnimatedOpacity(
+      // ✅ AppBar bhi title ke saath hide hoga
+      appBar: PreferredSize(
+        preferredSize:
+            _showTitle ? const Size.fromHeight(kToolbarHeight) : Size.zero,
+        child: AnimatedOpacity(
           opacity: _showTitle ? 1.0 : 0.0,
           duration: const Duration(milliseconds: 300),
-          child: Text(
-            widget.videoFile.path.split('/').last,
-            style: const TextStyle(color: Colors.white, fontSize: 14),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          child: AppBar(
+            backgroundColor: Colors.black,
+            iconTheme: const IconThemeData(color: Colors.white),
+            title: Text(
+              widget.videoFile.path.split('/').last,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            actions: [
+              // ✅ Brightness button
+              IconButton(
+                icon: const Icon(Icons.brightness_6, color: Colors.white),
+                tooltip: 'Brightness',
+                onPressed: _showBrightnessSheet,
+              ),
+              // ✅ Volume button
+              IconButton(
+                icon: const Icon(Icons.volume_up, color: Colors.white),
+                tooltip: 'Volume',
+                onPressed: _showVolumeSheet,
+              ),
+              // ✅ Fullscreen button (AppBar wala, kyunki Chewie ka band hai)
+              IconButton(
+                icon: const Icon(Icons.fullscreen, color: Colors.white),
+                tooltip: 'Fullscreen',
+                onPressed: () async {
+                  if (MediaQuery.of(context).orientation ==
+                      Orientation.portrait) {
+                    await SystemChrome.setPreferredOrientations([
+                      DeviceOrientation.landscapeLeft,
+                      DeviceOrientation.landscapeRight,
+                    ]);
+                    await SystemChrome.setEnabledSystemUIMode(
+                        SystemUiMode.immersiveSticky);
+                  } else {
+                    await SystemChrome.setPreferredOrientations([
+                      DeviceOrientation.portraitUp,
+                    ]);
+                    await SystemChrome.setEnabledSystemUIMode(
+                        SystemUiMode.edgeToEdge);
+                  }
+                  setState(() {});
+                },
+              ),
+            ],
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.brightness_6, color: Colors.white),
-            tooltip: 'Brightness',
-            onPressed: _showBrightnessSheet,
-          ),
-          IconButton(
-            icon: const Icon(Icons.volume_up, color: Colors.white),
-            tooltip: 'Volume',
-            onPressed: _showVolumeSheet,
-          ),
-          IconButton(
-            icon: const Icon(Icons.fullscreen, color: Colors.white),
-            tooltip: 'Fullscreen',
-            onPressed: () async {
-              if (MediaQuery.of(context).orientation == Orientation.portrait) {
-                await SystemChrome.setPreferredOrientations([
-                  DeviceOrientation.landscapeLeft,
-                  DeviceOrientation.landscapeRight,
-                ]);
-                await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-              } else {
-                await SystemChrome.setPreferredOrientations([
-                  DeviceOrientation.portraitUp,
-                ]);
-                await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-              }
-              setState(() {});
-            },
-          ),
-        ],
       ),
       body: GestureDetector(
         onTap: () {
-          // ✅ Screen tap karne pe title wapas dikhega
+          // ✅ Tap karne pe title wapas dikhega
           _startTitleTimer();
         },
         onPanStart: (details) => _onGestureStart(details, screenSize),
@@ -327,7 +349,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           children: [
             Center(
               child: _chewieController != null &&
-                      _chewieController!.videoPlayerController.value.isInitialized
+                      _chewieController!
+                          .videoPlayerController.value.isInitialized
                   ? Chewie(controller: _chewieController!)
                   : const CircularProgressIndicator(color: Color(0xFF34D399)),
             ),
@@ -345,12 +368,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   ),
                   child: Column(
                     children: [
-                      const Icon(Icons.volume_up, color: Colors.white, size: 35),
+                      const Icon(Icons.volume_up,
+                          color: Colors.white, size: 35),
                       const SizedBox(height: 10),
                       Text(
                         '${(_volume * 100).toInt()}%',
                         style: const TextStyle(
-                            color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -370,12 +396,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   ),
                   child: Column(
                     children: [
-                      const Icon(Icons.brightness_6, color: Colors.white, size: 35),
+                      const Icon(Icons.brightness_6,
+                          color: Colors.white, size: 35),
                       const SizedBox(height: 10),
                       Text(
                         '${(_brightness * 100).toInt()}%',
                         style: const TextStyle(
-                            color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
