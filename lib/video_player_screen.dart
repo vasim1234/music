@@ -8,7 +8,15 @@ import 'package:flutter/services.dart';
 
 class VideoPlayerScreen extends StatefulWidget {
   final File videoFile;
-  const VideoPlayerScreen({super.key, required this.videoFile});
+  final List<File>? videoList;
+  final int? initialIndex;
+
+  const VideoPlayerScreen({
+    super.key,
+    required this.videoFile,
+    this.videoList,
+    this.initialIndex,
+  });
 
   @override
   State<VideoPlayerScreen> createState() => _VideoPlayerScreenState();
@@ -18,17 +26,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   late VideoPlayerController _videoController;
   ChewieController? _chewieController;
 
+  // ✅ Auto-Play Next Video
+  List<File> _playlist = [];
+  int _currentIndex = 0;
+
   // ✅ Brightness & Volume
   double _brightness = 0.5;
-  double _volume = 1.0; // Max 2.0 (200%)
+  double _volume = 1.0;
 
-  // ✅ Stretch Scale (Dono taraf)
+  // ✅ Stretch Scale
   double _scaleX = 1.0;
   double _scaleY = 1.0;
   double _baseScaleX = 1.0;
   double _baseScaleY = 1.0;
 
-  // ✅ Gesture Controls
+  // ✅ Gesture
   double _gestureStartX = 0;
   double _gestureStartY = 0;
   double _gestureStartVolume = 1.0;
@@ -36,7 +48,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _showVolumeIndicator = false;
   bool _showBrightnessIndicator = false;
 
-  // ✅ UI Controls
+  // ✅ UI
   bool _showTitle = true;
   Timer? _titleTimer;
   double _playbackSpeed = 1.0;
@@ -46,6 +58,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   @override
   void initState() {
     super.initState();
+
+    // ✅ Playlist setup
+    _playlist = widget.videoList ?? [widget.videoFile];
+    _currentIndex = widget.initialIndex ?? 0;
+
     _initializePlayer();
     _initBrightness();
     _startTitleTimer();
@@ -98,8 +115,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   Future<void> _initializePlayer() async {
     try {
-      _videoController = VideoPlayerController.file(widget.videoFile);
+      final fileToPlay = _playlist.isNotEmpty
+          ? _playlist[_currentIndex]
+          : widget.videoFile;
+
+      _videoController = VideoPlayerController.file(fileToPlay);
       await _videoController.initialize();
+      _videoController.addListener(_videoListener);
 
       _aspectRatio = _videoController.value.aspectRatio;
       _recreateChewieController();
@@ -112,6 +134,58 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           SnackBar(content: Text('⚠️ Video play error: $e')),
         );
       }
+    }
+  }
+
+  // ✅ Video complete listener
+  void _videoListener() {
+    if (_videoController.value.position >=
+            _videoController.value.duration &&
+        _videoController.value.duration.inSeconds > 0 &&
+        !_videoController.value.isPlaying) {
+      _playNextVideo();
+    }
+  }
+
+  void _playNextVideo() {
+    if (_playlist.isEmpty || _currentIndex >= _playlist.length - 1) {
+      _showSnackBar('✅ All videos completed');
+      return;
+    }
+
+    setState(() {
+      _currentIndex++;
+    });
+    _playCurrentVideo();
+  }
+
+  void _playPreviousVideo() {
+    if (_playlist.isEmpty || _currentIndex <= 0) return;
+
+    setState(() {
+      _currentIndex--;
+    });
+    _playCurrentVideo();
+  }
+
+  Future<void> _playCurrentVideo() async {
+    try {
+      _videoController.removeListener(_videoListener);
+      await _videoController.dispose();
+      _chewieController?.dispose();
+
+      final fileToPlay = _playlist[_currentIndex];
+      _videoController = VideoPlayerController.file(fileToPlay);
+      await _videoController.initialize();
+      _videoController.addListener(_videoListener);
+
+      _aspectRatio = _videoController.value.aspectRatio;
+      _recreateChewieController();
+
+      setState(() {});
+      _startTitleTimer();
+    } catch (e) {
+      debugPrint('❌ Next video error: $e');
     }
   }
 
@@ -188,7 +262,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
-  // ✅ Volume Sheet (Up to 200%)
   void _showVolumeSheet() {
     _startTitleTimer();
     showModalBottomSheet(
@@ -236,7 +309,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 style: TextStyle(
                     color: _volume > 1.0 ? Colors.orangeAccent : Colors.white70,
                     fontSize: 13,
-                    fontWeight: _volume > 1.0 ? FontWeight.bold : FontWeight.normal),
+                    fontWeight:
+                        _volume > 1.0 ? FontWeight.bold : FontWeight.normal),
               ),
             ],
           ),
@@ -324,7 +398,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   '${speed}x',
                   style: TextStyle(
                     color: isSelected ? const Color(0xFF34D399) : Colors.white,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
                 onTap: () {
@@ -365,7 +440,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             Divider(color: Colors.grey.shade800, height: 1),
             ListTile(
               leading: const Icon(Icons.crop_original, color: Colors.white),
-              title: const Text('Fit (Original)', style: TextStyle(color: Colors.white)),
+              title: const Text('Fit (Original)',
+                  style: TextStyle(color: Colors.white)),
               onTap: () {
                 setState(() {
                   _scaleX = 1.0;
@@ -378,7 +454,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.crop_free, color: Colors.white),
-              title: const Text('Fill (Cover)', style: TextStyle(color: Colors.white)),
+              title: const Text('Fill (Cover)',
+                  style: TextStyle(color: Colors.white)),
               onTap: () {
                 setState(() {
                   _scaleX = 1.0;
@@ -391,7 +468,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             ),
             ListTile(
               leading: const Icon(Icons.fullscreen, color: Colors.white),
-              title: const Text('Stretch (16:9)', style: TextStyle(color: Colors.white)),
+              title: const Text('Stretch (16:9)',
+                  style: TextStyle(color: Colors.white)),
               onTap: () {
                 setState(() {
                   _scaleX = 1.0;
@@ -443,6 +521,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   @override
   void dispose() {
     _titleTimer?.cancel();
+    _videoController.removeListener(_videoListener);
     _videoController.dispose();
     _chewieController?.dispose();
     ScreenBrightness().resetApplicationScreenBrightness();
@@ -461,13 +540,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         onPointerDown: (_) => _startTitleTimer(),
         behavior: HitTestBehavior.translucent,
         child: GestureDetector(
-          // ✅ Stretch ke liye gesture
           onScaleStart: (details) {
             _baseScaleX = _scaleX;
             _baseScaleY = _scaleY;
           },
           onScaleUpdate: (details) {
-            // ✅ Dono taraf stretch
             if (details.scale != 1.0 ||
                 details.horizontalScale != 1.0 ||
                 details.verticalScale != 1.0) {
@@ -482,7 +559,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           onPanEnd: _onGestureEnd,
           child: Stack(
             children: [
-              // ✅ 1. Stretch enabled Video View
               Center(
                 child: Transform(
                   alignment: Alignment.center,
@@ -491,11 +567,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                           _chewieController!
                               .videoPlayerController.value.isInitialized
                       ? Chewie(controller: _chewieController!)
-                      : const CircularProgressIndicator(color: Color(0xFF34D399)),
+                      : const CircularProgressIndicator(
+                          color: Color(0xFF34D399)),
                 ),
               ),
 
-              // ✅ 2. Top Transparent Overlay Navigation Bar
+              // ✅ Top Overlay
               Positioned(
                 top: 0,
                 left: 0,
@@ -517,13 +594,52 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                         backgroundColor: Colors.transparent,
                         elevation: 0,
                         iconTheme: const IconThemeData(color: Colors.white),
-                        title: Text(
-                          widget.videoFile.path.split('/').last,
-                          style: const TextStyle(color: Colors.white, fontSize: 14),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        title: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _playlist.isNotEmpty
+                                  ? _playlist[_currentIndex]
+                                      .path
+                                      .split('/')
+                                      .last
+                                  : widget.videoFile.path.split('/').last,
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 13),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (_playlist.length > 1)
+                              Text(
+                                'Video ${_currentIndex + 1} of ${_playlist.length}',
+                                style: const TextStyle(
+                                    color: Colors.white70, fontSize: 10),
+                              ),
+                          ],
                         ),
                         actions: [
+                          // ✅ Previous Video
+                          if (_playlist.length > 1)
+                            IconButton(
+                              iconSize: 22,
+                              icon: const Icon(Icons.skip_previous,
+                                  color: Colors.white),
+                              tooltip: 'Previous Video',
+                              onPressed:
+                                  _currentIndex > 0 ? _playPreviousVideo : null,
+                            ),
+                          // ✅ Next Video
+                          if (_playlist.length > 1)
+                            IconButton(
+                              iconSize: 22,
+                              icon: const Icon(Icons.skip_next,
+                                  color: Colors.white),
+                              tooltip: 'Next Video',
+                              onPressed: _currentIndex < _playlist.length - 1
+                                  ? _playNextVideo
+                                  : null,
+                            ),
                           IconButton(
                             iconSize: 22,
                             icon: const Icon(Icons.speed, color: Colors.white),
@@ -531,30 +647,36 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                           ),
                           IconButton(
                             iconSize: 22,
-                            icon: const Icon(Icons.aspect_ratio, color: Colors.white),
+                            icon: const Icon(Icons.aspect_ratio,
+                                color: Colors.white),
                             onPressed: _showAspectRatioSheet,
                           ),
                           IconButton(
                             iconSize: 22,
                             icon: Icon(
                               _isLooping ? Icons.repeat_one : Icons.repeat,
-                              color: _isLooping ? const Color(0xFF34D399) : Colors.white,
+                              color: _isLooping
+                                  ? const Color(0xFF34D399)
+                                  : Colors.white,
                             ),
                             onPressed: _toggleLoop,
                           ),
                           IconButton(
                             iconSize: 22,
-                            icon: const Icon(Icons.brightness_6, color: Colors.white),
+                            icon: const Icon(Icons.brightness_6,
+                                color: Colors.white),
                             onPressed: _showBrightnessSheet,
                           ),
                           IconButton(
                             iconSize: 22,
-                            icon: const Icon(Icons.volume_up, color: Colors.white),
+                            icon: const Icon(Icons.volume_up,
+                                color: Colors.white),
                             onPressed: _showVolumeSheet,
                           ),
                           IconButton(
                             iconSize: 22,
-                            icon: const Icon(Icons.fullscreen, color: Colors.white),
+                            icon: const Icon(Icons.fullscreen,
+                                color: Colors.white),
                             onPressed: _toggleFullscreen,
                           ),
                         ],
@@ -564,7 +686,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ),
               ),
 
-              // ✅ 3. Volume Overlay (MX-Player style)
+              // ✅ Volume Overlay
               if (_showVolumeIndicator)
                 Positioned(
                   left: 20,
@@ -587,7 +709,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                               : _volume > 1.0
                                   ? Icons.volume_up_outlined
                                   : Icons.volume_up,
-                          color: _volume > 1.0 ? Colors.orangeAccent : Colors.white,
+                          color: _volume > 1.0
+                              ? Colors.orangeAccent
+                              : Colors.white,
                           size: 20,
                         ),
                         Expanded(
@@ -610,7 +734,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                         Text(
                           '${(_volume * 100).toInt()}%',
                           style: TextStyle(
-                            color: _volume > 1.0 ? Colors.orangeAccent : Colors.white,
+                            color: _volume > 1.0
+                                ? Colors.orangeAccent
+                                : Colors.white,
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                           ),
@@ -620,7 +746,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   ),
                 ),
 
-              // ✅ 4. Brightness Overlay (MX-Player style)
+              // ✅ Brightness Overlay
               if (_showBrightnessIndicator)
                 Positioned(
                   right: 20,
@@ -637,7 +763,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Icon(Icons.brightness_6, color: Colors.white, size: 20),
+                        const Icon(Icons.brightness_6,
+                            color: Colors.white, size: 20),
                         Expanded(
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -646,8 +773,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                               child: LinearProgressIndicator(
                                 value: _brightness,
                                 backgroundColor: Colors.white24,
-                                valueColor: const AlwaysStoppedAnimation<Color>(
-                                    Color(0xFF34D399)),
+                                valueColor:
+                                    const AlwaysStoppedAnimation<Color>(
+                                        Color(0xFF34D399)),
                               ),
                             ),
                           ),
@@ -665,7 +793,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   ),
                 ),
 
-              // ✅ 5. Stretch Reset Button (agar scale 1.0 nahi hai toh dikhao)
+              // ✅ Stretch Reset Button
               if (_scaleX != 1.0 || _scaleY != 1.0)
                 Positioned(
                   bottom: 100,
@@ -685,7 +813,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                         borderRadius: BorderRadius.circular(25),
                         border: Border.all(color: Colors.white24),
                       ),
-                      child: const Icon(Icons.restore, color: Colors.white, size: 22),
+                      child: const Icon(Icons.restore,
+                          color: Colors.white, size: 22),
                     ),
                   ),
                 ),
