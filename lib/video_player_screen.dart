@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
@@ -31,11 +32,16 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _showVolumeIndicator = false;
   bool _showBrightnessIndicator = false;
 
+  // ✅ Title auto-hide ke liye
+  bool _showTitle = true;
+  Timer? _titleTimer;
+
   @override
   void initState() {
     super.initState();
     _initializePlayer();
     _initBrightness();
+    _startTitleTimer();
   }
 
   Future<void> _initBrightness() async {
@@ -45,6 +51,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     } catch (e) {
       debugPrint('Brightness init error: $e');
     }
+  }
+
+  void _startTitleTimer() {
+    _titleTimer?.cancel();
+    setState(() => _showTitle = true);
+    _titleTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _showTitle = false);
+    });
   }
 
   Future<void> _initializePlayer() async {
@@ -103,14 +117,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _gestureStartY = details.localPosition.dy;
     _gestureStartVolume = _volume;
     _gestureStartBrightness = _brightness;
+    _startTitleTimer();   // ✅ Swipe karne pe title dikhe
   }
 
   void _onGestureUpdate(DragUpdateDetails details, Size screenSize) {
-    // ✅ Left half = Volume, Right half = Brightness
     bool isLeftSide = _gestureStartX < screenSize.width / 2;
 
     if (isLeftSide) {
-      // Volume
       double delta = (details.localPosition.dy - _gestureStartY) / screenSize.height;
       double newVolume = (_gestureStartVolume - delta).clamp(0.0, 1.0);
       _setVolume(newVolume);
@@ -119,7 +132,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         _showBrightnessIndicator = false;
       });
     } else {
-      // Brightness
       double delta = (details.localPosition.dy - _gestureStartY) / screenSize.height;
       double newBrightness = (_gestureStartBrightness - delta).clamp(0.0, 1.0);
       _setBrightness(newBrightness);
@@ -241,9 +253,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   @override
   void dispose() {
+    _titleTimer?.cancel();
     _videoController.dispose();
     _chewieController?.dispose();
     ScreenBrightness().resetApplicationScreenBrightness();
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
   }
 
@@ -254,57 +271,60 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-  backgroundColor: Colors.black,
-  iconTheme: const IconThemeData(color: Colors.white),
-  title: Text(
-    widget.videoFile.path.split('/').last,
-    style: const TextStyle(color: Colors.white, fontSize: 14),
-    maxLines: 1,
-    overflow: TextOverflow.ellipsis,
-  ),
-  actions: [
-    // ✅ Brightness button
-    IconButton(
-      icon: const Icon(Icons.brightness_6, color: Colors.white),
-      tooltip: 'Brightness',
-      onPressed: _showBrightnessSheet,
-    ),
-    // ✅ Volume button
-    IconButton(
-      icon: const Icon(Icons.volume_up, color: Colors.white),
-      tooltip: 'Volume',
-      onPressed: _showVolumeSheet,
-    ),
-    // ✅ YAHAN FULLSCREEN BUTTON DAALO
-    IconButton(
-      icon: const Icon(Icons.fullscreen, color: Colors.white),
-      tooltip: 'Fullscreen',
-      onPressed: () async {
-        if (MediaQuery.of(context).orientation == Orientation.portrait) {
-          await SystemChrome.setPreferredOrientations([
-            DeviceOrientation.landscapeLeft,
-            DeviceOrientation.landscapeRight,
-          ]);
-          await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-        } else {
-          await SystemChrome.setPreferredOrientations([
-            DeviceOrientation.portraitUp,
-          ]);
-          await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-        }
-        setState(() {});
-      },
-    ),
-  ],
-),
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: AnimatedOpacity(
+          opacity: _showTitle ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 300),
+          child: Text(
+            widget.videoFile.path.split('/').last,
+            style: const TextStyle(color: Colors.white, fontSize: 14),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.brightness_6, color: Colors.white),
+            tooltip: 'Brightness',
+            onPressed: _showBrightnessSheet,
+          ),
+          IconButton(
+            icon: const Icon(Icons.volume_up, color: Colors.white),
+            tooltip: 'Volume',
+            onPressed: _showVolumeSheet,
+          ),
+          IconButton(
+            icon: const Icon(Icons.fullscreen, color: Colors.white),
+            tooltip: 'Fullscreen',
+            onPressed: () async {
+              if (MediaQuery.of(context).orientation == Orientation.portrait) {
+                await SystemChrome.setPreferredOrientations([
+                  DeviceOrientation.landscapeLeft,
+                  DeviceOrientation.landscapeRight,
+                ]);
+                await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+              } else {
+                await SystemChrome.setPreferredOrientations([
+                  DeviceOrientation.portraitUp,
+                ]);
+                await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+              }
+              setState(() {});
+            },
+          ),
+        ],
+      ),
       body: GestureDetector(
-        // ✅ Gesture handling
+        onTap: () {
+          // ✅ Screen tap karne pe title wapas dikhega
+          _startTitleTimer();
+        },
         onPanStart: (details) => _onGestureStart(details, screenSize),
         onPanUpdate: (details) => _onGestureUpdate(details, screenSize),
         onPanEnd: _onGestureEnd,
         child: Stack(
           children: [
-            // ✅ Video
             Center(
               child: _chewieController != null &&
                       _chewieController!.videoPlayerController.value.isInitialized
