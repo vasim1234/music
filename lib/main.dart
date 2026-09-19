@@ -9,6 +9,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:flutter/foundation.dart';
 import 'services/audio_handler.dart';
 import 'package:audio_service/audio_service.dart';
+import 'video_player_screen.dart';
 
 // ✅ 4 PREMIUM THEMES
 class AppColors {
@@ -183,6 +184,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
     _checkPermission();
     _loadSavedData();
+    _loadVideos();   // ✅ Ye add karo
     _loadTheme();
   }
 
@@ -355,6 +357,41 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       _songsByFolder[folderName]!.add(song);
     }
   }
+  // ✅ Video folder map
+void _buildVideoFolderMap() {
+  _videosByFolder.clear();
+  for (var video in _videos) {
+    String folder = video.parent.path;
+    String folderName = folder.split('/').last;
+    if (folderName.isEmpty) folderName = 'Root';
+    if (!_videosByFolder.containsKey(folderName)) {
+      _videosByFolder[folderName] = [];
+    }
+    _videosByFolder[folderName]!.add(video);
+  }
+}
+
+// ✅ Video save
+Future<void> _saveVideos() async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setStringList('saved_videos', _videos.map((f) => f.path).toList());
+}
+
+// ✅ Video load
+Future<void> _loadVideos() async {
+  final prefs = await SharedPreferences.getInstance();
+  List<String>? savedPaths = prefs.getStringList('saved_videos');
+  if (savedPaths != null) {
+    List<File> videos = savedPaths
+        .map((path) => File(path))
+        .where((f) => f.existsSync())
+        .toList();
+    setState(() {
+      _videos = videos;
+      _buildVideoFolderMap();
+    });
+  }
+}
 
   Future<void> _saveSongs() async {
     final prefs = await SharedPreferences.getInstance();
@@ -406,70 +443,91 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   }
 
   Future<void> _scanDefaultFolder() async {
-    try {
-      List<File> allSongs = [];
+  try {
+    List<File> allSongs = [];
+    List<File> allVideos = [];
 
-      List<String> folders = [
-        '/storage/emulated/0/Music',
-        '/storage/emulated/0/Download',
-        '/storage/emulated/0/Snaptube/download/SnapTube Audio',
-        '/storage/emulated/0/Snaptube',
-        '/storage/emulated/0/WhatsApp/Media/WhatsApp Audio',
-        '/storage/emulated/0/WhatsApp/Media/WhatsApp Voice Notes',
-        '/storage/emulated/0/Telegram/Telegram Audio',
-        '/storage/emulated/0/Telegram',
-        '/storage/emulated/0/DCIM',
-        '/storage/emulated/0/Movies',
-        '/storage/emulated/0/Podcasts',
-        '/storage/emulated/0/Ringtones',
-        '/storage/emulated/0/Alarms',
-        '/storage/emulated/0/Notifications',
-        '/storage/emulated/0/Audio',
-        '/storage/emulated/0/My Music',
-      ];
+    List<String> folders = [
+      '/storage/emulated/0/Music',
+      '/storage/emulated/0/Download',
+      '/storage/emulated/0/Snaptube/download/SnapTube Audio',
+      '/storage/emulated/0/Snaptube',
+      '/storage/emulated/0/WhatsApp/Media/WhatsApp Audio',
+      '/storage/emulated/0/WhatsApp/Media/WhatsApp Video',
+      '/storage/emulated/0/Telegram/Telegram Audio',
+      '/storage/emulated/0/Telegram/Telegram Video',
+      '/storage/emulated/0/DCIM',
+      '/storage/emulated/0/DCIM/Camera',
+      '/storage/emulated/0/Movies',
+      '/storage/emulated/0/Podcasts',
+      '/storage/emulated/0/Ringtones',
+      '/storage/emulated/0/Alarms',
+      '/storage/emulated/0/Notifications',
+      '/storage/emulated/0/Audio',
+      '/storage/emulated/0/My Music',
+    ];
 
-      for (var folderPath in folders) {
-        Directory dir = Directory(folderPath);
-        if (dir.existsSync()) {
-          try {
-            for (var entity in dir.listSync(recursive: true)) {
-              if (entity is File) {
-                String p = entity.path.toLowerCase();
-                if (p.endsWith('.mp3') ||
-                    p.endsWith('.m4a') ||
-                    p.endsWith('.wav') ||
-                    p.endsWith('.aac') ||
-                    p.endsWith('.ogg') ||
-                    p.endsWith('.flac') ||
-                    p.endsWith('.opus') ||
-                    p.endsWith('.wma') ||
-                    p.endsWith('.mp4a')) {
-                  allSongs.add(entity);
-                }
+    for (var folderPath in folders) {
+      Directory dir = Directory(folderPath);
+      if (dir.existsSync()) {
+        try {
+          for (var entity in dir.listSync(recursive: true)) {
+            if (entity is File) {
+              String p = entity.path.toLowerCase();
+
+              // ✅ Audio files
+              if (p.endsWith('.mp3') ||
+                  p.endsWith('.m4a') ||
+                  p.endsWith('.wav') ||
+                  p.endsWith('.aac') ||
+                  p.endsWith('.ogg') ||
+                  p.endsWith('.flac') ||
+                  p.endsWith('.opus') ||
+                  p.endsWith('.wma') ||
+                  p.endsWith('.mp4a')) {
+                allSongs.add(entity);
+              }
+
+              // ✅ Video files
+              if (p.endsWith('.mp4') ||
+                  p.endsWith('.mkv') ||
+                  p.endsWith('.avi') ||
+                  p.endsWith('.mov') ||
+                  p.endsWith('.wmv') ||
+                  p.endsWith('.flv') ||
+                  p.endsWith('.webm') ||
+                  p.endsWith('.3gp') ||
+                  p.endsWith('.m4v')) {
+                allVideos.add(entity);
               }
             }
-          } catch (e) {}
-        }
+          }
+        } catch (e) {}
       }
-
-      setState(() {
-        for (var song in allSongs) {
-          if (!_songs.any((f) => f.path == song.path)) _songs.add(song);
-        }
-        _buildFolderMap();
-        _applyFilter();
-      });
-
-      await _saveSongs();
-
-      if (allSongs.isEmpty) {
-        _showSnackBar('⚠️ No songs found! Try "Pick Songs"', Colors.orange);
-      } else {
-        _showSnackBar('✅ ${allSongs.length} songs found!', Colors.green);
-      }
-    } catch (e) {
-      _showSnackBar('⚠️ Error: $e', Colors.red);
     }
+
+    setState(() {
+      for (var song in allSongs) {
+        if (!_songs.any((f) => f.path == song.path)) _songs.add(song);
+      }
+      for (var video in allVideos) {
+        if (!_videos.any((f) => f.path == video.path)) _videos.add(video);
+      }
+      _buildFolderMap();
+      _buildVideoFolderMap();
+      _applyFilter();
+    });
+
+    await _saveSongs();
+    await _saveVideos();
+
+    _showSnackBar(
+      '✅ ${allSongs.length} songs + ${allVideos.length} videos found!',
+      Colors.green,
+    );
+  } catch (e) {
+    _showSnackBar('⚠️ Error: $e', Colors.red);
+  }
   }
 
   Future<void> _playSong(File song, int index) async {
@@ -1644,6 +1702,81 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
+  // ✅ Videos View
+Widget _buildVideosView() {
+  if (_videos.isEmpty) {
+    return _buildEmptyState();
+  }
+
+  return ListView.builder(
+    padding: const EdgeInsets.all(15),
+    itemCount: _videos.length,
+    itemBuilder: (context, index) {
+      final video = _videos[index];
+      final videoName = video.path.split('/').last;
+      final sizeMB = (video.lengthSync() / (1024 * 1024)).toStringAsFixed(1);
+
+      return GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => VideoPlayerScreen(videoFile: video),
+            ),
+          );
+        },
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 5),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Row(
+            children: [
+              // ✅ Video icon
+              Container(
+                width: 60,
+                height: 45,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: AppTheme.primaryGradient),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.play_circle_fill,
+                    color: Colors.white, size: 30),
+              ),
+              const SizedBox(width: 15),
+              // ✅ Video name
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      videoName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 13),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$sizeMB MB',
+                      style: TextStyle(
+                          color: Colors.grey.shade500, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios,
+                  color: Colors.grey, size: 14),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+  
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -1895,23 +2028,26 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                     _buildTab(2, '🕒 Recent'),
                     _buildTab(3, '📁 Playlists'),
                     _buildTab(4, '🗂️ Folders'),
+                    _buildTab(5, '🎬 Videos'),   // ✅ Ye add karo
                   ],
                 ),
               ),
               const SizedBox(height: 15),
               Expanded(
-                child: _selectedTab == 3
-                    ? _buildPlaylistsView()
-                    : _selectedTab == 4
-                        ? _buildFoldersView()
-                        : _filteredSongs.isEmpty
-                            ? _buildEmptyState()
-                            : ListView.builder(
-                                padding: const EdgeInsets.symmetric(horizontal: 15),
-                                itemCount: _filteredSongs.length,
-                                itemBuilder: (context, index) => _buildSongTile(_filteredSongs[index], index),
-                              ),
-              ),
+  child: _selectedTab == 3
+      ? _buildPlaylistsView()
+      : _selectedTab == 4
+          ? _buildFoldersView()
+          : _selectedTab == 5
+              ? _buildVideosView()    // ✅ Ye add karo
+              : _filteredSongs.isEmpty
+                  ? _buildEmptyState()
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 15),
+                      itemCount: _filteredSongs.length,
+                      itemBuilder: (context, index) => _buildSongTile(_filteredSongs[index], index),
+                    ),
+),
             ],
           ),
         ),
