@@ -467,74 +467,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: AnimatedOpacity(
-          opacity: _showTitle ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 300),
-          child: IgnorePointer(
-            ignoring: !_showTitle,
-            child: AppBar(
-              backgroundColor: Colors.black,
-              iconTheme: const IconThemeData(color: Colors.white),
-              title: Text(
-                widget.videoFile.path.split('/').last,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              actions: [
-                // ✅ Playback Speed
-                IconButton(
-                  iconSize: 22,
-                  icon: const Icon(Icons.speed, color: Colors.white),
-                  tooltip: 'Playback Speed',
-                  onPressed: _showSpeedSheet,
-                ),
-                // ✅ Aspect Ratio
-                IconButton(
-                  iconSize: 22,
-                  icon: const Icon(Icons.aspect_ratio, color: Colors.white),
-                  tooltip: 'Aspect Ratio',
-                  onPressed: _showAspectRatioSheet,
-                ),
-                // ✅ Loop
-                IconButton(
-                  iconSize: 22,
-                  icon: Icon(
-                    _isLooping ? Icons.repeat_one : Icons.repeat,
-                    color: _isLooping ? const Color(0xFF34D399) : Colors.white,
-                  ),
-                  tooltip: 'Loop',
-                  onPressed: _toggleLoop,
-                ),
-                // ✅ Brightness
-                IconButton(
-                  iconSize: 22,
-                  icon: const Icon(Icons.brightness_6, color: Colors.white),
-                  tooltip: 'Brightness',
-                  onPressed: _showBrightnessSheet,
-                ),
-                // ✅ Volume
-                IconButton(
-                  iconSize: 22,
-                  icon: const Icon(Icons.volume_up, color: Colors.white),
-                  tooltip: 'Volume',
-                  onPressed: _showVolumeSheet,
-                ),
-                // ✅ Fullscreen
-                IconButton(
-                  iconSize: 22,
-                  icon: const Icon(Icons.fullscreen, color: Colors.white),
-                  tooltip: 'Fullscreen',
-                  onPressed: _toggleFullscreen,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      // ✅ Yahan Listener add kiya gaya hai screen taps catch karne ke liye
+      // ✅ AppBar yahan se hata diya gaya hai taaki upar ki kaali patti (space) chali jaye
       body: Listener(
         onPointerDown: (event) {
           _startTitleTimer();
@@ -546,12 +479,89 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           onPanEnd: _onGestureEnd,
           child: Stack(
             children: [
+              // ✅ 1. Video Player poori screen cover karega
               Center(
                 child: _chewieController != null &&
                         _chewieController!
                             .videoPlayerController.value.isInitialized
                     ? Chewie(controller: _chewieController!)
                     : const CircularProgressIndicator(color: Color(0xFF34D399)),
+              ),
+
+              // ✅ 2. Top AppBar ko overlay ki tarah video ke upar lagaya hai
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: AnimatedOpacity(
+                  opacity: _showTitle ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: IgnorePointer(
+                    ignoring: !_showTitle,
+                    child: Container(
+                      // Halki si shadow taaki title aur icons video par clear dikhein
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.black87, Colors.transparent],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                      ),
+                      child: AppBar(
+                        backgroundColor: Colors.transparent, // Background transparent kar diya
+                        elevation: 0,
+                        iconTheme: const IconThemeData(color: Colors.white),
+                        title: Text(
+                          widget.videoFile.path.split('/').last,
+                          style: const TextStyle(color: Colors.white, fontSize: 14),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        actions: [
+                          IconButton(
+                            iconSize: 22,
+                            icon: const Icon(Icons.speed, color: Colors.white),
+                            tooltip: 'Playback Speed',
+                            onPressed: _showSpeedSheet,
+                          ),
+                          IconButton(
+                            iconSize: 22,
+                            icon: const Icon(Icons.aspect_ratio, color: Colors.white),
+                            tooltip: 'Aspect Ratio',
+                            onPressed: _showAspectRatioSheet,
+                          ),
+                          IconButton(
+                            iconSize: 22,
+                            icon: Icon(
+                              _isLooping ? Icons.repeat_one : Icons.repeat,
+                              color: _isLooping ? const Color(0xFF34D399) : Colors.white,
+                            ),
+                            tooltip: 'Loop',
+                            onPressed: _toggleLoop,
+                          ),
+                          IconButton(
+                            iconSize: 22,
+                            icon: const Icon(Icons.brightness_6, color: Colors.white),
+                            tooltip: 'Brightness',
+                            onPressed: _showBrightnessSheet,
+                          ),
+                          IconButton(
+                            iconSize: 22,
+                            icon: const Icon(Icons.volume_up, color: Colors.white),
+                            tooltip: 'Volume',
+                            onPressed: _showVolumeSheet,
+                          ),
+                          IconButton(
+                            iconSize: 22,
+                            icon: const Icon(Icons.fullscreen, color: Colors.white),
+                            tooltip: 'Fullscreen',
+                            onPressed: _toggleFullscreen,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ),
 
               // ✅ Volume Indicator (Left side)
