@@ -18,6 +18,7 @@ dependencies:
   just_audio: ^0.9.40
   video_player: ^2.9.2          # ✅ Ye add karo
   chewie: ^1.8.5                # ✅ Ye add karo
+  package_info_plus: ^8.1.0   # ✅ Ye add karo, purana version
 
 dev_dependencies:
   flutter_test:
