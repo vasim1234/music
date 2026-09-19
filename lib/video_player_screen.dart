@@ -24,7 +24,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   // ✅ Volume
   double _volume = 1.0;
 
-  // ✅ Gesture ke liye
+  // ✅ Gesture
   double _gestureStartX = 0;
   double _gestureStartY = 0;
   double _gestureStartVolume = 1.0;
@@ -32,7 +32,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _showVolumeIndicator = false;
   bool _showBrightnessIndicator = false;
 
-  // ✅ Title auto-hide ke liye
+  // ✅ Title auto-hide
   bool _showTitle = true;
   Timer? _titleTimer;
 
@@ -52,7 +52,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _initBrightness();
     _startTitleTimer();
 
-    // ✅ Screen rotation allow karo
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.landscapeLeft,
@@ -77,28 +76,35 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     });
   }
 
+  // ✅ ChewieController recreate karne ka method
+  void _recreateChewieController() {
+    if (_chewieController != null) {
+      _chewieController!.dispose();
+    }
+    _chewieController = ChewieController(
+      videoPlayerController: _videoController,
+      autoPlay: true,
+      looping: _isLooping,
+      aspectRatio: _aspectRatio,
+      allowFullScreen: false,
+      allowMuting: true,
+      showControls: true,
+      materialProgressColors: ChewieProgressColors(
+        playedColor: const Color(0xFF34D399),
+        handleColor: const Color(0xFF34D399),
+        backgroundColor: Colors.grey,
+        bufferedColor: Colors.lightGreen,
+      ),
+    );
+  }
+
   Future<void> _initializePlayer() async {
     try {
       _videoController = VideoPlayerController.file(widget.videoFile);
       await _videoController.initialize();
 
       _aspectRatio = _videoController.value.aspectRatio;
-
-      _chewieController = ChewieController(
-        videoPlayerController: _videoController,
-        autoPlay: true,
-        looping: _isLooping,
-        aspectRatio: _aspectRatio,
-        allowFullScreen: false,   // ✅ Chewie ka fullscreen band (duplicate na ho)
-        allowMuting: true,
-        showControls: true,
-        materialProgressColors: ChewieProgressColors(
-          playedColor: const Color(0xFF34D399),
-          handleColor: const Color(0xFF34D399),
-          backgroundColor: Colors.grey,
-          bufferedColor: Colors.lightGreen,
-        ),
-      );
+      _recreateChewieController();
 
       setState(() {});
     } catch (e) {
@@ -135,7 +141,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _gestureStartY = details.localPosition.dy;
     _gestureStartVolume = _volume;
     _gestureStartBrightness = _brightness;
-    // ❌ _startTitleTimer() — YE HATA DIYA (sirf tap se AppBar aayega)
   }
 
   void _onGestureUpdate(DragUpdateDetails details, Size screenSize) {
@@ -174,7 +179,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     });
   }
 
-  // ✅ SnackBar
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -186,7 +190,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
-  // ✅ Brightness Bottom Sheet
+  // ✅ Brightness Sheet
   void _showBrightnessSheet() {
     _startTitleTimer();
     showModalBottomSheet(
@@ -234,7 +238,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
-  // ✅ Volume Bottom Sheet
+  // ✅ Volume Sheet
   void _showVolumeSheet() {
     _startTitleTimer();
     showModalBottomSheet(
@@ -374,7 +378,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               onTap: () {
                 setState(() {
                   _aspectRatio = _videoController.value.aspectRatio;
-                  _chewieController?.aspectRatio = _aspectRatio;
+                  _recreateChewieController();
                 });
                 Navigator.pop(context);
               },
@@ -386,7 +390,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               onTap: () {
                 setState(() {
                   _aspectRatio = MediaQuery.of(context).size.aspectRatio;
-                  _chewieController?.aspectRatio = _aspectRatio;
+                  _recreateChewieController();
                 });
                 Navigator.pop(context);
               },
@@ -398,7 +402,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               onTap: () {
                 setState(() {
                   _aspectRatio = 16 / 9;
-                  _chewieController?.aspectRatio = _aspectRatio;
+                  _recreateChewieController();
                 });
                 Navigator.pop(context);
               },
@@ -414,7 +418,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _startTitleTimer();
     setState(() {
       _isLooping = !_isLooping;
-      _chewieController?.looping = _isLooping;
+      _recreateChewieController();
     });
     _showSnackBar(_isLooping ? '🔁 Loop ON' : '➡️ Loop OFF');
   }
@@ -425,8 +429,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _videoController.dispose();
     _chewieController?.dispose();
     ScreenBrightness().resetApplicationScreenBrightness();
-
-    // ✅ Portrait pe wapas
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
     ]);
@@ -440,7 +442,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      // ✅ AppBar bhi title ke saath hide hoga
       appBar: PreferredSize(
         preferredSize:
             _showTitle ? const Size.fromHeight(kToolbarHeight) : Size.zero,
@@ -457,21 +458,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               overflow: TextOverflow.ellipsis,
             ),
             actions: [
-              // ✅ Playback Speed
               IconButton(
                 iconSize: 22,
                 icon: const Icon(Icons.speed, color: Colors.white),
                 tooltip: 'Playback Speed',
                 onPressed: _showSpeedSheet,
               ),
-              // ✅ Aspect Ratio
               IconButton(
                 iconSize: 22,
                 icon: const Icon(Icons.aspect_ratio, color: Colors.white),
                 tooltip: 'Aspect Ratio',
                 onPressed: _showAspectRatioSheet,
               ),
-              // ✅ Loop
               IconButton(
                 iconSize: 22,
                 icon: Icon(
@@ -482,21 +480,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 tooltip: 'Loop',
                 onPressed: _toggleLoop,
               ),
-              // ✅ Brightness
               IconButton(
                 iconSize: 22,
                 icon: const Icon(Icons.brightness_6, color: Colors.white),
                 tooltip: 'Brightness',
                 onPressed: _showBrightnessSheet,
               ),
-              // ✅ Volume
               IconButton(
                 iconSize: 22,
                 icon: const Icon(Icons.volume_up, color: Colors.white),
                 tooltip: 'Volume',
                 onPressed: _showVolumeSheet,
               ),
-              // ✅ Fullscreen
               IconButton(
                 iconSize: 22,
                 icon: const Icon(Icons.fullscreen, color: Colors.white),
@@ -525,7 +520,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         ),
       ),
       body: GestureDetector(
-        // ✅ Sirf tap se AppBar aayega
         onTap: () {
           _startTitleTimer();
         },
@@ -543,7 +537,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                       color: Color(0xFF34D399)),
             ),
 
-            // ✅ Volume Indicator (Left side)
             if (_showVolumeIndicator)
               Positioned(
                 left: 40,
@@ -571,7 +564,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ),
               ),
 
-            // ✅ Brightness Indicator (Right side)
             if (_showBrightnessIndicator)
               Positioned(
                 right: 40,
