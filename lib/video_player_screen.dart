@@ -22,9 +22,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   double _brightness = 0.5;
   double _volume = 1.0; // Max 2.0 (200%)
 
-  // ✅ Pinch-to-Zoom Scale
-  double _scaleFactor = 1.0;
-  double _baseScaleFactor = 1.0;
+  // ✅ Stretch Scale (Dono taraf)
+  double _scaleX = 1.0;
+  double _scaleY = 1.0;
+  double _baseScaleX = 1.0;
+  double _baseScaleY = 1.0;
 
   // ✅ Gesture Controls
   double _gestureStartX = 0;
@@ -84,7 +86,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       allowFullScreen: false,
       allowMuting: true,
       showControls: true,
-      showOptions: false, // Default 3-dots option hide kiya
+      showOptions: false,
       materialProgressColors: ChewieProgressColors(
         playedColor: const Color(0xFF34D399),
         handleColor: const Color(0xFF34D399),
@@ -124,7 +126,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   Future<void> _setVolume(double value) async {
     try {
-      // ✅ 0.0 se 2.0 tak support (200% boost)
       double targetVol = value.clamp(0.0, 2.0);
       await _videoController.setVolume(targetVol > 1.0 ? 1.0 : targetVol);
       setState(() => _volume = targetVol);
@@ -217,7 +218,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     child: Slider(
                       value: _volume,
                       min: 0.0,
-                      max: 2.0, // ✅ 200% Volume
+                      max: 2.0,
                       activeColor: const Color(0xFF34D399),
                       inactiveColor: Colors.grey.shade700,
                       onChanged: (value) {
@@ -367,7 +368,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               title: const Text('Fit (Original)', style: TextStyle(color: Colors.white)),
               onTap: () {
                 setState(() {
-                  _scaleFactor = 1.0;
+                  _scaleX = 1.0;
+                  _scaleY = 1.0;
                   _aspectRatio = _videoController.value.aspectRatio;
                   _recreateChewieController();
                 });
@@ -379,7 +381,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               title: const Text('Fill (Cover)', style: TextStyle(color: Colors.white)),
               onTap: () {
                 setState(() {
-                  _scaleFactor = 1.0;
+                  _scaleX = 1.0;
+                  _scaleY = 1.0;
                   _aspectRatio = MediaQuery.of(context).size.aspectRatio;
                   _recreateChewieController();
                 });
@@ -391,7 +394,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               title: const Text('Stretch (16:9)', style: TextStyle(color: Colors.white)),
               onTap: () {
                 setState(() {
-                  _scaleFactor = 1.0;
+                  _scaleX = 1.0;
+                  _scaleY = 1.0;
                   _aspectRatio = 16 / 9;
                   _recreateChewieController();
                 });
@@ -457,14 +461,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         onPointerDown: (_) => _startTitleTimer(),
         behavior: HitTestBehavior.translucent,
         child: GestureDetector(
+          // ✅ Stretch ke liye gesture
           onScaleStart: (details) {
-            _baseScaleFactor = _scaleFactor;
+            _baseScaleX = _scaleX;
+            _baseScaleY = _scaleY;
           },
           onScaleUpdate: (details) {
-            // ✅ Pinch to zoom support
-            if (details.scale != 1.0) {
+            // ✅ Dono taraf stretch
+            if (details.scale != 1.0 ||
+                details.horizontalScale != 1.0 ||
+                details.verticalScale != 1.0) {
               setState(() {
-                _scaleFactor = (_baseScaleFactor * details.scale).clamp(1.0, 3.0);
+                _scaleX = (_baseScaleX * details.horizontalScale).clamp(0.5, 3.0);
+                _scaleY = (_baseScaleY * details.verticalScale).clamp(0.5, 3.0);
               });
             }
           },
@@ -473,10 +482,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           onPanEnd: _onGestureEnd,
           child: Stack(
             children: [
-              // ✅ 1. Pinch-to-Zoom enabled Video View
+              // ✅ 1. Stretch enabled Video View
               Center(
-                child: Transform.scale(
-                  scale: _scaleFactor,
+                child: Transform(
+                  alignment: Alignment.center,
+                  transform: Matrix4.diagonal3Values(_scaleX, _scaleY, 1.0),
                   child: _chewieController != null &&
                           _chewieController!
                               .videoPlayerController.value.isInitialized
@@ -554,7 +564,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ),
               ),
 
-              // ✅ 3. Patla aur Lamba Volume Overlay (MX-Player style)
+              // ✅ 3. Volume Overlay (MX-Player style)
               if (_showVolumeIndicator)
                 Positioned(
                   left: 20,
@@ -586,7 +596,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                             child: RotatedBox(
                               quarterTurns: 3,
                               child: LinearProgressIndicator(
-                                value: _volume / 2.0, // 200% scale
+                                value: _volume / 2.0,
                                 backgroundColor: Colors.white24,
                                 valueColor: AlwaysStoppedAnimation<Color>(
                                   _volume > 1.0
@@ -610,7 +620,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   ),
                 ),
 
-              // ✅ 4. Patla aur Lamba Brightness Overlay (MX-Player style)
+              // ✅ 4. Brightness Overlay (MX-Player style)
               if (_showBrightnessIndicator)
                 Positioned(
                   right: 20,
@@ -651,6 +661,31 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                ),
+
+              // ✅ 5. Stretch Reset Button (agar scale 1.0 nahi hai toh dikhao)
+              if (_scaleX != 1.0 || _scaleY != 1.0)
+                Positioned(
+                  bottom: 100,
+                  right: 20,
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _scaleX = 1.0;
+                        _scaleY = 1.0;
+                      });
+                      _showSnackBar('↩️ Stretch Reset');
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(25),
+                        border: Border.all(color: Colors.white24),
+                      ),
+                      child: const Icon(Icons.restore, color: Colors.white, size: 22),
                     ),
                   ),
                 ),
