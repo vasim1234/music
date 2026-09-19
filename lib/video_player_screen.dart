@@ -423,6 +423,31 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _showSnackBar(_isLooping ? '🔁 Loop ON' : '➡️ Loop OFF');
   }
 
+  // ✅ Fullscreen Toggle
+  Future<void> _toggleFullscreen() async {
+    if (MediaQuery.of(context).orientation == Orientation.portrait) {
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      setState(() {
+        _aspectRatio = MediaQuery.of(context).size.aspectRatio;
+        _recreateChewieController();
+      });
+    } else {
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
+      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+      setState(() {
+        _aspectRatio = _videoController.value.aspectRatio;
+        _recreateChewieController();
+      });
+    }
+    setState(() {});
+  }
+
   @override
   void dispose() {
     _titleTimer?.cancel();
@@ -443,89 +468,72 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: PreferredSize(
-  preferredSize: const Size.fromHeight(kToolbarHeight),   // ✅ Hamesha same height
-  child: AnimatedOpacity(
-    opacity: _showTitle ? 1.0 : 0.0,
-    duration: const Duration(milliseconds: 300),
-    child: IgnorePointer(
-      ignoring: !_showTitle,   // ✅ Hidden ho toh tap accept nahi kare
-      child: AppBar(
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
-        title: Text(
-          widget.videoFile.path.split('/').last,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        actions: [
-          // ✅ Playback Speed
-          IconButton(
-            iconSize: 22,
-            icon: const Icon(Icons.speed, color: Colors.white),
-            tooltip: 'Playback Speed',
-            onPressed: _showSpeedSheet,
-          ),
-          // ✅ Aspect Ratio
-          IconButton(
-            iconSize: 22,
-            icon: const Icon(Icons.aspect_ratio, color: Colors.white),
-            tooltip: 'Aspect Ratio',
-            onPressed: _showAspectRatioSheet,
-          ),
-          // ✅ Loop
-          IconButton(
-            iconSize: 22,
-            icon: Icon(
-              _isLooping ? Icons.repeat_one : Icons.repeat,
-              color: _isLooping ? const Color(0xFF34D399) : Colors.white,
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: AnimatedOpacity(
+          opacity: _showTitle ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 300),
+          child: IgnorePointer(
+            ignoring: !_showTitle,
+            child: AppBar(
+              backgroundColor: Colors.black,
+              iconTheme: const IconThemeData(color: Colors.white),
+              title: Text(
+                widget.videoFile.path.split('/').last,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              actions: [
+                // ✅ Playback Speed
+                IconButton(
+                  iconSize: 22,
+                  icon: const Icon(Icons.speed, color: Colors.white),
+                  tooltip: 'Playback Speed',
+                  onPressed: _showSpeedSheet,
+                ),
+                // ✅ Aspect Ratio
+                IconButton(
+                  iconSize: 22,
+                  icon: const Icon(Icons.aspect_ratio, color: Colors.white),
+                  tooltip: 'Aspect Ratio',
+                  onPressed: _showAspectRatioSheet,
+                ),
+                // ✅ Loop
+                IconButton(
+                  iconSize: 22,
+                  icon: Icon(
+                    _isLooping ? Icons.repeat_one : Icons.repeat,
+                    color: _isLooping ? const Color(0xFF34D399) : Colors.white,
+                  ),
+                  tooltip: 'Loop',
+                  onPressed: _toggleLoop,
+                ),
+                // ✅ Brightness
+                IconButton(
+                  iconSize: 22,
+                  icon: const Icon(Icons.brightness_6, color: Colors.white),
+                  tooltip: 'Brightness',
+                  onPressed: _showBrightnessSheet,
+                ),
+                // ✅ Volume
+                IconButton(
+                  iconSize: 22,
+                  icon: const Icon(Icons.volume_up, color: Colors.white),
+                  tooltip: 'Volume',
+                  onPressed: _showVolumeSheet,
+                ),
+                // ✅ Fullscreen
+                IconButton(
+                  iconSize: 22,
+                  icon: const Icon(Icons.fullscreen, color: Colors.white),
+                  tooltip: 'Fullscreen',
+                  onPressed: _toggleFullscreen,
+                ),
+              ],
             ),
-            tooltip: 'Loop',
-            onPressed: _toggleLoop,
           ),
-          // ✅ Brightness
-          IconButton(
-            iconSize: 22,
-            icon: const Icon(Icons.brightness_6, color: Colors.white),
-            tooltip: 'Brightness',
-            onPressed: _showBrightnessSheet,
-          ),
-          // ✅ Volume
-          IconButton(
-            iconSize: 22,
-            icon: const Icon(Icons.volume_up, color: Colors.white),
-            tooltip: 'Volume',
-            onPressed: _showVolumeSheet,
-          ),
-          // ✅ Fullscreen
-          IconButton(
-            iconSize: 22,
-            icon: const Icon(Icons.fullscreen, color: Colors.white),
-            tooltip: 'Fullscreen',
-            onPressed: () async {
-              if (MediaQuery.of(context).orientation ==
-                  Orientation.portrait) {
-                await SystemChrome.setPreferredOrientations([
-                  DeviceOrientation.landscapeLeft,
-                  DeviceOrientation.landscapeRight,
-                ]);
-                await SystemChrome.setEnabledSystemUIMode(
-                    SystemUiMode.immersiveSticky);
-              } else {
-                await SystemChrome.setPreferredOrientations([
-                  DeviceOrientation.portraitUp,
-                ]);
-                await SystemChrome.setEnabledSystemUIMode(
-                    SystemUiMode.edgeToEdge);
-              }
-              setState(() {});
-            },
-          ),
-        ],
+        ),
       ),
-    ),
-  ),
-),
       body: GestureDetector(
         onTap: () {
           _startTitleTimer();
@@ -540,10 +548,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                       _chewieController!
                           .videoPlayerController.value.isInitialized
                   ? Chewie(controller: _chewieController!)
-                  : const CircularProgressIndicator(
-                      color: Color(0xFF34D399)),
+                  : const CircularProgressIndicator(color: Color(0xFF34D399)),
             ),
 
+            // ✅ Volume Indicator (Left side)
             if (_showVolumeIndicator)
               Positioned(
                 left: 40,
@@ -571,6 +579,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ),
               ),
 
+            // ✅ Brightness Indicator (Right side)
             if (_showBrightnessIndicator)
               Positioned(
                 right: 40,
