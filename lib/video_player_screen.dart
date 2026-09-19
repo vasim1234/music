@@ -89,6 +89,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       allowFullScreen: false,
       allowMuting: true,
       showControls: true,
+      showOptions: false, // ✅ Ye line add
       materialProgressColors: ChewieProgressColors(
         playedColor: const Color(0xFF34D399),
         handleColor: const Color(0xFF34D399),
