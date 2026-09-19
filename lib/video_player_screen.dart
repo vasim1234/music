@@ -24,7 +24,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   // ✅ Volume
   double _volume = 1.0;
 
-  // ✅ Gesture
+  // ✅ Gesture ke liye
   double _gestureStartX = 0;
   double _gestureStartY = 0;
   double _gestureStartVolume = 1.0;
@@ -32,7 +32,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _showVolumeIndicator = false;
   bool _showBrightnessIndicator = false;
 
-  // ✅ Title auto-hide
+  // ✅ Title auto-hide ke liye
   bool _showTitle = true;
   Timer? _titleTimer;
 
@@ -52,6 +52,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _initBrightness();
     _startTitleTimer();
 
+    // ✅ Screen rotation allow karo
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.landscapeLeft,
@@ -88,7 +89,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         autoPlay: true,
         looping: _isLooping,
         aspectRatio: _aspectRatio,
-        allowFullScreen: false,
+        allowFullScreen: false,   // ✅ Chewie ka fullscreen band (duplicate na ho)
         allowMuting: true,
         showControls: true,
         materialProgressColors: ChewieProgressColors(
@@ -134,7 +135,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _gestureStartY = details.localPosition.dy;
     _gestureStartVolume = _volume;
     _gestureStartBrightness = _brightness;
-    // ✅ Title timer nahi, sirf gesture
+    // ❌ _startTitleTimer() — YE HATA DIYA (sirf tap se AppBar aayega)
   }
 
   void _onGestureUpdate(DragUpdateDetails details, Size screenSize) {
@@ -185,7 +186,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
-  // ✅ Brightness Sheet
+  // ✅ Brightness Bottom Sheet
   void _showBrightnessSheet() {
     _startTitleTimer();
     showModalBottomSheet(
@@ -233,7 +234,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
-  // ✅ Volume Sheet
+  // ✅ Volume Bottom Sheet
   void _showVolumeSheet() {
     _startTitleTimer();
     showModalBottomSheet(
@@ -424,6 +425,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _videoController.dispose();
     _chewieController?.dispose();
     ScreenBrightness().resetApplicationScreenBrightness();
+
+    // ✅ Portrait pe wapas
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
     ]);
@@ -437,6 +440,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
+      // ✅ AppBar bhi title ke saath hide hoga
       appBar: PreferredSize(
         preferredSize:
             _showTitle ? const Size.fromHeight(kToolbarHeight) : Size.zero,
