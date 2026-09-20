@@ -572,7 +572,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ),
               ),
 
-              // ✅ Top Overlay
+              // ✅ Top Overlay (AppBar bina Next/Prev button ke)
               Positioned(
                 top: 0,
                 left: 0,
@@ -619,27 +619,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                           ],
                         ),
                         actions: [
-                          // ✅ Previous Video
-                          if (_playlist.length > 1)
-                            IconButton(
-                              iconSize: 22,
-                              icon: const Icon(Icons.skip_previous,
-                                  color: Colors.white),
-                              tooltip: 'Previous Video',
-                              onPressed:
-                                  _currentIndex > 0 ? _playPreviousVideo : null,
-                            ),
-                          // ✅ Next Video
-                          if (_playlist.length > 1)
-                            IconButton(
-                              iconSize: 22,
-                              icon: const Icon(Icons.skip_next,
-                                  color: Colors.white),
-                              tooltip: 'Next Video',
-                              onPressed: _currentIndex < _playlist.length - 1
-                                  ? _playNextVideo
-                                  : null,
-                            ),
                           IconButton(
                             iconSize: 22,
                             icon: const Icon(Icons.speed, color: Colors.white),
@@ -685,6 +664,59 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   ),
                 ),
               ),
+
+              // ✅ New: Centered Left & Right Previous/Next Buttons 
+              if (_playlist.length > 1)
+                Positioned.fill(
+                  child: AnimatedOpacity(
+                    opacity: _showTitle ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 300),
+                    child: IgnorePointer(
+                      ignoring: !_showTitle,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Previous Button (Left Side)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 30),
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                color: Colors.black54, // Halke black color ka background
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                iconSize: 35,
+                                icon: Icon(
+                                  Icons.skip_previous,
+                                  color: _currentIndex > 0 ? Colors.white : Colors.white38,
+                                ),
+                                onPressed: _currentIndex > 0 ? _playPreviousVideo : null,
+                              ),
+                            ),
+                          ),
+                          // Next Button (Right Side)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 30),
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                color: Colors.black54, // Halke black color ka background
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                iconSize: 35,
+                                icon: Icon(
+                                  Icons.skip_next,
+                                  color: _currentIndex < _playlist.length - 1 ? Colors.white : Colors.white38,
+                                ),
+                                onPressed: _currentIndex < _playlist.length - 1 ? _playNextVideo : null,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
 
               // ✅ Volume Overlay
               if (_showVolumeIndicator)
