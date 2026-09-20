@@ -79,6 +79,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     ]);
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // ✅ Automatic System UI Mode based on orientation (Fixes physical rotation white bar issue)
+    final orientation = MediaQuery.of(context).orientation;
+    if (orientation == Orientation.landscape) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    } else {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
+  }
+
   // ✅ Helper: Time Format for Progress Bar
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, "0");
@@ -189,7 +201,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       _videoController.removeListener(_videoListener);
       await _videoController.dispose();
       
-      // Setting chewie to null forces it to be recreated accurately in build method
       _chewieController?.dispose();
       _chewieController = null; 
 
@@ -564,7 +575,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
 
-    // ✅ Rotation Fix: Detect Screen Change and dynamically update Aspect Ratio[span_3](start_span)[span_3](end_span)
     if (_videoController.value.isInitialized) {
       double desiredRatio = _calculateAspectRatio(context);
 
@@ -695,7 +705,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                             icon: const Icon(Icons.speed, color: Colors.white),
                             onPressed: _showSpeedSheet,
                           ),
-                          // 🔴 Removed Aspect Ratio Button from here[span_4](start_span)[span_4](end_span)
                           IconButton(
                             iconSize: 22,
                             icon: Icon(
@@ -731,7 +740,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ),
               ),
 
-              // ✅ Custom Centered Play/Pause Button
               Center(
                 child: AnimatedOpacity(
                   opacity: _showTitle && !_showDoubleTap ? 1.0 : 0.0,
@@ -770,7 +778,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ),
               ),
 
-              // ✅ Centered Left & Right Previous/Next Buttons
               if (_playlist.length > 1 && !_showDoubleTap)
                 Positioned.fill(
                   child: AnimatedOpacity(
@@ -821,7 +828,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   ),
                 ),
 
-              // ✅ Custom Bottom Progress Bar & Timer & Aspect Ratio Button
               Positioned(
                 bottom: 0,
                 left: 0,
@@ -853,7 +859,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                     _formatDuration(value.position),
                                     style: const TextStyle(color: Colors.white, fontSize: 13),
                                   ),
-                                  // ✅ Added Aspect Ratio Button beside Total Duration[span_5](start_span)[span_5](end_span)
                                   Row(
                                     children: [
                                       Text(
@@ -891,7 +896,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ),
               ),
 
-              // ✅ Volume Overlay
               if (_showVolumeIndicator)
                 Positioned(
                   left: 20,
@@ -951,7 +955,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   ),
                 ),
 
-              // ✅ Brightness Overlay
               if (_showBrightnessIndicator)
                 Positioned(
                   right: 20,
@@ -998,7 +1001,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   ),
                 ),
 
-              // ✅ Stretch Reset Button
               if (_scaleX != 1.0 || _scaleY != 1.0)
                 Positioned(
                   bottom: 100,
