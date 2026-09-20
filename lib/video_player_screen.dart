@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:screen_brightness/screen_brightness.dart';
@@ -34,11 +35,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   double _brightness = 0.5;
   double _volume = 1.0;
 
-  // ✅ Stretch Scale
+  // ✅ Stretch Scale & Aspect Ratio Fix
   double _scaleX = 1.0;
   double _scaleY = 1.0;
   double _baseScaleX = 1.0;
   double _baseScaleY = 1.0;
+  String _aspectRatioMode = "Original"; // "Original", "Fill", "Stretch"
 
   // ✅ Gesture
   double _gestureStartX = 0;
@@ -57,7 +59,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _showTitle = true;
   Timer? _titleTimer;
   double _playbackSpeed = 1.0;
-  double _aspectRatio = 1.0;
   bool _isLooping = false;
 
   @override
@@ -106,7 +107,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     });
   }
 
-  void _recreateChewieController() {
+  double _calculateAspectRatio(BuildContext context) {
+    if (_aspectRatioMode == "Fill") {
+      return MediaQuery.of(context).size.aspectRatio;
+    } else if (_aspectRatioMode == "Stretch") {
+      return 16 / 9;
+    } else {
+      return _videoController.value.isInitialized
+          ? _videoController.value.aspectRatio
+          : 1.0;
+    }
+  }
+
+  void _recreateChewieController(BuildContext context) {
     if (_chewieController != null) {
       _chewieController!.dispose();
     }
@@ -114,10 +127,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       videoPlayerController: _videoController,
       autoPlay: true,
       looping: _isLooping,
-      aspectRatio: _aspectRatio,
+      aspectRatio: _calculateAspectRatio(context),
       allowFullScreen: false,
       allowMuting: true,
-      // 🔴 Default Chewie UI OFF (Hamara custom UI dikhega)
       showControls: false, 
       showOptions: false,
     );
@@ -132,9 +144,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       _videoController = VideoPlayerController.file(fileToPlay);
       await _videoController.initialize();
       _videoController.addListener(_videoListener);
-
-      _aspectRatio = _videoController.value.aspectRatio;
-      _recreateChewieController();
 
       setState(() {});
     } catch (e) {
@@ -161,7 +170,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       _showSnackBar('✅ All videos completed');
       return;
     }
-
     setState(() {
       _currentIndex++;
     });
@@ -170,7 +178,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   void _playPreviousVideo() {
     if (_playlist.isEmpty || _currentIndex <= 0) return;
-
     setState(() {
       _currentIndex--;
     });
@@ -181,15 +188,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     try {
       _videoController.removeListener(_videoListener);
       await _videoController.dispose();
+      
+      // Setting chewie to null forces it to be recreated accurately in build method
       _chewieController?.dispose();
+      _chewieController = null; 
 
       final fileToPlay = _playlist[_currentIndex];
       _videoController = VideoPlayerController.file(fileToPlay);
       await _videoController.initialize();
       _videoController.addListener(_videoListener);
-
-      _aspectRatio = _videoController.value.aspectRatio;
-      _recreateChewieController();
 
       setState(() {});
       _startTitleTimer();
@@ -477,8 +484,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 setState(() {
                   _scaleX = 1.0;
                   _scaleY = 1.0;
-                  _aspectRatio = _videoController.value.aspectRatio;
-                  _recreateChewieController();
+                  _aspectRatioMode = "Original";
+                  _recreateChewieController(context);
                 });
                 Navigator.pop(context);
               },
@@ -491,8 +498,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 setState(() {
                   _scaleX = 1.0;
                   _scaleY = 1.0;
-                  _aspectRatio = MediaQuery.of(context).size.aspectRatio;
-                  _recreateChewieController();
+                  _aspectRatioMode = "Fill";
+                  _recreateChewieController(context);
                 });
                 Navigator.pop(context);
               },
@@ -505,8 +512,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 setState(() {
                   _scaleX = 1.0;
                   _scaleY = 1.0;
-                  _aspectRatio = 16 / 9;
-                  _recreateChewieController();
+                  _aspectRatioMode = "Stretch";
+                  _recreateChewieController(context);
                 });
                 Navigator.pop(context);
               },
@@ -521,7 +528,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _startTitleTimer();
     setState(() {
       _isLooping = !_isLooping;
-      _recreateChewieController();
+      _recreateChewieController(context);
     });
     _showSnackBar(_isLooping ? '🔁 Loop ON' : '➡️ Loop OFF');
   }
@@ -533,19 +540,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         DeviceOrientation.landscapeRight,
       ]);
       await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-      setState(() {
-        _aspectRatio = MediaQuery.of(context).size.aspectRatio;
-        _recreateChewieController();
-      });
     } else {
       await SystemChrome.setPreferredOrientations([
         DeviceOrientation.portraitUp,
       ]);
       await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-      setState(() {
-        _aspectRatio = _videoController.value.aspectRatio;
-        _recreateChewieController();
-      });
     }
   }
 
@@ -564,6 +563,23 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
+
+    // ✅ Rotation Fix: Detect Screen Change and dynamically update Aspect Ratio[span_3](start_span)[span_3](end_span)
+    if (_videoController.value.isInitialized) {
+      double desiredRatio = _calculateAspectRatio(context);
+
+      if (_chewieController == null) {
+        _recreateChewieController(context);
+      } else if ((_chewieController!.aspectRatio! - desiredRatio).abs() > 0.01) {
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _recreateChewieController(context);
+            });
+          }
+        });
+      }
+    }
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -679,12 +695,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                             icon: const Icon(Icons.speed, color: Colors.white),
                             onPressed: _showSpeedSheet,
                           ),
-                          IconButton(
-                            iconSize: 22,
-                            icon: const Icon(Icons.aspect_ratio,
-                                color: Colors.white),
-                            onPressed: _showAspectRatioSheet,
-                          ),
+                          // 🔴 Removed Aspect Ratio Button from here[span_4](start_span)[span_4](end_span)
                           IconButton(
                             iconSize: 22,
                             icon: Icon(
@@ -810,7 +821,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   ),
                 ),
 
-              // ✅ Custom Bottom Progress Bar & Timer
+              // ✅ Custom Bottom Progress Bar & Timer & Aspect Ratio Button
               Positioned(
                 bottom: 0,
                 left: 0,
@@ -842,9 +853,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                     _formatDuration(value.position),
                                     style: const TextStyle(color: Colors.white, fontSize: 13),
                                   ),
-                                  Text(
-                                    _formatDuration(value.duration),
-                                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                                  // ✅ Added Aspect Ratio Button beside Total Duration[span_5](start_span)[span_5](end_span)
+                                  Row(
+                                    children: [
+                                      Text(
+                                        _formatDuration(value.duration),
+                                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                                      ),
+                                      const SizedBox(width: 15), 
+                                      GestureDetector(
+                                        onTap: _showAspectRatioSheet,
+                                        child: const Icon(Icons.aspect_ratio, color: Colors.white, size: 20),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               );
@@ -852,7 +873,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                           ),
                           const SizedBox(height: 8),
                           SizedBox(
-                            height: 12,
+                            height: 12, 
                             child: VideoProgressIndicator(
                               _videoController,
                               allowScrubbing: true,
