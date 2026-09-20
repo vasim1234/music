@@ -720,8 +720,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ),
               ),
 
-              // ✅ Centered Left & Right Previous/Next Buttons 
-              if (_playlist.length > 1)
+              // ✅ Centered Left & Right Previous/Next Buttons (UPDATED HERE)
+              if (_playlist.length > 1 && !_showDoubleTap)
                 Positioned.fill(
                   child: AnimatedOpacity(
                     opacity: _showTitle ? 1.0 : 0.0,
