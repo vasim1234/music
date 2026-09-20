@@ -852,7 +852,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                           ),
                           const SizedBox(height: 8),
                           SizedBox(
-                            height: 6,
+                            height: 12,
                             child: VideoProgressIndicator(
                               _videoController,
                               allowScrubbing: true,
