@@ -64,7 +64,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   void initState() {
     super.initState();
 
-    // ✅ Playlist setup
     _playlist = widget.videoList ?? [widget.videoFile];
     _currentIndex = widget.initialIndex ?? 0;
 
@@ -77,6 +76,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
+  }
+
+  // ✅ Helper: Time Format for Progress Bar
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, "0");
+    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
+    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
+    if (duration.inHours > 0) {
+      return "${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
+    }
+    return "$twoDigitMinutes:$twoDigitSeconds";
   }
 
   Future<void> _initBrightness() async {
@@ -107,14 +117,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       aspectRatio: _aspectRatio,
       allowFullScreen: false,
       allowMuting: true,
-      showControls: true,
+      // 🔴 Default Chewie UI OFF (Hamara custom UI dikhega)
+      showControls: false, 
       showOptions: false,
-      materialProgressColors: ChewieProgressColors(
-        playedColor: const Color(0xFF34D399),
-        handleColor: const Color(0xFF34D399),
-        backgroundColor: Colors.grey,
-        bufferedColor: Colors.lightGreen,
-      ),
     );
   }
 
@@ -142,7 +147,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
-  // ✅ Video complete listener
   void _videoListener() {
     if (_videoController.value.position >=
             _videoController.value.duration &&
@@ -256,7 +260,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     });
   }
 
-  // ✅ Handle Double Tap for Seeking
   void _handleDoubleTapDown(TapDownDetails details, Size screenSize) {
     final isLeft = details.localPosition.dx < screenSize.width / 2;
     final currentPos = _videoController.value.position;
@@ -568,9 +571,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         onPointerDown: (_) => _startTitleTimer(),
         behavior: HitTestBehavior.translucent,
         child: GestureDetector(
-          // ✅ Double tap handlers added here
           onDoubleTapDown: (details) => _handleDoubleTapDown(details, screenSize),
-          onDoubleTap: () {}, // Do not remove this, required for DoubleTapDown
+          onDoubleTap: () {}, 
           onScaleStart: (details) {
             _baseScaleX = _scaleX;
             _baseScaleY = _scaleY;
@@ -603,7 +605,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ),
               ),
 
-              // ✅ Double Tap UI Indicator
               if (_showDoubleTap)
                 Align(
                   alignment: _doubleTapAlignment,
@@ -627,7 +628,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   ),
                 ),
 
-              // ✅ Top Overlay
               Positioned(
                 top: 0,
                 left: 0,
@@ -720,7 +720,46 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ),
               ),
 
-              // ✅ Centered Left & Right Previous/Next Buttons (UPDATED HERE)
+              // ✅ Custom Centered Play/Pause Button
+              Center(
+                child: AnimatedOpacity(
+                  opacity: _showTitle && !_showDoubleTap ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: IgnorePointer(
+                    ignoring: !_showTitle || _showDoubleTap,
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        iconSize: 55,
+                        icon: ValueListenableBuilder(
+                          valueListenable: _videoController,
+                          builder: (context, VideoPlayerValue value, child) {
+                            return Icon(
+                              value.isPlaying ? Icons.pause : Icons.play_arrow,
+                              color: Colors.white,
+                            );
+                          },
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            if (_videoController.value.isPlaying) {
+                              _videoController.pause();
+                            } else {
+                              _videoController.play();
+                            }
+                          });
+                          _startTitleTimer();
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // ✅ Centered Left & Right Previous/Next Buttons
               if (_playlist.length > 1 && !_showDoubleTap)
                 Positioned.fill(
                   child: AnimatedOpacity(
@@ -770,6 +809,66 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     ),
                   ),
                 ),
+
+              // ✅ Custom Bottom Progress Bar & Timer
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: AnimatedOpacity(
+                  opacity: _showTitle ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: IgnorePointer(
+                    ignoring: !_showTitle,
+                    child: Container(
+                      padding: const EdgeInsets.only(bottom: 25, top: 20, left: 15, right: 15),
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.transparent, Colors.black87],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ValueListenableBuilder(
+                            valueListenable: _videoController,
+                            builder: (context, VideoPlayerValue value, child) {
+                              return Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    _formatDuration(value.position),
+                                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                                  ),
+                                  Text(
+                                    _formatDuration(value.duration),
+                                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            height: 6,
+                            child: VideoProgressIndicator(
+                              _videoController,
+                              allowScrubbing: true,
+                              colors: const VideoProgressColors(
+                                playedColor: Color(0xFF34D399),
+                                bufferedColor: Colors.white24,
+                                backgroundColor: Colors.white12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
 
               // ✅ Volume Overlay
               if (_showVolumeIndicator)
