@@ -48,6 +48,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _showVolumeIndicator = false;
   bool _showBrightnessIndicator = false;
 
+  // ✅ Double Tap Variables
+  String _doubleTapText = "";
+  bool _showDoubleTap = false;
+  Alignment _doubleTapAlignment = Alignment.centerRight;
+
   // ✅ UI
   bool _showTitle = true;
   Timer? _titleTimer;
@@ -248,6 +253,29 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           _showBrightnessIndicator = false;
         });
       }
+    });
+  }
+
+  // ✅ Handle Double Tap for Seeking
+  void _handleDoubleTapDown(TapDownDetails details, Size screenSize) {
+    final isLeft = details.localPosition.dx < screenSize.width / 2;
+    final currentPos = _videoController.value.position;
+
+    setState(() {
+      if (isLeft) {
+        _videoController.seekTo(currentPos - const Duration(seconds: 10));
+        _doubleTapText = "⏪ 10s";
+        _doubleTapAlignment = Alignment.centerLeft;
+      } else {
+        _videoController.seekTo(currentPos + const Duration(seconds: 10));
+        _doubleTapText = "10s ⏩";
+        _doubleTapAlignment = Alignment.centerRight;
+      }
+      _showDoubleTap = true;
+    });
+
+    Future.delayed(const Duration(milliseconds: 600), () {
+      if (mounted) setState(() => _showDoubleTap = false);
     });
   }
 
@@ -540,6 +568,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         onPointerDown: (_) => _startTitleTimer(),
         behavior: HitTestBehavior.translucent,
         child: GestureDetector(
+          // ✅ Double tap handlers added here
+          onDoubleTapDown: (details) => _handleDoubleTapDown(details, screenSize),
+          onDoubleTap: () {}, // Do not remove this, required for DoubleTapDown
           onScaleStart: (details) {
             _baseScaleX = _scaleX;
             _baseScaleY = _scaleY;
@@ -572,7 +603,31 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ),
               ),
 
-              // ✅ Top Overlay (AppBar bina Next/Prev button ke)
+              // ✅ Double Tap UI Indicator
+              if (_showDoubleTap)
+                Align(
+                  alignment: _doubleTapAlignment,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 60),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      child: Text(
+                        _doubleTapText,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+              // ✅ Top Overlay
               Positioned(
                 top: 0,
                 left: 0,
@@ -665,7 +720,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ),
               ),
 
-              // ✅ New: Centered Left & Right Previous/Next Buttons 
+              // ✅ Centered Left & Right Previous/Next Buttons 
               if (_playlist.length > 1)
                 Positioned.fill(
                   child: AnimatedOpacity(
@@ -676,12 +731,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // Previous Button (Left Side)
                           Padding(
                             padding: const EdgeInsets.only(left: 30),
                             child: Container(
                               decoration: const BoxDecoration(
-                                color: Colors.black54, // Halke black color ka background
+                                color: Colors.black54,
                                 shape: BoxShape.circle,
                               ),
                               child: IconButton(
@@ -694,12 +748,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                               ),
                             ),
                           ),
-                          // Next Button (Right Side)
                           Padding(
                             padding: const EdgeInsets.only(right: 30),
                             child: Container(
                               decoration: const BoxDecoration(
-                                color: Colors.black54, // Halke black color ka background
+                                color: Colors.black54,
                                 shape: BoxShape.circle,
                               ),
                               child: IconButton(
