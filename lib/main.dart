@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,7 +14,6 @@ import 'video_player_screen.dart';
 
 // ✅ 4 PREMIUM THEMES (Dark + Light)
 class AppColors {
-  // Dark
   static const Color bg0 = Color(0xFF0B1310);
   static const Color card0 = Color(0xFF13221C);
   static const Color accent0 = Color(0xFF34D399);
@@ -34,7 +34,6 @@ class AppColors {
   static const Color accent3 = Color(0xFF8B5CF6);
   static const List<Color> gradient3 = [Color(0xFF8B5CF6), Color(0xFFD946EF)];
 
-  // ✅ Light
   static const Color lbg0 = Color(0xFFF5F9F7);
   static const Color lcard0 = Color(0xFFFFFFFF);
   static const Color laccent0 = Color(0xFF059669);
@@ -138,11 +137,17 @@ class AppTheme {
 
   static Color get text => isLightMode ? const Color(0xFF1A1A1A) : Colors.white;
   static Color get subText => isLightMode ? const Color(0xFF6B6B6B) : Colors.grey.shade500;
-  static Color get cardShadow => isLightMode ? Colors.black.withOpacity(0.05) : Colors.transparent;
 }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    systemNavigationBarColor: Color(0xFF0B1310),
+    systemNavigationBarIconBrightness: Brightness.light,
+  ));
+
   debugPrint('🚀 APP STARTING');
   try {
     await initAudioService();
@@ -358,6 +363,13 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       is3DOn = is3D;
       AppTheme.isLightMode = light;
     });
+
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      systemNavigationBarColor: AppTheme.bg,
+      systemNavigationBarIconBrightness:
+          AppTheme.isLightMode ? Brightness.dark : Brightness.light,
+    ));
   }
 
   Future<void> _toggleLightMode() async {
@@ -366,6 +378,14 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       AppTheme.isLightMode = !AppTheme.isLightMode;
     });
     await prefs.setBool('isLightMode', AppTheme.isLightMode);
+
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      systemNavigationBarColor: AppTheme.bg,
+      systemNavigationBarIconBrightness:
+          AppTheme.isLightMode ? Brightness.dark : Brightness.light,
+    ));
+
     _showSnackBar(
       AppTheme.isLightMode ? '☀️ Light Mode ON' : '🌙 Dark Mode ON',
       AppTheme.accent,
@@ -1053,25 +1073,15 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       baseList = List.from(sourceSongs);
 
       if (_sortMode == 0) {
-        List<File> withArt = [];
-        List<File> withoutArt = [];
+        List<File> musicList = [];
         List<File> recList = [];
 
         for (var song in baseList) {
           String name = getSongName(song.path);
           if (_isRecordingName(name) || _isVoiceNoteFile(song)) {
             recList.add(song);
-            continue;
-          }
-          try {
-            bool hasArt = await AlbumArtService.hasArtwork(song.path);
-            if (hasArt) {
-              withArt.add(song);
-            } else {
-              withoutArt.add(song);
-            }
-          } catch (e) {
-            withoutArt.add(song);
+          } else {
+            musicList.add(song);
           }
         }
 
@@ -1079,8 +1089,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             .toLowerCase()
             .compareTo(getSongName(b.path).toLowerCase());
 
-        withArt.sort(alphaSort);
-        withoutArt.sort(alphaSort);
+        musicList.sort(alphaSort);
         recList.sort((a, b) {
           try {
             return b.lastModifiedSync().compareTo(a.lastModifiedSync());
@@ -1089,7 +1098,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           }
         });
 
-        baseList = [...withArt, ...withoutArt, ...recList];
+        baseList = [...musicList, ...recList];
       } else if (_sortMode == 1) {
         baseList.sort((a, b) =>
             getSongName(a.path).toLowerCase().compareTo(getSongName(b.path).toLowerCase()));
@@ -1846,7 +1855,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       },
                     ),
                     Divider(color: AppTheme.subText.withOpacity(0.2), height: 1),
-                    // ✅ Light/Dark toggle
                     ListTile(
                       leading: Icon(
                         AppTheme.isLightMode ? Icons.dark_mode : Icons.light_mode,
@@ -2661,6 +2669,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.bg,
       drawer: _buildDrawer(),
       body: Container(
         decoration: BoxDecoration(gradient: LinearGradient(colors: [AppTheme.bg, AppTheme.card])),
@@ -2688,7 +2697,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         ],
                       ),
                     ),
-                    // ✅ Light/Dark toggle
                     GestureDetector(
                       onTap: _toggleLightMode,
                       child: Padding(
@@ -2775,7 +2783,15 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: _currentSong != null ? _buildSlimMiniPlayer() : null,
+      bottomNavigationBar: _currentSong != null
+          ? Container(
+              color: AppTheme.bg,
+              child: SafeArea(
+                top: false,
+                child: _buildSlimMiniPlayer(),
+              ),
+            )
+          : Container(color: AppTheme.bg),
     );
   }
 }
