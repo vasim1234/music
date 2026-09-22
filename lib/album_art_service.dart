@@ -5,6 +5,22 @@ import 'package:audiotags/audiotags.dart';
 class AlbumArtService {
   static void init() {}
 
+  // ✅ NEW: Album art check karne ka quick method (cached)
+  static final Map<String, bool> _artCache = {};
+
+  static Future<bool> hasArtwork(String audioPath) async {
+    if (_artCache.containsKey(audioPath)) return _artCache[audioPath]!;
+    try {
+      final tag = await AudioTags.read(audioPath);
+      bool hasArt = tag?.pictures != null && tag!.pictures!.isNotEmpty;
+      _artCache[audioPath] = hasArt;
+      return hasArt;
+    } catch (e) {
+      _artCache[audioPath] = false;
+      return false;
+    }
+  }
+
   static Future<File?> getAlbumArt(String audioPath) async {
     try {
       final tag = await AudioTags.read(audioPath);
