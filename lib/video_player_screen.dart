@@ -55,7 +55,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _showDoubleTap = false;
   Alignment _doubleTapAlignment = Alignment.centerRight;
 
-  // ✅ UI
+  // ✅ UI Controls
   bool _showTitle = true;
   Timer? _titleTimer;
   double _playbackSpeed = 1.0;
@@ -82,7 +82,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // ✅ Automatic System UI Mode based on orientation (Fixes physical rotation white bar issue)
     final orientation = MediaQuery.of(context).orientation;
     if (orientation == Orientation.landscape) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
@@ -91,7 +90,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
-  // ✅ Helper: Time Format for Progress Bar
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, "0");
     String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
@@ -142,7 +140,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       aspectRatio: _calculateAspectRatio(context),
       allowFullScreen: false,
       allowMuting: true,
-      showControls: false, 
+      showControls: false,
       showOptions: false,
     );
   }
@@ -200,9 +198,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     try {
       _videoController.removeListener(_videoListener);
       await _videoController.dispose();
-      
+
       _chewieController?.dispose();
-      _chewieController = null; 
+      _chewieController = null;
 
       final fileToPlay = _playlist[_currentIndex];
       _videoController = VideoPlayerController.file(fileToPlay);
@@ -307,6 +305,100 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         backgroundColor: const Color(0xFF34D399),
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // ✅ Three-Dots Options Sheet
+  void _showVideoOptionsSheet() {
+    _startTitleTimer();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.black87,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 10),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white38,
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            
+            // 1. Playback Speed
+            ListTile(
+              leading: const Icon(Icons.speed, color: Colors.white),
+              title: const Text('Playback Speed', style: TextStyle(color: Colors.white)),
+              trailing: Text(
+                '${_playbackSpeed}x',
+                style: const TextStyle(color: Color(0xFF34D399), fontWeight: FontWeight.bold),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _showSpeedSheet();
+              },
+            ),
+
+            // 2. Loop Video
+            ListTile(
+              leading: Icon(
+                _isLooping ? Icons.repeat_one : Icons.repeat,
+                color: _isLooping ? const Color(0xFF34D399) : Colors.white,
+              ),
+              title: const Text('Loop Video', style: TextStyle(color: Colors.white)),
+              trailing: Text(
+                _isLooping ? 'ON' : 'OFF',
+                style: TextStyle(
+                  color: _isLooping ? const Color(0xFF34D399) : Colors.white54,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _toggleLoop();
+              },
+            ),
+
+            // 3. Brightness Control
+            ListTile(
+              leading: const Icon(Icons.brightness_6, color: Colors.white),
+              title: const Text('Brightness', style: TextStyle(color: Colors.white)),
+              trailing: Text(
+                '${(_brightness * 100).toInt()}%',
+                style: const TextStyle(color: Colors.white70),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _showBrightnessSheet();
+              },
+            ),
+
+            // 4. Volume Boost
+            ListTile(
+              leading: const Icon(Icons.volume_up, color: Colors.white),
+              title: const Text('Volume', style: TextStyle(color: Colors.white)),
+              trailing: Text(
+                '${(_volume * 100).toInt()}%',
+                style: TextStyle(
+                  color: _volume > 1.0 ? Colors.orangeAccent : Colors.white70,
+                  fontWeight: _volume > 1.0 ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _showVolumeSheet();
+              },
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
       ),
     );
   }
@@ -598,7 +690,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         behavior: HitTestBehavior.translucent,
         child: GestureDetector(
           onDoubleTapDown: (details) => _handleDoubleTapDown(details, screenSize),
-          onDoubleTap: () {}, 
+          onDoubleTap: () {},
           onScaleStart: (details) {
             _baseScaleX = _scaleX;
             _baseScaleY = _scaleY;
@@ -702,36 +794,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                         actions: [
                           IconButton(
                             iconSize: 22,
-                            icon: const Icon(Icons.speed, color: Colors.white),
-                            onPressed: _showSpeedSheet,
-                          ),
-                          IconButton(
-                            iconSize: 22,
-                            icon: Icon(
-                              _isLooping ? Icons.repeat_one : Icons.repeat,
-                              color: _isLooping
-                                  ? const Color(0xFF34D399)
-                                  : Colors.white,
-                            ),
-                            onPressed: _toggleLoop,
-                          ),
-                          IconButton(
-                            iconSize: 22,
-                            icon: const Icon(Icons.brightness_6,
-                                color: Colors.white),
-                            onPressed: _showBrightnessSheet,
-                          ),
-                          IconButton(
-                            iconSize: 22,
-                            icon: const Icon(Icons.volume_up,
-                                color: Colors.white),
-                            onPressed: _showVolumeSheet,
-                          ),
-                          IconButton(
-                            iconSize: 22,
-                            icon: const Icon(Icons.fullscreen,
-                                color: Colors.white),
+                            icon: const Icon(Icons.fullscreen, color: Colors.white),
                             onPressed: _toggleFullscreen,
+                          ),
+                          // ✅ Three-dots Option Menu Icon
+                          IconButton(
+                            iconSize: 24,
+                            icon: const Icon(Icons.more_vert, color: Colors.white),
+                            onPressed: _showVideoOptionsSheet,
                           ),
                         ],
                       ),
@@ -865,7 +935,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                         _formatDuration(value.duration),
                                         style: const TextStyle(color: Colors.white, fontSize: 13),
                                       ),
-                                      const SizedBox(width: 15), 
+                                      const SizedBox(width: 15),
                                       GestureDetector(
                                         onTap: _showAspectRatioSheet,
                                         child: const Icon(Icons.aspect_ratio, color: Colors.white, size: 20),
@@ -878,7 +948,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                           ),
                           const SizedBox(height: 8),
                           SizedBox(
-                            height: 12, 
+                            height: 12,
                             child: VideoProgressIndicator(
                               _videoController,
                               allowScrubbing: true,
