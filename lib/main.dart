@@ -11,8 +11,9 @@ import 'services/audio_handler.dart';
 import 'package:audio_service/audio_service.dart';
 import 'video_player_screen.dart';
 
-// ✅ 4 PREMIUM THEMES
+// ✅ 4 PREMIUM THEMES (Dark + Light)
 class AppColors {
+  // Dark
   static const Color bg0 = Color(0xFF0B1310);
   static const Color card0 = Color(0xFF13221C);
   static const Color accent0 = Color(0xFF34D399);
@@ -32,12 +33,43 @@ class AppColors {
   static const Color card3 = Color(0xFF181820);
   static const Color accent3 = Color(0xFF8B5CF6);
   static const List<Color> gradient3 = [Color(0xFF8B5CF6), Color(0xFFD946EF)];
+
+  // ✅ Light
+  static const Color lbg0 = Color(0xFFF5F9F7);
+  static const Color lcard0 = Color(0xFFFFFFFF);
+  static const Color laccent0 = Color(0xFF059669);
+  static const List<Color> lgradient0 = [Color(0xFF059669), Color(0xFF34D399)];
+
+  static const Color lbg1 = Color(0xFFFAF7F0);
+  static const Color lcard1 = Color(0xFFFFFFFF);
+  static const Color laccent1 = Color(0xFFB8860B);
+  static const List<Color> lgradient1 = [Color(0xFFD4AF37), Color(0xFFB8860B)];
+
+  static const Color lbg2 = Color(0xFFF0F4FA);
+  static const Color lcard2 = Color(0xFFFFFFFF);
+  static const Color laccent2 = Color(0xFF0284C7);
+  static const List<Color> lgradient2 = [Color(0xFF4F46E5), Color(0xFF06B6D4)];
+
+  static const Color lbg3 = Color(0xFFF7F5FB);
+  static const Color lcard3 = Color(0xFFFFFFFF);
+  static const Color laccent3 = Color(0xFF7C3AED);
+  static const List<Color> lgradient3 = [Color(0xFF8B5CF6), Color(0xFFD946EF)];
 }
 
 class AppTheme {
   static int themeIndex = 0;
+  static bool isLightMode = false;
 
   static Color get bg {
+    if (isLightMode) {
+      switch (themeIndex) {
+        case 0: return AppColors.lbg0;
+        case 1: return AppColors.lbg1;
+        case 2: return AppColors.lbg2;
+        case 3: return AppColors.lbg3;
+        default: return AppColors.lbg0;
+      }
+    }
     switch (themeIndex) {
       case 0: return AppColors.bg0;
       case 1: return AppColors.bg1;
@@ -48,6 +80,15 @@ class AppTheme {
   }
 
   static Color get card {
+    if (isLightMode) {
+      switch (themeIndex) {
+        case 0: return AppColors.lcard0;
+        case 1: return AppColors.lcard1;
+        case 2: return AppColors.lcard2;
+        case 3: return AppColors.lcard3;
+        default: return AppColors.lcard0;
+      }
+    }
     switch (themeIndex) {
       case 0: return AppColors.card0;
       case 1: return AppColors.card1;
@@ -58,6 +99,15 @@ class AppTheme {
   }
 
   static Color get accent {
+    if (isLightMode) {
+      switch (themeIndex) {
+        case 0: return AppColors.laccent0;
+        case 1: return AppColors.laccent1;
+        case 2: return AppColors.laccent2;
+        case 3: return AppColors.laccent3;
+        default: return AppColors.laccent0;
+      }
+    }
     switch (themeIndex) {
       case 0: return AppColors.accent0;
       case 1: return AppColors.accent1;
@@ -68,6 +118,15 @@ class AppTheme {
   }
 
   static List<Color> get primaryGradient {
+    if (isLightMode) {
+      switch (themeIndex) {
+        case 0: return AppColors.lgradient0;
+        case 1: return AppColors.lgradient1;
+        case 2: return AppColors.lgradient2;
+        case 3: return AppColors.lgradient3;
+        default: return AppColors.lgradient0;
+      }
+    }
     switch (themeIndex) {
       case 0: return AppColors.gradient0;
       case 1: return AppColors.gradient1;
@@ -76,6 +135,10 @@ class AppTheme {
       default: return AppColors.gradient0;
     }
   }
+
+  static Color get text => isLightMode ? const Color(0xFF1A1A1A) : Colors.white;
+  static Color get subText => isLightMode ? const Color(0xFF6B6B6B) : Colors.grey.shade500;
+  static Color get cardShadow => isLightMode ? Colors.black.withOpacity(0.05) : Colors.transparent;
 }
 
 Future<void> main() async {
@@ -151,7 +214,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   final TextEditingController _searchController = TextEditingController();
   final AudioPlayer _fallbackPlayer = AudioPlayer();
 
-  // ✅ Hidden folder check
   bool _isSongInHiddenFolder(File song) {
     String folderName = song.parent.path.split('/').last;
     if (folderName.isEmpty) folderName = 'Root';
@@ -161,7 +223,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   List<File> get _visibleSongs =>
       _songs.where((f) => !_isSongInHiddenFolder(f)).toList();
 
-  // ✅ Recording name detect
   bool _isRecordingName(String name) {
     String n = name.trim().toLowerCase();
     if (RegExp(r'^\d{7,}').hasMatch(n)) return true;
@@ -177,29 +238,18 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     return false;
   }
 
-  // ✅ SMART AUDIO FILTER: Voice notes + Call recordings
   bool _isVoiceNoteFile(File f) {
     String p = f.path.toLowerCase();
-
-    // 1. Extension
     if (p.endsWith('.opus') ||
         p.endsWith('.ogg') ||
         p.endsWith('.amr') ||
-        p.endsWith('.3gp')) {
-      return true;
-    }
-
-    // 2. Filename patterns
+        p.endsWith('.3gp')) return true;
     if (p.contains('aud-20') ||
         p.contains('ptt-20') ||
         p.contains('broadcast') ||
         p.contains('voice note') ||
         p.contains('vn_') ||
-        p.contains('_vn')) {
-      return true;
-    }
-
-    // 3. Folder path patterns
+        p.contains('_vn')) return true;
     if (p.contains('/whatsapp audio/') ||
         p.contains('/voice notes/') ||
         p.contains('/voicerecorder/') ||
@@ -209,16 +259,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         p.contains('/call recording/') ||
         p.contains('/callrecordings/') ||
         p.contains('/sound_recorder/') ||
-        p.contains('/recordings/')) {
-      return true;
-    }
-
-    // 4. Size check (< 300KB = voice note)
+        p.contains('/recordings/')) return true;
     try {
       int sizeKB = (f.lengthSync() / 1024).round();
       if (sizeKB < 300) return true;
     } catch (e) {}
-
     return false;
   }
 
@@ -306,11 +351,25 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     final prefs = await SharedPreferences.getInstance();
     int theme = prefs.getInt('themeIndex') ?? 0;
     bool is3D = prefs.getBool('is3DOn') ?? false;
+    bool light = prefs.getBool('isLightMode') ?? false;
     setState(() {
       _themeIndex = theme;
       AppTheme.themeIndex = theme;
       is3DOn = is3D;
+      AppTheme.isLightMode = light;
     });
+  }
+
+  Future<void> _toggleLightMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      AppTheme.isLightMode = !AppTheme.isLightMode;
+    });
+    await prefs.setBool('isLightMode', AppTheme.isLightMode);
+    _showSnackBar(
+      AppTheme.isLightMode ? '☀️ Light Mode ON' : '🌙 Dark Mode ON',
+      AppTheme.accent,
+    );
   }
 
   Future<void> _loadSortMode() async {
@@ -348,7 +407,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     } else {
       if (audioHandler != null) await audioHandler!.setVolume(1.0);
       await _fallbackPlayer.setVolume(1.0);
-      _showSnackBar('🔊 Normal Audio', Colors.grey);
+      _showSnackBar('🔊 Normal Audio', AppTheme.subText);
     }
   }
 
@@ -502,10 +561,10 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppTheme.card,
-        title: const Text('Remove Folder?', style: TextStyle(color: Colors.white)),
+        title: Text('Remove Folder?', style: TextStyle(color: AppTheme.text)),
         content: Text(
           '"$folderName" list se hata dein?\n\n(Songs phone se delete nahi honge, sirf app mein hide honge)',
-          style: const TextStyle(color: Colors.grey),
+          style: TextStyle(color: AppTheme.subText),
         ),
         actions: [
           TextButton(
@@ -549,7 +608,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
               Container(
                 width: 50, height: 5,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade700,
+                  color: AppTheme.subText,
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -573,12 +632,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                           Text(folderName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  color: Colors.white,
+                              style: TextStyle(
+                                  color: AppTheme.text,
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold)),
                           Text('$songCount songs',
-                              style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                              style: TextStyle(color: AppTheme.subText, fontSize: 12)),
                         ],
                       ),
                     ),
@@ -592,7 +651,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 ),
                 title: Text(
                   isHidden ? 'Show Folder' : 'Remove from List',
-                  style: const TextStyle(color: Colors.white),
+                  style: TextStyle(color: AppTheme.text),
                 ),
                 onTap: () {
                   Navigator.pop(context);
@@ -616,7 +675,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
   void _showHiddenFolders() {
     if (_hiddenFolders.isEmpty) {
-      _showSnackBar('Koi hidden folder nahi hai', Colors.grey);
+      _showSnackBar('Koi hidden folder nahi hai', AppTheme.subText);
       return;
     }
     showModalBottomSheet(
@@ -635,18 +694,18 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
               Container(
                 width: 50, height: 5,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade700,
+                  color: AppTheme.subText,
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              const Padding(
-                padding: EdgeInsets.all(20),
+              Padding(
+                padding: const EdgeInsets.all(20),
                 child: Text('Hidden Folders',
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                    style: TextStyle(color: AppTheme.text, fontSize: 18, fontWeight: FontWeight.bold)),
               ),
               ..._hiddenFolders.map((folder) => ListTile(
                 leading: const Icon(Icons.folder_off, color: Colors.orange),
-                title: Text(folder, style: const TextStyle(color: Colors.white)),
+                title: Text(folder, style: TextStyle(color: AppTheme.text)),
                 trailing: const Icon(Icons.restore, color: Colors.green),
                 onTap: () {
                   setState(() => _hiddenFolders.remove(folder));
@@ -681,18 +740,18 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
               Container(
                 width: 50, height: 5,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade700,
+                  color: AppTheme.subText,
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              const Padding(
-                padding: EdgeInsets.all(20),
+              Padding(
+                padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
-                    Icon(Icons.sort, color: Colors.white, size: 24),
-                    SizedBox(width: 12),
+                    Icon(Icons.sort, color: AppTheme.text, size: 24),
+                    const SizedBox(width: 12),
                     Text('Sort Songs By',
-                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                        style: TextStyle(color: AppTheme.text, fontSize: 18, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
@@ -711,12 +770,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   Widget _sortOption(int index, IconData icon, String title, String subtitle) {
     bool isActive = _sortMode == index;
     return ListTile(
-      leading: Icon(icon, color: isActive ? AppTheme.accent : Colors.grey, size: 22),
+      leading: Icon(icon, color: isActive ? AppTheme.accent : AppTheme.subText, size: 22),
       title: Text(title,
           style: TextStyle(
-              color: isActive ? AppTheme.accent : Colors.white,
+              color: isActive ? AppTheme.accent : AppTheme.text,
               fontWeight: isActive ? FontWeight.bold : FontWeight.normal)),
-      subtitle: Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+      subtitle: Text(subtitle, style: TextStyle(color: AppTheme.subText, fontSize: 11)),
       trailing: isActive ? Icon(Icons.check_circle, color: AppTheme.accent, size: 22) : null,
       onTap: () async {
         setState(() => _sortMode = index);
@@ -830,14 +889,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           for (var entity in rootDir.listSync(recursive: true)) {
             String path = entity.path.toLowerCase();
 
-            // ✅ Skip system folders
             if (path.contains('/android/data/') ||
                 path.contains('/android/obb/') ||
                 path.contains('/android/media/')) {
               continue;
             }
 
-            // ✅ Skip call recording folders completely
             if (path.contains('/call_rec/') ||
                 path.contains('/callrec/') ||
                 path.contains('/call recording/') ||
@@ -854,7 +911,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             if (entity is File) {
               String p = entity.path.toLowerCase();
 
-              // ✅ Audio filter
               bool isAudio = p.endsWith('.mp3') ||
                   p.endsWith('.m4a') ||
                   p.endsWith('.wav') ||
@@ -867,7 +923,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 allSongs.add(entity);
               }
 
-              // ✅ Video files
               if (p.endsWith('.mp4') || p.endsWith('.mkv') || p.endsWith('.avi') ||
                   p.endsWith('.mov') || p.endsWith('.wmv') || p.endsWith('.flv') ||
                   p.endsWith('.webm') || p.endsWith('.m4v') ||
@@ -990,7 +1045,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     audioHandler!.skipToPrevious();
   }
 
-  // ✅ UPDATED: Album art wale top par, recordings neeche
   Future<void> _applyFilter() async {
     List<File> sourceSongs = _visibleSongs;
     List<File> baseList = [];
@@ -999,19 +1053,16 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       baseList = List.from(sourceSongs);
 
       if (_sortMode == 0) {
-        // ✅ SMART: Album art wale upar
         List<File> withArt = [];
         List<File> withoutArt = [];
         List<File> recList = [];
 
         for (var song in baseList) {
           String name = getSongName(song.path);
-
           if (_isRecordingName(name) || _isVoiceNoteFile(song)) {
             recList.add(song);
             continue;
           }
-
           try {
             bool hasArt = await AlbumArtService.hasArtwork(song.path);
             if (hasArt) {
@@ -1153,27 +1204,27 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 width: 50, height: 5,
                 margin: const EdgeInsets.only(top: 12),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade700,
+                  color: AppTheme.subText,
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              const Padding(
-                padding: EdgeInsets.all(20),
+              Padding(
+                padding: const EdgeInsets.all(20),
                 child: Text('Add to Playlist',
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                    style: TextStyle(color: AppTheme.text, fontSize: 18, fontWeight: FontWeight.bold)),
               ),
               if (_playlists.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.all(20),
+                Padding(
+                  padding: const EdgeInsets.all(20),
                   child: Text('No playlists yet!',
-                      style: TextStyle(color: Colors.grey)),
+                      style: TextStyle(color: AppTheme.subText)),
                 )
               else
                 ..._playlists.map((playlist) {
                   bool isIn = (playlist['songs'] as List<String>).contains(song.path);
                   return ListTile(
                     title: Text(playlist['name'],
-                        style: const TextStyle(color: Colors.white)),
+                        style: TextStyle(color: AppTheme.text)),
                     trailing: isIn ? const Icon(Icons.check, color: Colors.green) : null,
                     onTap: () {
                       setState(() {
@@ -1221,10 +1272,10 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppTheme.card,
-        title: const Text('New Playlist', style: TextStyle(color: Colors.white)),
+        title: Text('New Playlist', style: TextStyle(color: AppTheme.text)),
         content: TextField(
           controller: nameCtrl,
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(color: AppTheme.text),
           decoration: const InputDecoration(hintText: 'Enter name'),
         ),
         actions: [
@@ -1336,7 +1387,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   const SizedBox(width: 15),
                   Expanded(
                     child: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                        style: TextStyle(color: AppTheme.text, fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -1357,7 +1408,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   }) {
     return ListTile(
       leading: Icon(icon, color: color, size: 22),
-      title: Text(title, style: const TextStyle(color: Colors.white)),
+      title: Text(title, style: TextStyle(color: AppTheme.text)),
       onTap: onTap,
     );
   }
@@ -1367,9 +1418,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppTheme.card,
-        title: const Text('Delete?', style: TextStyle(color: Colors.white)),
+        title: Text('Delete?', style: TextStyle(color: AppTheme.text)),
         content: Text('Delete "${getSongName(song.path)}"?',
-            style: const TextStyle(color: Colors.grey)),
+            style: TextStyle(color: AppTheme.subText)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context),
               child: const Text('Cancel')),
@@ -1438,7 +1489,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 width: 50, height: 5,
                 margin: const EdgeInsets.only(top: 12),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade700,
+                  color: AppTheme.subText,
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -1446,22 +1497,22 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
-                    const Icon(Icons.queue_music, color: Colors.white, size: 28),
+                    Icon(Icons.queue_music, color: AppTheme.text, size: 28),
                     const SizedBox(width: 12),
-                    const Text('Up Next',
-                        style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                    Text('Up Next',
+                        style: TextStyle(color: AppTheme.text, fontSize: 20, fontWeight: FontWeight.bold)),
                     const Spacer(),
                     Text('${_filteredSongs.length} songs',
-                        style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                        style: TextStyle(color: AppTheme.subText, fontSize: 14)),
                   ],
                 ),
               ),
-              Divider(color: Colors.grey.shade800, height: 1),
+              Divider(color: AppTheme.subText.withOpacity(0.2), height: 1),
               Expanded(
                 child: _filteredSongs.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text('Queue is empty',
-                            style: TextStyle(color: Colors.grey)),
+                            style: TextStyle(color: AppTheme.subText)),
                       )
                     : ListView.builder(
                         itemCount: _filteredSongs.length,
@@ -1479,7 +1530,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: isCurrent ? AppTheme.accent : Colors.white,
+                                color: isCurrent ? AppTheme.accent : AppTheme.text,
                                 fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
                                 fontSize: 14,
                               ),
@@ -1487,7 +1538,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                             subtitle: Text(
                               isCurrent ? 'Now Playing' : 'Local Audio',
                               style: TextStyle(
-                                color: isCurrent ? AppTheme.accent : Colors.grey,
+                                color: isCurrent ? AppTheme.accent : AppTheme.subText,
                                 fontSize: 11,
                               ),
                             ),
@@ -1531,13 +1582,13 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.keyboard_arrow_down,
-                            color: Colors.white, size: 30),
+                        icon: Icon(Icons.keyboard_arrow_down,
+                            color: AppTheme.text, size: 30),
                         onPressed: () => Navigator.pop(context),
                       ),
-                      const Text('Now Playing',
+                      Text('Now Playing',
                           style: TextStyle(
-                              color: Colors.white,
+                              color: AppTheme.text,
                               fontSize: 16,
                               fontWeight: FontWeight.bold)),
                       IconButton(
@@ -1547,7 +1598,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                               : Icons.favorite_border,
                           color: _favorites.contains(_currentSong!.path)
                               ? Colors.pinkAccent
-                              : Colors.white,
+                              : AppTheme.text,
                           size: 26,
                         ),
                         onPressed: () {
@@ -1575,8 +1626,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      color: Colors.white,
+                  style: TextStyle(
+                      color: AppTheme.text,
                       fontSize: 22,
                       fontWeight: FontWeight.bold),
                 ),
@@ -1613,11 +1664,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(formatTime(pos),
-                                  style: const TextStyle(
-                                      color: Colors.white54, fontSize: 12)),
+                                  style: TextStyle(color: AppTheme.subText, fontSize: 12)),
                               Text(formatTime(_duration),
-                                  style: const TextStyle(
-                                      color: Colors.white54, fontSize: 12)),
+                                  style: TextStyle(color: AppTheme.subText, fontSize: 12)),
                             ],
                           ),
                         ),
@@ -1639,7 +1688,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                                   : (isRepeat ? Icons.repeat : Icons.shuffle)),
                           color: (isShuffle || isRepeat || isRepeatOne)
                               ? AppTheme.primaryGradient[1]
-                              : Colors.white54,
+                              : AppTheme.subText,
                           size: 26,
                         ),
                         onPressed: () {
@@ -1648,8 +1697,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         },
                       ),
                       IconButton(
-                        icon: const Icon(Icons.skip_previous,
-                            color: Colors.white, size: 45),
+                        icon: Icon(Icons.skip_previous,
+                            color: AppTheme.text, size: 45),
                         onPressed: () {
                           _playPrevious();
                           setModalState(() {});
@@ -1673,16 +1722,16 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.skip_next,
-                            color: Colors.white, size: 45),
+                        icon: Icon(Icons.skip_next,
+                            color: AppTheme.text, size: 45),
                         onPressed: () {
                           _playNext();
                           setModalState(() {});
                         },
                       ),
                       IconButton(
-                        icon: const Icon(Icons.queue_music,
-                            color: Colors.white54, size: 26),
+                        icon: Icon(Icons.queue_music,
+                            color: AppTheme.subText, size: 26),
                         onPressed: () => _showQueueSheet(),
                       ),
                     ],
@@ -1705,7 +1754,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         decoration: BoxDecoration(
           gradient: LinearGradient(colors: gradient),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isActive ? Colors.white : Colors.transparent, width: 2),
+          border: Border.all(color: isActive ? AppTheme.accent : Colors.transparent, width: 2),
         ),
         child: Column(
           children: [
@@ -1727,19 +1776,19 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              const Padding(
-                padding: EdgeInsets.all(25),
+              Padding(
+                padding: const EdgeInsets.all(25),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Bhai Bhai Music',
-                        style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-                    SizedBox(height: 5),
-                    Text('Local Music Player', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                        style: TextStyle(color: AppTheme.text, fontSize: 22, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 5),
+                    Text('Local Music Player', style: TextStyle(color: AppTheme.subText, fontSize: 13)),
                   ],
                 ),
               ),
-              Divider(color: Colors.grey.shade800, height: 1),
+              Divider(color: AppTheme.subText.withOpacity(0.2), height: 1),
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.symmetric(vertical: 10),
@@ -1789,32 +1838,48 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (context) => EnhanceSoundScreen(
-                              isDarkTheme: true,
+                              isDarkTheme: !AppTheme.isLightMode,
                               onEffectsChanged: (bass, immersive) {},
                             ),
                           ),
                         );
                       },
                     ),
-                    Divider(color: Colors.grey.shade800, height: 1),
+                    Divider(color: AppTheme.subText.withOpacity(0.2), height: 1),
+                    // ✅ Light/Dark toggle
+                    ListTile(
+                      leading: Icon(
+                        AppTheme.isLightMode ? Icons.dark_mode : Icons.light_mode,
+                        color: AppTheme.accent,
+                      ),
+                      title: Text(
+                        AppTheme.isLightMode ? 'Dark Mode' : 'Light Mode',
+                        style: TextStyle(color: AppTheme.text),
+                      ),
+                      trailing: Switch(
+                        value: AppTheme.isLightMode,
+                        onChanged: (value) => _toggleLightMode(),
+                        activeColor: AppTheme.accent,
+                      ),
+                    ),
                     ListTile(
                       leading: Icon(is3DOn ? Icons.surround_sound : Icons.surround_sound_outlined,
-                          color: is3DOn ? AppTheme.accent : Colors.grey),
-                      title: const Text('3D Audio', style: TextStyle(color: Colors.white)),
+                          color: is3DOn ? AppTheme.accent : AppTheme.subText),
+                      title: Text('3D Audio', style: TextStyle(color: AppTheme.text)),
                       trailing: Switch(
                         value: is3DOn,
                         onChanged: (value) => _toggle3D(),
                         activeColor: AppTheme.accent,
                       ),
                     ),
-                    Divider(color: Colors.grey.shade800, height: 1),
+                    Divider(color: AppTheme.subText.withOpacity(0.2), height: 1),
                     Padding(
                       padding: const EdgeInsets.all(15),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('🎨 Choose Theme',
-                              style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                          Text('🎨 Choose Theme',
+                              style: TextStyle(color: AppTheme.text, fontSize: 14, fontWeight: FontWeight.bold)),
                           const SizedBox(height: 10),
                           Row(
                             children: [
@@ -1837,11 +1902,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   ],
                 ),
               ),
-              const Padding(
-                padding: EdgeInsets.all(20),
+              Padding(
+                padding: const EdgeInsets.all(20),
                 child: Text("Version 1.0.0\nMade with ❤️ by Bhai Bhai",
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey, fontSize: 11)),
+                    style: TextStyle(color: AppTheme.subText, fontSize: 11)),
               ),
             ],
           ),
@@ -1859,8 +1924,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   }) {
     return ListTile(
       leading: Icon(icon, color: iconColor, size: 22),
-      title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-      subtitle: Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+      title: Text(title, style: TextStyle(color: AppTheme.text, fontWeight: FontWeight.w600)),
+      subtitle: Text(subtitle, style: TextStyle(color: AppTheme.subText, fontSize: 11)),
       onTap: onTap,
     );
   }
@@ -1945,7 +2010,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           child: Center(
             child: Text(label,
                 style: TextStyle(
-                    color: isActive ? Colors.white : Colors.grey,
+                    color: isActive ? Colors.white : AppTheme.subText,
                     fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
                     fontSize: 10)),
           ),
@@ -2183,13 +2248,13 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                             Text(folderName,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    color: Colors.white,
+                                style: TextStyle(
+                                    color: AppTheme.text,
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold)),
                             const SizedBox(height: 4),
                             Text('${folderSongs.length} songs',
-                                style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
+                                style: TextStyle(color: AppTheme.subText, fontSize: 12)),
                           ],
                         ),
                       ),
@@ -2197,10 +2262,10 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         onTap: () => _showFolderOptions(folderName, folderSongs.length),
                         child: Padding(
                           padding: const EdgeInsets.all(8),
-                          child: Icon(Icons.more_vert, color: Colors.grey.shade400, size: 20),
+                          child: Icon(Icons.more_vert, color: AppTheme.subText, size: 20),
                         ),
                       ),
-                      Icon(Icons.arrow_forward_ios, color: Colors.grey.shade500, size: 14),
+                      Icon(Icons.arrow_forward_ios, color: AppTheme.subText, size: 14),
                     ],
                   ),
                 ),
@@ -2310,19 +2375,19 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       Text(folderName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: Colors.white,
+                          style: TextStyle(
+                              color: AppTheme.text,
                               fontSize: 16,
                               fontWeight: FontWeight.bold)),
                       const SizedBox(height: 4),
                       Text('${folderVideos.length} videos',
                           style: TextStyle(
-                              color: Colors.grey.shade400, fontSize: 12)),
+                              color: AppTheme.subText, fontSize: 12)),
                     ],
                   ),
                 ),
                 Icon(Icons.arrow_forward_ios,
-                    color: Colors.grey.shade500, size: 16),
+                    color: AppTheme.subText, size: 16),
               ],
             ),
           ),
@@ -2353,7 +2418,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         margin: const EdgeInsets.symmetric(vertical: 5),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
+          color: AppTheme.isLightMode
+              ? Colors.black.withOpacity(0.05)
+              : Colors.white.withOpacity(0.05),
           borderRadius: BorderRadius.circular(15),
         ),
         child: Row(
@@ -2377,19 +2444,19 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                     videoName,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                    style: TextStyle(color: AppTheme.text, fontSize: 13),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '$sizeMB MB',
                     style: TextStyle(
-                        color: Colors.grey.shade500, fontSize: 11),
+                        color: AppTheme.subText, fontSize: 11),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios,
-                color: Colors.grey, size: 14),
+            Icon(Icons.arrow_forward_ios,
+                color: AppTheme.subText, size: 14),
           ],
         ),
       ),
@@ -2401,13 +2468,13 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.music_off, size: 80, color: Colors.grey),
+          Icon(Icons.music_off, size: 80, color: AppTheme.subText),
           const SizedBox(height: 20),
-          const Text('No songs found!',
-              style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+          Text('No songs found!',
+              style: TextStyle(color: AppTheme.text, fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Text('Open menu → Pick Songs or Scan',
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
+              style: TextStyle(color: AppTheme.subText, fontSize: 14)),
         ],
       ),
     );
@@ -2431,7 +2498,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           gradient: isSelected ? LinearGradient(colors: AppTheme.primaryGradient) : null,
-          color: isSelected ? null : Colors.white.withOpacity(0.05),
+          color: isSelected
+              ? null
+              : (AppTheme.isLightMode
+                  ? Colors.black.withOpacity(0.04)
+                  : Colors.white.withOpacity(0.05)),
           borderRadius: BorderRadius.circular(15),
         ),
         child: Row(
@@ -2447,7 +2518,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       if (isSelected && isPlaying)
                         Padding(
                           padding: const EdgeInsets.only(right: 8),
-                          child: _PlayingIndicator(color: AppTheme.accent),
+                          child: _PlayingIndicator(color: isSelected ? Colors.white : AppTheme.accent),
                         ),
                       Expanded(
                         child: Text(
@@ -2455,7 +2526,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: isSelected ? AppTheme.accent : Colors.white,
+                            color: isSelected ? Colors.white : AppTheme.text,
                             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                             fontSize: 14,
                           ),
@@ -2472,7 +2543,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       ],
                       Text(isSelected && isPlaying ? 'Now Playing' : 'Local Audio',
                           style: TextStyle(
-                              color: isSelected ? Colors.white70 : Colors.grey.shade500,
+                              color: isSelected ? Colors.white70 : AppTheme.subText,
                               fontSize: 11)),
                     ],
                   ),
@@ -2512,7 +2583,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           gradient: isSelected ? LinearGradient(colors: AppTheme.primaryGradient) : null,
-          color: isSelected ? null : Colors.white.withOpacity(0.05),
+          color: isSelected
+              ? null
+              : (AppTheme.isLightMode
+                  ? Colors.black.withOpacity(0.04)
+                  : Colors.white.withOpacity(0.05)),
           borderRadius: BorderRadius.circular(15),
         ),
         child: Row(
@@ -2528,7 +2603,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       if (isSelected && isPlaying)
                         Padding(
                           padding: const EdgeInsets.only(right: 8),
-                          child: _PlayingIndicator(color: AppTheme.accent),
+                          child: _PlayingIndicator(color: isSelected ? Colors.white : AppTheme.accent),
                         ),
                       Expanded(
                         child: Text(
@@ -2536,7 +2611,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: isSelected ? AppTheme.accent : Colors.white,
+                            color: isSelected ? Colors.white : AppTheme.text,
                             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                             fontSize: 14,
                           ),
@@ -2553,7 +2628,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       ],
                       Text(isSelected && isPlaying ? 'Now Playing' : 'Local Audio',
                           style: TextStyle(
-                              color: isSelected ? Colors.white70 : Colors.grey.shade500,
+                              color: isSelected ? Colors.white70 : AppTheme.subText,
                               fontSize: 11)),
                     ],
                   ),
@@ -2599,27 +2674,40 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                     Builder(
                       builder: (context) => GestureDetector(
                         onTap: () => Scaffold.of(context).openDrawer(),
-                        child: const Icon(Icons.menu, color: Colors.white, size: 22),
+                        child: Icon(Icons.menu, color: AppTheme.text, size: 22),
                       ),
                     ),
                     const SizedBox(width: 15),
-                    const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Bhai Bhai Music',
-                            style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                        Text('Feel The Rhythm', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Bhai Bhai Music',
+                              style: TextStyle(color: AppTheme.text, fontSize: 20, fontWeight: FontWeight.bold)),
+                          Text('Feel The Rhythm', style: TextStyle(color: AppTheme.subText, fontSize: 11)),
+                        ],
+                      ),
                     ),
-                    const Spacer(),
+                    // ✅ Light/Dark toggle
+                    GestureDetector(
+                      onTap: _toggleLightMode,
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 12),
+                        child: Icon(
+                          AppTheme.isLightMode ? Icons.dark_mode : Icons.light_mode,
+                          color: AppTheme.accent,
+                          size: 24,
+                        ),
+                      ),
+                    ),
                     if (_selectedTab == 0)
                       GestureDetector(
                         onTap: _showSortOptions,
                         child: Padding(
-                          padding: const EdgeInsets.only(right: 15),
+                          padding: const EdgeInsets.only(right: 12),
                           child: Icon(
                             Icons.sort,
-                            color: _sortMode != 0 ? AppTheme.accent : Colors.white70,
+                            color: _sortMode != 0 ? AppTheme.accent : AppTheme.text.withOpacity(0.7),
                             size: 24,
                           ),
                         ),
@@ -2628,7 +2716,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       onTap: _toggle3D,
                       child: Icon(
                         is3DOn ? Icons.surround_sound : Icons.surround_sound_outlined,
-                        color: is3DOn ? AppTheme.accent : Colors.white70, size: 22,
+                        color: is3DOn ? AppTheme.accent : AppTheme.text.withOpacity(0.7), size: 22,
                       ),
                     ),
                   ],
@@ -2639,12 +2727,17 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 child: TextField(
                   controller: _searchController,
                   onChanged: (_) => _applyFilter(),
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
+                  style: TextStyle(color: AppTheme.text),
+                  decoration: InputDecoration(
                     hintText: 'Search songs...',
-                    hintStyle: TextStyle(color: Colors.grey),
-                    prefixIcon: Icon(Icons.search, color: Colors.grey),
-                    border: OutlineInputBorder(),
+                    hintStyle: TextStyle(color: AppTheme.subText),
+                    prefixIcon: Icon(Icons.search, color: AppTheme.subText),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: AppTheme.subText.withOpacity(0.4)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: AppTheme.accent),
+                    ),
                   ),
                 ),
               ),
