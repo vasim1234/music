@@ -137,8 +137,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   // ✅ Folder-wise songs
   Map<String, List<File>> _songsByFolder = {};
   String? _selectedFolder;
+
+  // ✅ Videos
   List<File> _videos = [];
   Map<String, List<File>> _videosByFolder = {};
+  String? _selectedVideoFolder;
 
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
@@ -346,7 +349,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
   }
 
-  // ✅ Folder map banao
+  // ✅ Folder map banao (songs)
   void _buildFolderMap() {
     _songsByFolder.clear();
     for (var song in _songs) {
@@ -445,67 +448,70 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
   }
 
+  // ✅ POORA PHONE SCAN (New videos bhi aayengi)
   Future<void> _scanDefaultFolder() async {
     try {
+      // ✅ Purana cache clear karo
+      setState(() {
+        _songs.clear();
+        _videos.clear();
+        _songsByFolder.clear();
+        _videosByFolder.clear();
+      });
+
       List<File> allSongs = [];
       List<File> allVideos = [];
 
-      List<String> folders = [
-        '/storage/emulated/0/Music',
-        '/storage/emulated/0/Download',
-        '/storage/emulated/0/Snaptube/download/SnapTube Audio',
-        '/storage/emulated/0/Snaptube',
-        '/storage/emulated/0/WhatsApp/Media/WhatsApp Audio',
-        '/storage/emulated/0/WhatsApp/Media/WhatsApp Video',
-        '/storage/emulated/0/Telegram/Telegram Audio',
-        '/storage/emulated/0/Telegram/Telegram Video',
-        '/storage/emulated/0/DCIM',
-        '/storage/emulated/0/DCIM/Camera',
-        '/storage/emulated/0/Movies',
-        '/storage/emulated/0/Podcasts',
-        '/storage/emulated/0/Ringtones',
-        '/storage/emulated/0/Alarms',
-        '/storage/emulated/0/Notifications',
-        '/storage/emulated/0/Audio',
-        '/storage/emulated/0/My Music',
-      ];
+      // ✅ POORA PHONE SCAN KARO
+      Directory rootDir = Directory('/storage/emulated/0/');
 
-      for (var folderPath in folders) {
-        Directory dir = Directory(folderPath);
-        if (dir.existsSync()) {
-          try {
-            for (var entity in dir.listSync(recursive: true)) {
-              if (entity is File) {
-                String p = entity.path.toLowerCase();
+      if (rootDir.existsSync()) {
+        try {
+          for (var entity in rootDir.listSync(recursive: true)) {
+            String path = entity.path.toLowerCase();
 
-                // ✅ Audio files
-                if (p.endsWith('.mp3') ||
-                    p.endsWith('.m4a') ||
-                    p.endsWith('.wav') ||
-                    p.endsWith('.aac') ||
-                    p.endsWith('.ogg') ||
-                    p.endsWith('.flac') ||
-                    p.endsWith('.opus') ||
-                    p.endsWith('.wma') ||
-                    p.endsWith('.mp4a')) {
-                  allSongs.add(entity);
-                }
+            // ✅ Android/data, Android/obb, Android/media skip karo
+            if (path.contains('/android/data/') ||
+                path.contains('/android/obb/') ||
+                path.contains('/android/media/')) {
+              continue;
+            }
 
-                // ✅ Video files
-                if (p.endsWith('.mp4') ||
-                    p.endsWith('.mkv') ||
-                    p.endsWith('.avi') ||
-                    p.endsWith('.mov') ||
-                    p.endsWith('.wmv') ||
-                    p.endsWith('.flv') ||
-                    p.endsWith('.webm') ||
-                    p.endsWith('.3gp') ||
-                    p.endsWith('.m4v')) {
-                  allVideos.add(entity);
-                }
+            if (entity is File) {
+              String p = entity.path.toLowerCase();
+
+              // ✅ Audio files
+              if (p.endsWith('.mp3') ||
+                  p.endsWith('.m4a') ||
+                  p.endsWith('.wav') ||
+                  p.endsWith('.aac') ||
+                  p.endsWith('.ogg') ||
+                  p.endsWith('.flac') ||
+                  p.endsWith('.opus') ||
+                  p.endsWith('.wma') ||
+                  p.endsWith('.mp4a')) {
+                allSongs.add(entity);
+              }
+
+              // ✅ Video files (saare formats)
+              if (p.endsWith('.mp4') ||
+                  p.endsWith('.mkv') ||
+                  p.endsWith('.avi') ||
+                  p.endsWith('.mov') ||
+                  p.endsWith('.wmv') ||
+                  p.endsWith('.flv') ||
+                  p.endsWith('.webm') ||
+                  p.endsWith('.3gp') ||
+                  p.endsWith('.m4v') ||
+                  p.endsWith('.ts') ||
+                  p.endsWith('.mpg') ||
+                  p.endsWith('.mpeg')) {
+                allVideos.add(entity);
               }
             }
-          } catch (e) {}
+          }
+        } catch (e) {
+          debugPrint('⚠️ Scan error: $e');
         }
       }
 
@@ -1486,6 +1492,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             _selectedTab = index;
             _openedPlaylist = null;
             _selectedFolder = null;
+            _selectedVideoFolder = null;
             _applyFilter();
           });
         },
@@ -1590,7 +1597,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
-  // ✅ Folders View
+  // ✅ Folders View (Songs)
   Widget _buildFoldersView() {
     if (_songsByFolder.isEmpty) {
       return _buildEmptyState();
@@ -1705,80 +1712,191 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
-  // ✅ Videos View (Auto-Play Next Video ke saath)
+  // ✅ Videos View (Folder-wise)
   Widget _buildVideosView() {
-    if (_videos.isEmpty) {
-      return _buildEmptyState();
-    }
+    // ✅ Agar koi folder selected hai, toh uski videos dikhao
+    if (_selectedVideoFolder != null) {
+      List<File> folderVideos = _videosByFolder[_selectedVideoFolder] ?? [];
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(15),
-      itemCount: _videos.length,
-      itemBuilder: (context, index) {
-        final video = _videos[index];
-        final videoName = video.path.split('/').last;
-        final sizeMB = (video.lengthSync() / (1024 * 1024)).toStringAsFixed(1);
-
-        return GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => VideoPlayerScreen(
-                  videoFile: video,
-                  videoList: _videos,     // ✅ Poori list pass karo
-                  initialIndex: index,    // ✅ Current index pass karo
-                ),
-              ),
-            );
-          },
-          child: Container(
-            margin: const EdgeInsets.symmetric(vertical: 5),
-            padding: const EdgeInsets.all(12),
+      return Column(
+        children: [
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+            padding: const EdgeInsets.all(15),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(15),
+              gradient: LinearGradient(colors: AppTheme.primaryGradient),
+              borderRadius: BorderRadius.circular(20),
             ),
             child: Row(
               children: [
-                Container(
-                  width: 60,
-                  height: 45,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: AppTheme.primaryGradient),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.play_circle_fill,
-                      color: Colors.white, size: 30),
+                GestureDetector(
+                  onTap: () => setState(() => _selectedVideoFolder = null),
+                  child: const Icon(Icons.arrow_back, color: Colors.white),
                 ),
                 const SizedBox(width: 15),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        videoName,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: Colors.white, fontSize: 13),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '$sizeMB MB',
-                        style: TextStyle(
-                            color: Colors.grey.shade500, fontSize: 11),
-                      ),
+                      Text(_selectedVideoFolder!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold)),
+                      Text('${folderVideos.length} videos',
+                          style: const TextStyle(color: Colors.white70, fontSize: 12)),
                     ],
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios,
-                    color: Colors.grey, size: 14),
+              ],
+            ),
+          ),
+          Expanded(
+            child: folderVideos.isEmpty
+                ? _buildEmptyState()
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 15),
+                    itemCount: folderVideos.length,
+                    itemBuilder: (context, index) =>
+                        _buildVideoTile(folderVideos, index),
+                  ),
+          ),
+        ],
+      );
+    }
+
+    // ✅ Agar koi folder selected nahi hai, toh folders dikhao
+    if (_videosByFolder.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(15),
+      itemCount: _videosByFolder.length,
+      itemBuilder: (context, index) {
+        String folderName = _videosByFolder.keys.elementAt(index);
+        List<File> folderVideos = _videosByFolder[folderName]!;
+
+        return GestureDetector(
+          onTap: () => setState(() => _selectedVideoFolder = folderName),
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 5),
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: AppTheme.primaryGradient
+                    .map((c) => c.withOpacity(0.3))
+                    .toList(),
+              ),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                  color: AppTheme.primaryGradient[0].withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: AppTheme.primaryGradient),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.video_library,
+                      color: Colors.white, size: 28),
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(folderName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text('${folderVideos.length} videos',
+                          style: TextStyle(
+                              color: Colors.grey.shade400, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.arrow_forward_ios,
+                    color: Colors.grey.shade500, size: 16),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  // ✅ Video Tile (folder ke andar)
+  Widget _buildVideoTile(List<File> folderVideos, int index) {
+    final video = folderVideos[index];
+    final videoName = video.path.split('/').last;
+    final sizeMB = (video.lengthSync() / (1024 * 1024)).toStringAsFixed(1);
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VideoPlayerScreen(
+              videoFile: video,
+              videoList: folderVideos,
+              initialIndex: index,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 5),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 60,
+              height: 45,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: AppTheme.primaryGradient),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.play_circle_fill,
+                  color: Colors.white, size: 30),
+            ),
+            const SizedBox(width: 15),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    videoName,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$sizeMB MB',
+                    style: TextStyle(
+                        color: Colors.grey.shade500, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios,
+                color: Colors.grey, size: 14),
+          ],
+        ),
+      ),
     );
   }
 
