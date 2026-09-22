@@ -149,8 +149,23 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   int _selectedTab = 0;
   int _themeIndex = 0;
 
+  // ✅ NEW: Hidden folders + banner dismiss
+  List<String> _hiddenFolders = [];
+  bool _hideBanner = false;
+
   final TextEditingController _searchController = TextEditingController();
   final AudioPlayer _fallbackPlayer = AudioPlayer();
+
+  // ✅ NEW: Hidden folder check
+  bool _isSongInHiddenFolder(File song) {
+    String folderName = song.parent.path.split('/').last;
+    if (folderName.isEmpty) folderName = 'Root';
+    return _hiddenFolders.contains(folderName);
+  }
+
+  // ✅ NEW: Visible songs getter (hidden folders ke songs hata ke)
+  List<File> get _visibleSongs =>
+      _songs.where((f) => !_isSongInHiddenFolder(f)).toList();
 
   @override
   void initState() {
@@ -351,250 +366,264 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   }
 
   // ✅ Folder map banao (songs) - SMART SORTING
-void _buildFolderMap() {
-  _songsByFolder.clear();
-  for (var song in _songs) {
-    String folder = song.parent.path;
-    String folderName = folder.split('/').last;
-    if (folderName.isEmpty) folderName = 'Root';
-    if (!_songsByFolder.containsKey(folderName)) {
-      _songsByFolder[folderName] = [];
-    }
-    _songsByFolder[folderName]!.add(song);
-  }
-
-  // ✅ SMART SORT: Music folders upar, call recordings neeche
-  const callRecKeywords = [
-    'call_rec', 'callrec', 'call record', 'callrecord', 'call_recording',
-    'sound_recorder', 'voicerecorder', 'voice_recorder', 'recordings',
-    'recorder', 'call logs', 'calllog',
-  ];
-
-  List<String> sortedKeys = _songsByFolder.keys.toList();
-
-  int getPriority(String folder) {
-    String lower = folder.toLowerCase();
-
-    for (String kw in callRecKeywords) {
-      if (lower.contains(kw)) return 100;
-    }
-
-    List<File> songs = _songsByFolder[folder]!;
-    int dateLikeCount = 0;
-    for (var s in songs) {
-      String name = getSongName(s.path);
-      if (RegExp(r'^\d{1,2}\s+\w{3},?\s+\d{1,2}\.\d{2}\s*(am|pm)$',
-              caseSensitive: false)
-          .hasMatch(name.trim())) {
-        dateLikeCount++;
+  void _buildFolderMap() {
+    _songsByFolder.clear();
+    for (var song in _songs) {
+      String folder = song.parent.path;
+      String folderName = folder.split('/').last;
+      if (folderName.isEmpty) folderName = 'Root';
+      if (!_songsByFolder.containsKey(folderName)) {
+        _songsByFolder[folderName] = [];
       }
-    }
-    if (songs.isNotEmpty && dateLikeCount / songs.length > 0.7) {
-      return 100;
+      _songsByFolder[folderName]!.add(song);
     }
 
-    return 0;
+    // ✅ SMART SORT: Music folders upar, call recordings neeche
+    const callRecKeywords = [
+      'call_rec', 'callrec', 'call record', 'callrecord', 'call_recording',
+      'sound_recorder', 'voicerecorder', 'voice_recorder', 'recordings',
+      'recorder', 'call logs', 'calllog',
+    ];
+
+    List<String> sortedKeys = _songsByFolder.keys.toList();
+
+    int getPriority(String folder) {
+      String lower = folder.toLowerCase();
+
+      for (String kw in callRecKeywords) {
+        if (lower.contains(kw)) return 100;
+      }
+
+      List<File> songs = _songsByFolder[folder]!;
+      int dateLikeCount = 0;
+      for (var s in songs) {
+        String name = getSongName(s.path);
+        if (RegExp(r'^\d{1,2}\s+\w{3},?\s+\d{1,2}\.\d{2}\s*(am|pm)$',
+                caseSensitive: false)
+            .hasMatch(name.trim())) {
+          dateLikeCount++;
+        }
+      }
+      if (songs.isNotEmpty && dateLikeCount / songs.length > 0.7) {
+        return 100;
+      }
+
+      return 0;
+    }
+
+    sortedKeys.sort((a, b) {
+      int pa = getPriority(a);
+      int pb = getPriority(b);
+      if (pa != pb) return pa.compareTo(pb);
+      return _songsByFolder[b]!.length.compareTo(_songsByFolder[a]!.length);
+    });
+
+    Map<String, List<File>> sorted = {};
+    for (var key in sortedKeys) {
+      sorted[key] = _songsByFolder[key]!;
+    }
+    _songsByFolder = sorted;
+
+    // ✅ Smart song sorting: Music pehle, recordings baad mein
+    for (var key in _songsByFolder.keys) {
+      _songsByFolder[key]!.sort((a, b) {
+        String na = getSongName(a.path).toLowerCase();
+        String nb = getSongName(b.path).toLowerCase();
+
+        bool aIsRec = RegExp(r'^\d{1,2}\s+\w{3},?\s+\d{1,2}\.\d{2}',
+                caseSensitive: false)
+            .hasMatch(na.trim());
+        bool bIsRec = RegExp(r'^\d{1,2}\s+\w{3},?\s+\d{1,2}\.\d{2}',
+                caseSensitive: false)
+            .hasMatch(nb.trim());
+
+        if (aIsRec != bIsRec) return aIsRec ? 1 : -1;
+        return na.compareTo(nb);
+      });
+    }
   }
 
-  sortedKeys.sort((a, b) {
-    int pa = getPriority(a);
-    int pb = getPriority(b);
-    if (pa != pb) return pa.compareTo(pb);
-    return _songsByFolder[b]!.length.compareTo(_songsByFolder[a]!.length);
-  });
-
-  Map<String, List<File>> sorted = {};
-  for (var key in sortedKeys) {
-    sorted[key] = _songsByFolder[key]!;
-  }
-  _songsByFolder = sorted;
-
-  for (var key in _songsByFolder.keys) {
-    _songsByFolder[key]!.sort((a, b) {
-      String na = getSongName(a.path).toLowerCase();
-      String nb = getSongName(b.path).toLowerCase();
-      return na.compareTo(nb);
+  // ✅ Hidden folders load/save
+  Future<void> _loadHiddenFolders() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _hiddenFolders = prefs.getStringList('hidden_folders') ?? [];
     });
   }
-}
-// ✅ Hidden folders list
-List<String> _hiddenFolders = [];
 
-Future<void> _loadHiddenFolders() async {
-  final prefs = await SharedPreferences.getInstance();
-  setState(() {
-    _hiddenFolders = prefs.getStringList('hidden_folders') ?? [];
-  });
-}
-
-Future<void> _saveHiddenFolders() async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setStringList('hidden_folders', _hiddenFolders);
-}
-
-void _removeFolder(String folderName) {
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      backgroundColor: AppTheme.card,
-      title: const Text('Remove Folder?', style: TextStyle(color: Colors.white)),
-      content: Text(
-        '"$folderName" list se hata dein?\n\n(Songs phone se delete nahi honge, sirf app mein hide honge)',
-        style: const TextStyle(color: Colors.grey),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-          onPressed: () {
-            setState(() {
-              _hiddenFolders.add(folderName);
-            });
-            _saveHiddenFolders();
-            Navigator.pop(context);
-            _showSnackBar('🗑️ "$folderName" removed from list', Colors.orange);
-          },
-          child: const Text('Remove'),
-        ),
-      ],
-    ),
-  );
-}
-
-void _showFolderOptions(String folderName, int songCount) {
-  bool isHidden = _hiddenFolders.contains(folderName);
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: Colors.transparent,
-    builder: (context) => Container(
-      decoration: BoxDecoration(
-        color: AppTheme.card,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-      ),
-      child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 15),
-            Container(
-              width: 50, height: 5,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade700,
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(colors: AppTheme.primaryGradient),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.folder, color: Colors.white, size: 28),
-                  ),
-                  const SizedBox(width: 15),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(folderName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold)),
-                        Text('$songCount songs',
-                            style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            ListTile(
-              leading: Icon(
-                isHidden ? Icons.visibility : Icons.visibility_off,
-                color: isHidden ? Colors.green : Colors.orange,
-              ),
-              title: Text(
-                isHidden ? 'Show Folder' : 'Remove from List',
-                style: const TextStyle(color: Colors.white),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                if (isHidden) {
-                  setState(() => _hiddenFolders.remove(folderName));
-                  _saveHiddenFolders();
-                  _showSnackBar('✅ Folder shown', Colors.green);
-                } else {
-                  _removeFolder(folderName);
-                }
-              },
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-// ✅ Hidden folders ko wapas laane ka option
-void _showHiddenFolders() {
-  if (_hiddenFolders.isEmpty) {
-    _showSnackBar('Koi hidden folder nahi hai', Colors.grey);
-    return;
+  Future<void> _saveHiddenFolders() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('hidden_folders', _hiddenFolders);
   }
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: Colors.transparent,
-    builder: (context) => Container(
-      decoration: BoxDecoration(
-        color: AppTheme.card,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+
+  void _removeFolder(String folderName) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.card,
+        title: const Text('Remove Folder?', style: TextStyle(color: Colors.white)),
+        content: Text(
+          '"$folderName" list se hata dein?\n\n(Songs phone se delete nahi honge, sirf app mein hide honge)',
+          style: const TextStyle(color: Colors.grey),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+            onPressed: () {
+              setState(() {
+                _hiddenFolders.add(folderName);
+                _hideBanner = false; // ✅ Banner dobara dikhao
+              });
+              _saveHiddenFolders();
+              _applyFilter(); // ✅ All Songs se bhi hatao
+              Navigator.pop(context);
+              _showSnackBar('🗑️ "$folderName" removed from list', Colors.orange);
+            },
+            child: const Text('Remove'),
+          ),
+        ],
       ),
-      child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 15),
-            Container(
-              width: 50, height: 5,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade700,
-                borderRadius: BorderRadius.circular(10),
+    );
+  }
+
+  void _showFolderOptions(String folderName, int songCount) {
+    bool isHidden = _hiddenFolders.contains(folderName);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: AppTheme.card,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 15),
+              Container(
+                width: 50, height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade700,
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
-            ),
-            const Padding(
-              padding: EdgeInsets.all(20),
-              child: Text('Hidden Folders',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-            ),
-            ..._hiddenFolders.map((folder) => ListTile(
-              leading: const Icon(Icons.folder_off, color: Colors.orange),
-              title: Text(folder, style: const TextStyle(color: Colors.white)),
-              trailing: const Icon(Icons.restore, color: Colors.green),
-              onTap: () {
-                setState(() => _hiddenFolders.remove(folder));
-                _saveHiddenFolders();
-                Navigator.pop(context);
-                _showSnackBar('✅ "$folder" restored', Colors.green);
-              },
-            )),
-            const SizedBox(height: 20),
-          ],
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(colors: AppTheme.primaryGradient),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.folder, color: Colors.white, size: 28),
+                    ),
+                    const SizedBox(width: 15),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(folderName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold)),
+                          Text('$songCount songs',
+                              style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ListTile(
+                leading: Icon(
+                  isHidden ? Icons.visibility : Icons.visibility_off,
+                  color: isHidden ? Colors.green : Colors.orange,
+                ),
+                title: Text(
+                  isHidden ? 'Show Folder' : 'Remove from List',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  if (isHidden) {
+                    setState(() => _hiddenFolders.remove(folderName));
+                    _saveHiddenFolders();
+                    _applyFilter();
+                    _showSnackBar('✅ Folder shown', Colors.green);
+                  } else {
+                    _removeFolder(folderName);
+                  }
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
+
+  // ✅ Hidden folders ko wapas laane ka option
+  void _showHiddenFolders() {
+    if (_hiddenFolders.isEmpty) {
+      _showSnackBar('Koi hidden folder nahi hai', Colors.grey);
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: AppTheme.card,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 15),
+              Container(
+                width: 50, height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade700,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.all(20),
+                child: Text('Hidden Folders',
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              ),
+              ..._hiddenFolders.map((folder) => ListTile(
+                leading: const Icon(Icons.folder_off, color: Colors.orange),
+                title: Text(folder, style: const TextStyle(color: Colors.white)),
+                trailing: const Icon(Icons.restore, color: Colors.green),
+                onTap: () {
+                  setState(() => _hiddenFolders.remove(folder));
+                  _saveHiddenFolders();
+                  _applyFilter();
+                  Navigator.pop(context);
+                  _showSnackBar('✅ "$folder" restored', Colors.green);
+                },
+              )),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // ✅ Video folder map
   void _buildVideoFolderMap() {
     _videosByFolder.clear();
@@ -609,13 +638,11 @@ void _showHiddenFolders() {
     }
   }
 
-  // ✅ Video save
   Future<void> _saveVideos() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('saved_videos', _videos.map((f) => f.path).toList());
   }
 
-  // ✅ Video load
   Future<void> _loadVideos() async {
     final prefs = await SharedPreferences.getInstance();
     List<String>? savedPaths = prefs.getStringList('saved_videos');
@@ -680,10 +707,8 @@ void _showHiddenFolders() {
     }
   }
 
-  // ✅ POORA PHONE SCAN (New videos bhi aayengi)
   Future<void> _scanDefaultFolder() async {
     try {
-      // ✅ Purana cache clear karo
       setState(() {
         _songs.clear();
         _videos.clear();
@@ -694,7 +719,6 @@ void _showHiddenFolders() {
       List<File> allSongs = [];
       List<File> allVideos = [];
 
-      // ✅ POORA PHONE SCAN KARO
       Directory rootDir = Directory('/storage/emulated/0/');
 
       if (rootDir.existsSync()) {
@@ -702,7 +726,6 @@ void _showHiddenFolders() {
           for (var entity in rootDir.listSync(recursive: true)) {
             String path = entity.path.toLowerCase();
 
-            // ✅ Android/data, Android/obb, Android/media skip karo
             if (path.contains('/android/data/') ||
                 path.contains('/android/obb/') ||
                 path.contains('/android/media/')) {
@@ -712,7 +735,6 @@ void _showHiddenFolders() {
             if (entity is File) {
               String p = entity.path.toLowerCase();
 
-              // ✅ Audio files
               if (p.endsWith('.mp3') ||
                   p.endsWith('.m4a') ||
                   p.endsWith('.wav') ||
@@ -725,7 +747,6 @@ void _showHiddenFolders() {
                 allSongs.add(entity);
               }
 
-              // ✅ Video files (saare formats)
               if (p.endsWith('.mp4') ||
                   p.endsWith('.mkv') ||
                   p.endsWith('.avi') ||
@@ -856,16 +877,27 @@ void _showHiddenFolders() {
     audioHandler!.skipToPrevious();
   }
 
+  // ✅ UPDATED: Hidden folder songs filter + default sort
   void _applyFilter() {
+    List<File> sourceSongs = _visibleSongs; // ✅ hidden folders remove
     List<File> baseList = [];
+
     if (_selectedTab == 0) {
-      baseList = _songs;
+      baseList = List.from(sourceSongs);
+      // ✅ Default sort: Modified date descending (naye songs upar)
+      baseList.sort((a, b) {
+        try {
+          return b.lastModifiedSync().compareTo(a.lastModifiedSync());
+        } catch (e) {
+          return 0;
+        }
+      });
     } else if (_selectedTab == 1) {
-      baseList = _songs.where((f) => _favorites.contains(f.path)).toList();
+      baseList = sourceSongs.where((f) => _favorites.contains(f.path)).toList();
     } else if (_selectedTab == 2) {
       baseList = _recentSongs
           .map((path) => File(path))
-          .where((f) => f.existsSync())
+          .where((f) => f.existsSync() && !_isSongInHiddenFolder(f))
           .toList();
     } else if (_selectedTab == 3 && _openedPlaylist != null) {
       var playlist = _playlists.firstWhere(
@@ -873,7 +905,7 @@ void _showHiddenFolders() {
         orElse: () => {'name': '', 'songs': <String>[]},
       );
       List<String> paths = (playlist['songs'] as List<String>);
-      baseList = _songs.where((f) => paths.contains(f.path)).toList();
+      baseList = sourceSongs.where((f) => paths.contains(f.path)).toList();
     }
 
     String query = _searchController.text.toLowerCase();
@@ -1571,6 +1603,15 @@ void _showHiddenFolders() {
                         setState(() { _selectedTab = 2; _applyFilter(); });
                       },
                     ),
+                    // ✅ NEW: Hidden folders drawer item
+                    _drawerItem(
+                      icon: Icons.visibility_off, iconColor: Colors.orange,
+                      title: 'Hidden Folders', subtitle: '${_hiddenFolders.length} folder(s)',
+                      onTap: () {
+                        Navigator.pop(context);
+                        _showHiddenFolders();
+                      },
+                    ),
                     _drawerItem(
                       icon: Icons.graphic_eq, iconColor: Colors.deepPurpleAccent,
                       title: 'Enhance Sound', subtitle: 'Bass & Immersive',
@@ -1829,85 +1870,83 @@ void _showHiddenFolders() {
     );
   }
 
-  // ✅ Folders View (Songs) - WITH REMOVE OPTION
-Widget _buildFoldersView() {
-  Map<String, List<File>> visibleFolders = Map.fromEntries(
-    _songsByFolder.entries
-        .where((e) => !_hiddenFolders.contains(e.key)),
-  );
+  // ✅ Folders View (Songs) - WITH REMOVE OPTION + DISMISSABLE BANNER
+  Widget _buildFoldersView() {
+    Map<String, List<File>> visibleFolders = Map.fromEntries(
+      _songsByFolder.entries
+          .where((e) => !_hiddenFolders.contains(e.key)),
+    );
 
-  if (visibleFolders.isEmpty) {
-    return _buildEmptyState();
-  }
+    if (visibleFolders.isEmpty) {
+      return _buildEmptyState();
+    }
 
-  if (_selectedFolder != null) {
-    List<File> folderSongs = _songsByFolder[_selectedFolder] ?? [];
-    return Column(
-      children: [
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-          padding: const EdgeInsets.all(15),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: AppTheme.primaryGradient),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            children: [
-              GestureDetector(
-                onTap: () => setState(() => _selectedFolder = null),
-                child: const Icon(Icons.arrow_back, color: Colors.white),
-              ),
-              const SizedBox(width: 15),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(_selectedFolder!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold)),
-                    Text('${folderSongs.length} songs',
-                        style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                  ],
+    if (_selectedFolder != null) {
+      List<File> folderSongs = _songsByFolder[_selectedFolder] ?? [];
+      return Column(
+        children: [
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: AppTheme.primaryGradient),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () => setState(() => _selectedFolder = null),
+                  child: const Icon(Icons.arrow_back, color: Colors.white),
                 ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.more_vert, color: Colors.white),
-                onPressed: () => _showFolderOptions(_selectedFolder!, folderSongs.length),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: folderSongs.isEmpty
-              ? _buildEmptyState()
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 15),
-                  itemCount: folderSongs.length,
-                  itemBuilder: (context, index) => _buildFolderSongTile(
-                    folderSongs[index],
-                    index,
-                    folderSongs,
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_selectedFolder!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold)),
+                      Text('${folderSongs.length} songs',
+                          style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                    ],
                   ),
                 ),
-        ),
-      ],
-    );
-  }
+                IconButton(
+                  icon: const Icon(Icons.more_vert, color: Colors.white),
+                  onPressed: () => _showFolderOptions(_selectedFolder!, folderSongs.length),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: folderSongs.isEmpty
+                ? _buildEmptyState()
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 15),
+                    itemCount: folderSongs.length,
+                    itemBuilder: (context, index) => _buildFolderSongTile(
+                      folderSongs[index],
+                      index,
+                      folderSongs,
+                    ),
+                  ),
+          ),
+        ],
+      );
+    }
 
-  return Column(
-    children: [
-      // ✅ Hidden folders restore button (agar koi hidden hai toh)
-      if (_hiddenFolders.isNotEmpty)
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-          child: GestureDetector(
-            onTap: _showHiddenFolders,
+    return Column(
+      children: [
+        // ✅ Dismissable hidden folders banner
+        if (_hiddenFolders.isNotEmpty && !_hideBanner)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
             child: Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
                 color: Colors.orange.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(12),
@@ -1915,85 +1954,97 @@ Widget _buildFoldersView() {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.visibility_off, color: Colors.orange, size: 20),
-                  const SizedBox(width: 10),
-                  Text('${_hiddenFolders.length} hidden folder(s) — tap to restore',
-                      style: const TextStyle(color: Colors.orange, fontSize: 13)),
+                  const Icon(Icons.visibility_off, color: Colors.orange, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: _showHiddenFolders,
+                      child: Text(
+                        '${_hiddenFolders.length} hidden folder(s) — tap to restore',
+                        style: const TextStyle(color: Colors.orange, fontSize: 12),
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => setState(() => _hideBanner = true),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(Icons.close, color: Colors.orange, size: 18),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
-        ),
-      Expanded(
-        child: ListView.builder(
-          padding: const EdgeInsets.all(15),
-          itemCount: visibleFolders.length,
-          itemBuilder: (context, index) {
-            String folderName = visibleFolders.keys.elementAt(index);
-            List<File> folderSongs = visibleFolders[folderName]!;
-            return GestureDetector(
-              onTap: () => setState(() => _selectedFolder = folderName),
-              onLongPress: () => _showFolderOptions(folderName, folderSongs.length),
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 5),
-                padding: const EdgeInsets.all(15),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: AppTheme.primaryGradient.map((c) => c.withOpacity(0.3)).toList(),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(15),
+            itemCount: visibleFolders.length,
+            itemBuilder: (context, index) {
+              String folderName = visibleFolders.keys.elementAt(index);
+              List<File> folderSongs = visibleFolders[folderName]!;
+              return GestureDetector(
+                onTap: () => setState(() => _selectedFolder = folderName),
+                onLongPress: () => _showFolderOptions(folderName, folderSongs.length),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(vertical: 5),
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: AppTheme.primaryGradient.map((c) => c.withOpacity(0.3)).toList(),
+                    ),
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: AppTheme.primaryGradient[0].withOpacity(0.3)),
                   ),
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: AppTheme.primaryGradient[0].withOpacity(0.3)),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: AppTheme.primaryGradient),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.folder, color: Colors.white, size: 28),
+                      ),
+                      const SizedBox(width: 15),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(folderName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 4),
+                            Text('${folderSongs.length} songs',
+                                style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => _showFolderOptions(folderName, folderSongs.length),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Icon(Icons.more_vert, color: Colors.grey.shade400, size: 20),
+                        ),
+                      ),
+                      Icon(Icons.arrow_forward_ios, color: Colors.grey.shade500, size: 14),
+                    ],
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: AppTheme.primaryGradient),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.folder, color: Colors.white, size: 28),
-                    ),
-                    const SizedBox(width: 15),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(folderName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 4),
-                          Text('${folderSongs.length} songs',
-                              style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => _showFolderOptions(folderName, folderSongs.length),
-                      child: Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: Icon(Icons.more_vert, color: Colors.grey.shade400, size: 20),
-                      ),
-                    ),
-                    Icon(Icons.arrow_forward_ios, color: Colors.grey.shade500, size: 14),
-                  ],
-                ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
-      ),
-    ],
-  );
-}
+      ],
+    );
+  }
 
   // ✅ Videos View (Folder-wise)
   Widget _buildVideosView() {
-    // ✅ Agar koi folder selected hai, toh uski videos dikhao
     if (_selectedVideoFolder != null) {
       List<File> folderVideos = _videosByFolder[_selectedVideoFolder] ?? [];
 
@@ -2046,7 +2097,6 @@ Widget _buildFoldersView() {
       );
     }
 
-    // ✅ Agar koi folder selected nahi hai, toh folders dikhao
     if (_videosByFolder.isEmpty) {
       return _buildEmptyState();
     }
@@ -2113,7 +2163,6 @@ Widget _buildFoldersView() {
     );
   }
 
-  // ✅ Video Tile (folder ke andar)
   Widget _buildVideoTile(List<File> folderVideos, int index) {
     final video = folderVideos[index];
     final videoName = video.path.split('/').last;
@@ -2277,7 +2326,6 @@ Widget _buildFoldersView() {
     );
   }
 
-  // ✅ Folder ke andar song click karne pe, folder ki list play karo
   Widget _buildFolderSongTile(File song, int index, List<File> folderSongs) {
     bool isSelected = _currentSong == song;
     bool isFav = _favorites.contains(song.path);
