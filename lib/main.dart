@@ -13,7 +13,6 @@ import 'video_player_screen.dart';
 
 // ✅ 4 PREMIUM THEMES (Dark + Light)
 class AppColors {
-  // Dark
   static const Color bg0 = Color(0xFF0B1310);
   static const Color card0 = Color(0xFF13221C);
   static const Color accent0 = Color(0xFF34D399);
@@ -34,7 +33,6 @@ class AppColors {
   static const Color accent3 = Color(0xFF8B5CF6);
   static const List<Color> gradient3 = [Color(0xFF8B5CF6), Color(0xFFD946EF)];
 
-  // ✅ Light
   static const Color lbg0 = Color(0xFFF5F9F7);
   static const Color lcard0 = Color(0xFFFFFFFF);
   static const Color laccent0 = Color(0xFF059669);
@@ -306,19 +304,26 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
     _loadTheme();
     _loadHiddenFolders();
     _loadSortMode();
+
+    // ✅ Auto-scan 3 second baad (permission dialog ke baad)
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) _autoScanNewContent();
+    });
   }
 
-  // ✅ AUTO SCAN on app resume
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
-      _autoScanNewContent();
+      Future.delayed(const Duration(seconds: 1), () {
+        if (mounted) _autoScanNewContent();
+      });
     }
   }
 
   // ✅ Silent auto-scan (30 sec throttle)
   Future<void> _autoScanNewContent() async {
+    if (!mounted) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       int lastScan = prefs.getInt('last_auto_scan') ?? 0;
@@ -389,6 +394,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
           debugPrint('⚠️ Auto-scan error: $e');
         }
       }
+
+      if (!mounted) return;
 
       if (newSongs.isNotEmpty || newVideos.isNotEmpty) {
         setState(() {
@@ -569,26 +576,34 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
           .where((f) => f.existsSync())
           .where((f) => !_isVoiceNoteFile(f))
           .toList();
-      setState(() {
-        _songs = songs;
-        _filteredSongs = songs;
-        _buildFolderMap();
-      });
+      if (mounted) {
+        setState(() {
+          _songs = songs;
+          _filteredSongs = songs;
+          _buildFolderMap();
+        });
+      }
     }
-    if (favs != null) setState(() => _favorites = favs);
-    if (recent != null) setState(() => _recentSongs = recent);
+    if (favs != null) {
+      if (mounted) setState(() => _favorites = favs);
+    }
+    if (recent != null) {
+      if (mounted) setState(() => _recentSongs = recent);
+    }
     if (playlists != null) {
-      setState(() {
-        _playlists = playlists.map((p) {
-          List<String> parts = p.split('|||');
-          return {
-            'name': parts[0],
-            'songs': parts.length > 1
-                ? parts[1].split(',').where((s) => s.isNotEmpty).toList()
-                : <String>[],
-          };
-        }).toList();
-      });
+      if (mounted) {
+        setState(() {
+          _playlists = playlists.map((p) {
+            List<String> parts = p.split('|||');
+            return {
+              'name': parts[0],
+              'songs': parts.length > 1
+                  ? parts[1].split(',').where((s) => s.isNotEmpty).toList()
+                  : <String>[],
+            };
+          }).toList();
+        });
+      }
     }
   }
 
@@ -658,9 +673,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
 
   Future<void> _loadHiddenFolders() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _hiddenFolders = prefs.getStringList('hidden_folders') ?? [];
-    });
+    if (mounted) {
+      setState(() {
+        _hiddenFolders = prefs.getStringList('hidden_folders') ?? [];
+      });
+    }
   }
 
   Future<void> _saveHiddenFolders() async {
@@ -926,10 +943,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
           .map((path) => File(path))
           .where((f) => f.existsSync())
           .toList();
-      setState(() {
-        _videos = videos;
-        _buildVideoFolderMap();
-      });
+      if (mounted) {
+        setState(() {
+          _videos = videos;
+          _buildVideoFolderMap();
+        });
+      }
     }
   }
 
@@ -1048,16 +1067,18 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
         }
       }
 
-      setState(() {
-        for (var song in allSongs) {
-          if (!_songs.any((f) => f.path == song.path)) _songs.add(song);
-        }
-        for (var video in allVideos) {
-          if (!_videos.any((f) => f.path == video.path)) _videos.add(video);
-        }
-        _buildFolderMap();
-        _buildVideoFolderMap();
-      });
+      if (mounted) {
+        setState(() {
+          for (var song in allSongs) {
+            if (!_songs.any((f) => f.path == song.path)) _songs.add(song);
+          }
+          for (var video in allVideos) {
+            if (!_videos.any((f) => f.path == video.path)) _videos.add(video);
+          }
+          _buildFolderMap();
+          _buildVideoFolderMap();
+        });
+      }
 
       await _saveSongs();
       await _saveVideos();
@@ -1157,6 +1178,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
     audioHandler!.skipToPrevious();
   }
 
+  // ✅ FAST FILTER: Render pehle, art refine baad mein
   Future<void> _applyFilter() async {
     List<File> sourceSongs = _visibleSongs;
     List<File> baseList = [];
@@ -1165,25 +1187,16 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
       baseList = List.from(sourceSongs);
 
       if (_sortMode == 0) {
-        List<File> withArt = [];
-        List<File> withoutArt = [];
+        // ✅ IMMEDIATE: Simple sort (recordings last)
+        List<File> musicList = [];
         List<File> recList = [];
 
         for (var song in baseList) {
           String name = getSongName(song.path);
           if (_isRecordingName(name) || _isVoiceNoteFile(song)) {
             recList.add(song);
-            continue;
-          }
-          try {
-            bool hasArt = await AlbumArtService.hasArtwork(song.path);
-            if (hasArt) {
-              withArt.add(song);
-            } else {
-              withoutArt.add(song);
-            }
-          } catch (e) {
-            withoutArt.add(song);
+          } else {
+            musicList.add(song);
           }
         }
 
@@ -1191,8 +1204,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
             .toLowerCase()
             .compareTo(getSongName(b.path).toLowerCase());
 
-        withArt.sort(alphaSort);
-        withoutArt.sort(alphaSort);
+        musicList.sort(alphaSort);
         recList.sort((a, b) {
           try {
             return b.lastModifiedSync().compareTo(a.lastModifiedSync());
@@ -1201,7 +1213,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
           }
         });
 
-        baseList = [...withArt, ...withoutArt, ...recList];
+        baseList = [...musicList, ...recList];
       } else if (_sortMode == 1) {
         baseList.sort((a, b) =>
             getSongName(a.path).toLowerCase().compareTo(getSongName(b.path).toLowerCase()));
@@ -1245,7 +1257,66 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
           .where((f) => getSongName(f.path).toLowerCase().contains(query))
           .toList();
     }
+
+    // ✅ Screen render TURANT
     if (mounted) setState(() => _filteredSongs = baseList);
+
+    // ✅ Background: Album art refine (Smart mode only)
+    if (_selectedTab == 0 && _sortMode == 0) {
+      _refineWithAlbumArt();
+    }
+  }
+
+  // ✅ Background album art refinement
+  Future<void> _refineWithAlbumArt() async {
+    if (!mounted) return;
+    try {
+      List<File> withArt = [];
+      List<File> withoutArt = [];
+      List<File> recList = [];
+
+      List<File> snapshot = List.from(_filteredSongs);
+
+      for (var song in snapshot) {
+        if (!mounted) return;
+        String name = getSongName(song.path);
+        if (_isRecordingName(name) || _isVoiceNoteFile(song)) {
+          recList.add(song);
+          continue;
+        }
+        try {
+          bool hasArt = await AlbumArtService.hasArtwork(song.path);
+          if (hasArt) {
+            withArt.add(song);
+          } else {
+            withoutArt.add(song);
+          }
+        } catch (e) {
+          withoutArt.add(song);
+        }
+      }
+
+      int alphaSort(File a, File b) => getSongName(a.path)
+          .toLowerCase()
+          .compareTo(getSongName(b.path).toLowerCase());
+
+      withArt.sort(alphaSort);
+      withoutArt.sort(alphaSort);
+      recList.sort((a, b) {
+        try {
+          return b.lastModifiedSync().compareTo(a.lastModifiedSync());
+        } catch (e) {
+          return 0;
+        }
+      });
+
+      List<File> finalList = [...withArt, ...withoutArt, ...recList];
+      if (mounted) {
+        setState(() => _filteredSongs = finalList);
+      }
+    } catch (e) {
+      debugPrint('⚠️ Art refine error: $e');
+    }
   }
 
   void _deleteSongPermanently(File song) {
