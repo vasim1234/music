@@ -144,11 +144,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   int _selectedTab = 0;
   int _themeIndex = 0;
 
-  // ✅ Hidden folders + banner dismiss
   List<String> _hiddenFolders = [];
   bool _hideBanner = false;
-
-  // ✅ NEW: Sort mode (0=Smart, 1=Title, 2=Date, 3=Folder)
   int _sortMode = 0;
 
   final TextEditingController _searchController = TextEditingController();
@@ -161,11 +158,10 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     return _hiddenFolders.contains(folderName);
   }
 
-  // ✅ Visible songs getter
   List<File> get _visibleSongs =>
       _songs.where((f) => !_isSongInHiddenFolder(f)).toList();
 
-  // ✅ NEW: Recording pattern detect
+  // ✅ Recording name detect (numbers, call rec, date-time)
   bool _isRecordingName(String name) {
     String n = name.trim().toLowerCase();
     if (RegExp(r'^\d{7,}').hasMatch(n)) return true;
@@ -178,6 +174,45 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       if (n.contains(kw)) return true;
     }
     if (RegExp(r'^[\d\s\-_().]+$').hasMatch(n)) return true;
+    return false;
+  }
+
+  // ✅ VOICE NOTE DETECTOR (extensions + patterns + size)
+  bool _isVoiceNoteFile(File f) {
+    String p = f.path.toLowerCase();
+
+    // 1. Extension check — pure voice note formats
+    if (p.endsWith('.opus') ||
+        p.endsWith('.ogg') ||
+        p.endsWith('.amr') ||
+        p.endsWith('.3gp')) {
+      return true;
+    }
+
+    // 2. WhatsApp / recorder filename patterns
+    if (p.contains('aud-20') ||
+        p.contains('ptt-20') ||
+        p.contains('broadcast') ||
+        p.contains('voice note') ||
+        p.contains('vn_') ||
+        p.contains('_vn')) {
+      return true;
+    }
+
+    // 3. Folder path check
+    if (p.contains('/whatsapp audio/') ||
+        p.contains('/voice notes/') ||
+        p.contains('/voicerecorder/') ||
+        p.contains('/voice recorder/')) {
+      return true;
+    }
+
+    // 4. Size check — chhoti file < 300KB = voice note
+    try {
+      int sizeKB = (f.lengthSync() / 1024).round();
+      if (sizeKB < 300) return true;
+    } catch (e) {}
+
     return false;
   }
 
@@ -272,7 +307,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     });
   }
 
-  // ✅ NEW: Load sort mode
   Future<void> _loadSortMode() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -281,7 +315,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _applyFilter();
   }
 
-  // ✅ NEW: Save sort mode
   Future<void> _saveSortMode() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('sortMode', _sortMode);
@@ -357,6 +390,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       List<File> songs = savedPaths
           .map((path) => File(path))
           .where((f) => f.existsSync())
+          .where((f) => !_isVoiceNoteFile(f)) // ✅ voice notes filter
           .toList();
       setState(() {
         _songs = songs;
@@ -381,7 +415,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
   }
 
-  // ✅ Folder map with smart sorting
   void _buildFolderMap() {
     _songsByFolder.clear();
     for (var song in _songs) {
@@ -446,7 +479,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
   }
 
-  // ✅ Hidden folders
   Future<void> _loadHiddenFolders() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -626,7 +658,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
-  // ✅ NEW: Sort options sheet
   void _showSortOptions() {
     showModalBottomSheet(
       context: context,
@@ -692,7 +723,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
-  // ✅ Video folder map
   void _buildVideoFolderMap() {
     _videosByFolder.clear();
     for (var video in _videos) {
@@ -759,6 +789,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         List<File> picked = result.paths
             .where((p) => p != null)
             .map((p) => File(p!))
+            .where((f) => !_isVoiceNoteFile(f)) // ✅ voice notes skip
             .toList();
         setState(() {
           for (var song in picked) {
@@ -799,14 +830,24 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             }
             if (entity is File) {
               String p = entity.path.toLowerCase();
-              if (p.endsWith('.mp3') || p.endsWith('.m4a') || p.endsWith('.wav') ||
-                  p.endsWith('.aac') || p.endsWith('.ogg') || p.endsWith('.flac') ||
-                  p.endsWith('.opus') || p.endsWith('.wma') || p.endsWith('.mp4a')) {
+
+              // ✅ AUDIO FILES (voice notes filter with _isVoiceNoteFile)
+              bool isAudio = p.endsWith('.mp3') ||
+                  p.endsWith('.m4a') ||
+                  p.endsWith('.wav') ||
+                  p.endsWith('.aac') ||
+                  p.endsWith('.flac') ||
+                  p.endsWith('.wma') ||
+                  p.endsWith('.mp4a');
+
+              if (isAudio && !_isVoiceNoteFile(entity)) {
                 allSongs.add(entity);
               }
+
+              // ✅ Video files
               if (p.endsWith('.mp4') || p.endsWith('.mkv') || p.endsWith('.avi') ||
                   p.endsWith('.mov') || p.endsWith('.wmv') || p.endsWith('.flv') ||
-                  p.endsWith('.webm') || p.endsWith('.3gp') || p.endsWith('.m4v') ||
+                  p.endsWith('.webm') || p.endsWith('.m4v') ||
                   p.endsWith('.ts') || p.endsWith('.mpg') || p.endsWith('.mpeg')) {
                 allVideos.add(entity);
               }
@@ -925,7 +966,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     audioHandler!.skipToPrevious();
   }
 
-  // ✅ UPDATED: Smart categorization + Sort modes
   void _applyFilter() {
     List<File> sourceSongs = _visibleSongs;
     List<File> baseList = [];
@@ -934,10 +974,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       baseList = List.from(sourceSongs);
 
       if (_sortMode == 0) {
-        // Smart: Music pehle, recordings baad
         List<File> musicList = [];
         List<File> recList = [];
-
         for (var song in baseList) {
           String name = getSongName(song.path);
           if (_isRecordingName(name)) {
@@ -946,10 +984,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             musicList.add(song);
           }
         }
-
         musicList.sort((a, b) =>
             getSongName(a.path).toLowerCase().compareTo(getSongName(b.path).toLowerCase()));
-
         recList.sort((a, b) {
           try {
             return b.lastModifiedSync().compareTo(a.lastModifiedSync());
@@ -957,7 +993,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             return 0;
           }
         });
-
         baseList = [...musicList, ...recList];
       } else if (_sortMode == 1) {
         baseList.sort((a, b) =>
@@ -1956,7 +1991,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
-  // ✅ Folders View
   Widget _buildFoldersView() {
     Map<String, List<File>> visibleFolders = Map.fromEntries(
       _songsByFolder.entries
@@ -2128,7 +2162,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
-  // ✅ Videos View
   Widget _buildVideosView() {
     if (_selectedVideoFolder != null) {
       List<File> folderVideos = _videosByFolder[_selectedVideoFolder] ?? [];
@@ -2529,7 +2562,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       ],
                     ),
                     const Spacer(),
-                    // ✅ NEW: Sort icon (sirf All tab pe)
                     if (_selectedTab == 0)
                       GestureDetector(
                         onTap: _showSortOptions,
