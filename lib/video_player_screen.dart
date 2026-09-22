@@ -6,6 +6,7 @@ import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 
 class VideoPlayerScreen extends StatefulWidget {
   final File videoFile;
@@ -27,22 +28,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   late VideoPlayerController _videoController;
   ChewieController? _chewieController;
 
-  // ✅ Auto-Play Next Video
   List<File> _playlist = [];
   int _currentIndex = 0;
 
-  // ✅ Brightness & Volume
   double _brightness = 0.5;
   double _volume = 1.0;
 
-  // ✅ Stretch Scale & Aspect Ratio Fix
   double _scaleX = 1.0;
   double _scaleY = 1.0;
   double _baseScaleX = 1.0;
   double _baseScaleY = 1.0;
-  String _aspectRatioMode = "Original"; // "Original", "Fill", "Stretch"
+  String _aspectRatioMode = "Original";
 
-  // ✅ Gesture
   double _gestureStartX = 0;
   double _gestureStartY = 0;
   double _gestureStartVolume = 1.0;
@@ -50,12 +47,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _showVolumeIndicator = false;
   bool _showBrightnessIndicator = false;
 
-  // ✅ Double Tap Variables
   String _doubleTapText = "";
   bool _showDoubleTap = false;
   Alignment _doubleTapAlignment = Alignment.centerRight;
 
-  // ✅ UI Controls
   bool _showTitle = true;
   Timer? _titleTimer;
   double _playbackSpeed = 1.0;
@@ -309,95 +304,177 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
-  // ✅ Three-Dots Options Sheet
+  // ✅ Share Video Function
+  Future<void> _shareCurrentVideo() async {
+    if (_playlist.isEmpty) return;
+    final currentFile = _playlist[_currentIndex];
+    try {
+      await Share.shareXFiles([XFile(currentFile.path)], text: 'Sharing Video');
+    } catch (e) {
+      _showSnackBar('Error sharing video: $e');
+    }
+  }
+
+  // ✅ Delete Video Function
+  Future<void> _deleteCurrentVideo() async {
+    if (_playlist.isEmpty) return;
+    
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('Delete Video', style: TextStyle(color: Colors.white)),
+        content: const Text('Are you sure you want to delete this video file permanently?',
+            style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        final currentFile = _playlist[_currentIndex];
+        if (await currentFile.exists()) {
+          await currentFile.delete();
+        }
+        
+        _playlist.removeAt(_currentIndex);
+        _showSnackBar('🗑️ Video deleted successfully');
+
+        if (_playlist.isEmpty) {
+          if (mounted) Navigator.pop(context);
+        } else {
+          if (_currentIndex >= _playlist.length) {
+            _currentIndex = _playlist.length - 1;
+          }
+          _playCurrentVideo();
+        }
+      } catch (e) {
+        _showSnackBar('Error deleting video: $e');
+      }
+    }
+  }
+
+  // ✅ Three-Dots Options Sheet (Fixed for Landscape Scrolling)
   void _showVideoOptionsSheet() {
     _startTitleTimer();
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.black87,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              margin: const EdgeInsets.symmetric(vertical: 10),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white38,
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            
-            // 1. Playback Speed
-            ListTile(
-              leading: const Icon(Icons.speed, color: Colors.white),
-              title: const Text('Playback Speed', style: TextStyle(color: Colors.white)),
-              trailing: Text(
-                '${_playbackSpeed}x',
-                style: const TextStyle(color: Color(0xFF34D399), fontWeight: FontWeight.bold),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _showSpeedSheet();
-              },
-            ),
-
-            // 2. Loop Video
-            ListTile(
-              leading: Icon(
-                _isLooping ? Icons.repeat_one : Icons.repeat,
-                color: _isLooping ? const Color(0xFF34D399) : Colors.white,
-              ),
-              title: const Text('Loop Video', style: TextStyle(color: Colors.white)),
-              trailing: Text(
-                _isLooping ? 'ON' : 'OFF',
-                style: TextStyle(
-                  color: _isLooping ? const Color(0xFF34D399) : Colors.white54,
-                  fontWeight: FontWeight.bold,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 10),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white38,
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              onTap: () {
-                Navigator.pop(context);
-                _toggleLoop();
-              },
-            ),
 
-            // 3. Brightness Control
-            ListTile(
-              leading: const Icon(Icons.brightness_6, color: Colors.white),
-              title: const Text('Brightness', style: TextStyle(color: Colors.white)),
-              trailing: Text(
-                '${(_brightness * 100).toInt()}%',
-                style: const TextStyle(color: Colors.white70),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _showBrightnessSheet();
-              },
-            ),
-
-            // 4. Volume Boost
-            ListTile(
-              leading: const Icon(Icons.volume_up, color: Colors.white),
-              title: const Text('Volume', style: TextStyle(color: Colors.white)),
-              trailing: Text(
-                '${(_volume * 100).toInt()}%',
-                style: TextStyle(
-                  color: _volume > 1.0 ? Colors.orangeAccent : Colors.white70,
-                  fontWeight: _volume > 1.0 ? FontWeight.bold : FontWeight.normal,
+              // 1. Playback Speed
+              ListTile(
+                leading: const Icon(Icons.speed, color: Colors.white),
+                title: const Text('Playback Speed', style: TextStyle(color: Colors.white)),
+                trailing: Text(
+                  '${_playbackSpeed}x',
+                  style: const TextStyle(color: Color(0xFF34D399), fontWeight: FontWeight.bold),
                 ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showSpeedSheet();
+                },
               ),
-              onTap: () {
-                Navigator.pop(context);
-                _showVolumeSheet();
-              },
-            ),
-            const SizedBox(height: 10),
-          ],
+
+              // 2. Loop Video
+              ListTile(
+                leading: Icon(
+                  _isLooping ? Icons.repeat_one : Icons.repeat,
+                  color: _isLooping ? const Color(0xFF34D399) : Colors.white,
+                ),
+                title: const Text('Loop Video', style: TextStyle(color: Colors.white)),
+                trailing: Text(
+                  _isLooping ? 'ON' : 'OFF',
+                  style: TextStyle(
+                    color: _isLooping ? const Color(0xFF34D399) : Colors.white54,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _toggleLoop();
+                },
+              ),
+
+              // 3. Brightness Control
+              ListTile(
+                leading: const Icon(Icons.brightness_6, color: Colors.white),
+                title: const Text('Brightness', style: TextStyle(color: Colors.white)),
+                trailing: Text(
+                  '${(_brightness * 100).toInt()}%',
+                  style: const TextStyle(color: Colors.white70),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showBrightnessSheet();
+                },
+              ),
+
+              // 4. Volume Boost
+              ListTile(
+                leading: const Icon(Icons.volume_up, color: Colors.white),
+                title: const Text('Volume', style: TextStyle(color: Colors.white)),
+                trailing: Text(
+                  '${(_volume * 100).toInt()}%',
+                  style: TextStyle(
+                    color: _volume > 1.0 ? Colors.orangeAccent : Colors.white70,
+                    fontWeight: _volume > 1.0 ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showVolumeSheet();
+                },
+              ),
+
+              // 5. Share Video
+              ListTile(
+                leading: const Icon(Icons.share, color: Colors.white),
+                title: const Text('Share Video', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _shareCurrentVideo();
+                },
+              ),
+
+              // 6. Delete Video
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                title: const Text('Delete Video', style: TextStyle(color: Colors.redAccent)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _deleteCurrentVideo();
+                },
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
         ),
       ),
     );
@@ -407,22 +484,23 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _startTitleTimer();
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.black87,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => Padding(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.only(
+            left: 20, right: 20, top: 20,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
                 'Volume Boost (Max 200%)',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold),
+                style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 15),
               Row(
@@ -444,14 +522,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   const Icon(Icons.volume_up, color: Colors.white, size: 22),
                 ],
               ),
-              const SizedBox(height: 5),
               Text(
                 'Volume: ${(_volume * 100).toInt()}%',
                 style: TextStyle(
-                    color: _volume > 1.0 ? Colors.orangeAccent : Colors.white70,
-                    fontSize: 13,
-                    fontWeight:
-                        _volume > 1.0 ? FontWeight.bold : FontWeight.normal),
+                  color: _volume > 1.0 ? Colors.orangeAccent : Colors.white70,
+                  fontSize: 13,
+                  fontWeight: _volume > 1.0 ? FontWeight.bold : FontWeight.normal,
+                ),
               ),
             ],
           ),
@@ -464,13 +541,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _startTitleTimer();
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.black87,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => Padding(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.only(
+            left: 20, right: 20, top: 20,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -493,7 +574,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   const Icon(Icons.brightness_high, color: Colors.white, size: 22),
                 ],
               ),
-              const SizedBox(height: 5),
               Text(
                 'Brightness: ${(_brightness * 100).toInt()}%',
                 style: const TextStyle(color: Colors.white70, fontSize: 13),
@@ -509,48 +589,47 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _startTitleTimer();
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.black87,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(15),
-              child: Text(
-                'Playback Speed',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(15),
+                child: Text(
+                  'Playback Speed',
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
-            ),
-            Divider(color: Colors.grey.shade800, height: 1),
-            ...[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((speed) {
-              bool isSelected = _playbackSpeed == speed;
-              return ListTile(
-                leading: Icon(
-                  isSelected ? Icons.check_circle : Icons.circle_outlined,
-                  color: isSelected ? const Color(0xFF34D399) : Colors.white54,
-                ),
-                title: Text(
-                  '${speed}x',
-                  style: TextStyle(
-                    color: isSelected ? const Color(0xFF34D399) : Colors.white,
-                    fontWeight:
-                        isSelected ? FontWeight.bold : FontWeight.normal,
+              Divider(color: Colors.grey.shade800, height: 1),
+              ...[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((speed) {
+                bool isSelected = _playbackSpeed == speed;
+                return ListTile(
+                  leading: Icon(
+                    isSelected ? Icons.check_circle : Icons.circle_outlined,
+                    color: isSelected ? const Color(0xFF34D399) : Colors.white54,
                   ),
-                ),
-                onTap: () {
-                  _videoController.setPlaybackSpeed(speed);
-                  setState(() => _playbackSpeed = speed);
-                  Navigator.pop(context);
-                },
-              );
-            }).toList(),
-          ],
+                  title: Text(
+                    '${speed}x',
+                    style: TextStyle(
+                      color: isSelected ? const Color(0xFF34D399) : Colors.white,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  onTap: () {
+                    _videoController.setPlaybackSpeed(speed);
+                    setState(() => _playbackSpeed = speed);
+                    Navigator.pop(context);
+                  },
+                );
+              }),
+            ],
+          ),
         ),
       ),
     );
@@ -560,68 +639,65 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     _startTitleTimer();
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.black87,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(15),
-              child: Text(
-                'Aspect Ratio',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(15),
+                child: Text(
+                  'Aspect Ratio / Zoom Mode',
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
-            ),
-            Divider(color: Colors.grey.shade800, height: 1),
-            ListTile(
-              leading: const Icon(Icons.crop_original, color: Colors.white),
-              title: const Text('Fit (Original)',
-                  style: TextStyle(color: Colors.white)),
-              onTap: () {
-                setState(() {
-                  _scaleX = 1.0;
-                  _scaleY = 1.0;
-                  _aspectRatioMode = "Original";
-                  _recreateChewieController(context);
-                });
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.crop_free, color: Colors.white),
-              title: const Text('Fill (Cover)',
-                  style: TextStyle(color: Colors.white)),
-              onTap: () {
-                setState(() {
-                  _scaleX = 1.0;
-                  _scaleY = 1.0;
-                  _aspectRatioMode = "Fill";
-                  _recreateChewieController(context);
-                });
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.fullscreen, color: Colors.white),
-              title: const Text('Stretch (16:9)',
-                  style: TextStyle(color: Colors.white)),
-              onTap: () {
-                setState(() {
-                  _scaleX = 1.0;
-                  _scaleY = 1.0;
-                  _aspectRatioMode = "Stretch";
-                  _recreateChewieController(context);
-                });
-                Navigator.pop(context);
-              },
-            ),
-          ],
+              Divider(color: Colors.grey.shade800, height: 1),
+              ListTile(
+                leading: const Icon(Icons.crop_original, color: Colors.white),
+                title: const Text('Fit (Original)', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  setState(() {
+                    _scaleX = 1.0;
+                    _scaleY = 1.0;
+                    _aspectRatioMode = "Original";
+                    _recreateChewieController(context);
+                  });
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.crop_free, color: Colors.white),
+                title: const Text('Fill (Cover)', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  setState(() {
+                    _scaleX = 1.0;
+                    _scaleY = 1.0;
+                    _aspectRatioMode = "Fill";
+                    _recreateChewieController(context);
+                  });
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.fullscreen, color: Colors.white),
+                title: const Text('Stretch (16:9)', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  setState(() {
+                    _scaleX = 1.0;
+                    _scaleY = 1.0;
+                    _aspectRatioMode = "Stretch";
+                    _recreateChewieController(context);
+                  });
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -666,6 +742,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
 
     if (_videoController.value.isInitialized) {
       double desiredRatio = _calculateAspectRatio(context);
@@ -746,6 +823,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   ),
                 ),
 
+              // ✅ Top Control Bar
               Positioned(
                 top: 0,
                 left: 0,
@@ -778,26 +856,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                       .split('/')
                                       .last
                                   : widget.videoFile.path.split('/').last,
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 13),
+                              style: const TextStyle(color: Colors.white, fontSize: 13),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             if (_playlist.length > 1)
                               Text(
                                 'Video ${_currentIndex + 1} of ${_playlist.length}',
-                                style: const TextStyle(
-                                    color: Colors.white70, fontSize: 10),
+                                style: const TextStyle(color: Colors.white70, fontSize: 10),
                               ),
                           ],
                         ),
                         actions: [
-                          IconButton(
-                            iconSize: 22,
-                            icon: const Icon(Icons.fullscreen, color: Colors.white),
-                            onPressed: _toggleFullscreen,
-                          ),
-                          // ✅ Three-dots Option Menu Icon
+                          // Top bar se rotate option hata kar sirf Three-Dots option menu rakha hai
                           IconButton(
                             iconSize: 24,
                             icon: const Icon(Icons.more_vert, color: Colors.white),
@@ -810,6 +881,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ),
               ),
 
+              // Center Play/Pause Control
               Center(
                 child: AnimatedOpacity(
                   opacity: _showTitle && !_showDoubleTap ? 1.0 : 0.0,
@@ -848,6 +920,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ),
               ),
 
+              // Next / Previous Buttons
               if (_playlist.length > 1 && !_showDoubleTap)
                 Positioned.fill(
                   child: AnimatedOpacity(
@@ -898,6 +971,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   ),
                 ),
 
+              // ✅ Bottom Control Bar (Aspect Ratio + Rotate Screen Option Combo)
               Positioned(
                 bottom: 0,
                 left: 0,
@@ -935,10 +1009,44 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                         _formatDuration(value.duration),
                                         style: const TextStyle(color: Colors.white, fontSize: 13),
                                       ),
-                                      const SizedBox(width: 15),
-                                      GestureDetector(
+                                      const SizedBox(width: 12),
+                                      
+                                      // 1. Zoom / Aspect Ratio Button
+                                      InkWell(
                                         onTap: _showAspectRatioSheet,
-                                        child: const Icon(Icons.aspect_ratio, color: Colors.white, size: 20),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                          child: Row(
+                                            children: const [
+                                              Icon(Icons.aspect_ratio, color: Colors.white, size: 20),
+                                              SizedBox(width: 3),
+                                              Text('Zoom', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+
+                                      // 2. Rotate Screen Button (Shifted from Top Bar)
+                                      InkWell(
+                                        onTap: _toggleFullscreen,
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                isLandscape ? Icons.screen_lock_portrait : Icons.screen_lock_landscape,
+                                                color: Colors.white,
+                                                size: 20,
+                                              ),
+                                              const SizedBox(width: 3),
+                                              Text(
+                                                isLandscape ? 'Portrait' : 'Rotate',
+                                                style: const TextStyle(color: Colors.white70, fontSize: 11),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -988,9 +1096,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                               : _volume > 1.0
                                   ? Icons.volume_up_outlined
                                   : Icons.volume_up,
-                          color: _volume > 1.0
-                              ? Colors.orangeAccent
-                              : Colors.white,
+                          color: _volume > 1.0 ? Colors.orangeAccent : Colors.white,
                           size: 20,
                         ),
                         Expanded(
@@ -1002,9 +1108,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                 value: _volume / 2.0,
                                 backgroundColor: Colors.white24,
                                 valueColor: AlwaysStoppedAnimation<Color>(
-                                  _volume > 1.0
-                                      ? Colors.orangeAccent
-                                      : const Color(0xFF34D399),
+                                  _volume > 1.0 ? Colors.orangeAccent : const Color(0xFF34D399),
                                 ),
                               ),
                             ),
@@ -1013,9 +1117,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                         Text(
                           '${(_volume * 100).toInt()}%',
                           style: TextStyle(
-                            color: _volume > 1.0
-                                ? Colors.orangeAccent
-                                : Colors.white,
+                            color: _volume > 1.0 ? Colors.orangeAccent : Colors.white,
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                           ),
@@ -1041,8 +1143,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Icon(Icons.brightness_6,
-                            color: Colors.white, size: 20),
+                        const Icon(Icons.brightness_6, color: Colors.white, size: 20),
                         Expanded(
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -1051,9 +1152,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                               child: LinearProgressIndicator(
                                 value: _brightness,
                                 backgroundColor: Colors.white24,
-                                valueColor:
-                                    const AlwaysStoppedAnimation<Color>(
-                                        Color(0xFF34D399)),
+                                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF34D399)),
                               ),
                             ),
                           ),
@@ -1090,8 +1189,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                         borderRadius: BorderRadius.circular(25),
                         border: Border.all(color: Colors.white24),
                       ),
-                      child: const Icon(Icons.restore,
-                          color: Colors.white, size: 22),
+                      child: const Icon(Icons.restore, color: Colors.white, size: 22),
                     ),
                   ),
                 ),
