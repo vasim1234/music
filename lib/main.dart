@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -141,12 +140,6 @@ class AppTheme {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    systemNavigationBarColor: Color(0xFF0B1310),
-    systemNavigationBarIconBrightness: Brightness.light,
-  ));
 
   debugPrint('🚀 APP STARTING');
   try {
@@ -357,35 +350,24 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     int theme = prefs.getInt('themeIndex') ?? 0;
     bool is3D = prefs.getBool('is3DOn') ?? false;
     bool light = prefs.getBool('isLightMode') ?? false;
-    setState(() {
-      _themeIndex = theme;
-      AppTheme.themeIndex = theme;
-      is3DOn = is3D;
-      AppTheme.isLightMode = light;
-    });
-
-    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      systemNavigationBarColor: AppTheme.bg,
-      systemNavigationBarIconBrightness:
-          AppTheme.isLightMode ? Brightness.dark : Brightness.light,
-    ));
+    if (mounted) {
+      setState(() {
+        _themeIndex = theme;
+        AppTheme.themeIndex = theme;
+        is3DOn = is3D;
+        AppTheme.isLightMode = light;
+      });
+    }
   }
 
   Future<void> _toggleLightMode() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      AppTheme.isLightMode = !AppTheme.isLightMode;
-    });
+    if (mounted) {
+      setState(() {
+        AppTheme.isLightMode = !AppTheme.isLightMode;
+      });
+    }
     await prefs.setBool('isLightMode', AppTheme.isLightMode);
-
-    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      systemNavigationBarColor: AppTheme.bg,
-      systemNavigationBarIconBrightness:
-          AppTheme.isLightMode ? Brightness.dark : Brightness.light,
-    ));
-
     _showSnackBar(
       AppTheme.isLightMode ? '☀️ Light Mode ON' : '🌙 Dark Mode ON',
       AppTheme.accent,
@@ -394,9 +376,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
   Future<void> _loadSortMode() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _sortMode = prefs.getInt('sortMode') ?? 0;
-    });
+    if (mounted) {
+      setState(() {
+        _sortMode = prefs.getInt('sortMode') ?? 0;
+      });
+    }
     await _applyFilter();
   }
 
@@ -408,17 +392,19 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   Future<void> _toggleTheme(int index) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('themeIndex', index);
-    setState(() {
-      _themeIndex = index;
-      AppTheme.themeIndex = index;
-    });
+    if (mounted) {
+      setState(() {
+        _themeIndex = index;
+        AppTheme.themeIndex = index;
+      });
+    }
     const names = ['🟢 Emerald', '🟡 Gold', '🔵 Indigo', '🟣 Purple'];
     _showSnackBar('🎨 ${names[index]} applied', AppTheme.accent);
   }
 
   Future<void> _toggle3D() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() => is3DOn = !is3DOn);
+    if (mounted) setState(() => is3DOn = !is3DOn);
     await prefs.setBool('is3DOn', is3DOn);
     if (is3DOn) {
       if (audioHandler != null) await audioHandler!.setVolume(0.6);
@@ -456,10 +442,14 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
   Future<void> _checkPermission() async {
     if (Platform.isAndroid) {
-      if (await Permission.audio.isDenied) await Permission.audio.request();
-      if (await Permission.storage.isDenied) await Permission.storage.request();
-      if (await Permission.manageExternalStorage.isDenied) {
-        await Permission.manageExternalStorage.request();
+      try {
+        if (await Permission.audio.isDenied) await Permission.audio.request();
+        if (await Permission.storage.isDenied) await Permission.storage.request();
+        if (await Permission.manageExternalStorage.isDenied) {
+          await Permission.manageExternalStorage.request();
+        }
+      } catch (e) {
+        debugPrint('⚠️ Permission error: $e');
       }
     }
   }
@@ -477,26 +467,34 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           .where((f) => f.existsSync())
           .where((f) => !_isVoiceNoteFile(f))
           .toList();
-      setState(() {
-        _songs = songs;
-        _filteredSongs = songs;
-        _buildFolderMap();
-      });
+      if (mounted) {
+        setState(() {
+          _songs = songs;
+          _filteredSongs = songs;
+          _buildFolderMap();
+        });
+      }
     }
-    if (favs != null) setState(() => _favorites = favs);
-    if (recent != null) setState(() => _recentSongs = recent);
+    if (favs != null) {
+      if (mounted) setState(() => _favorites = favs);
+    }
+    if (recent != null) {
+      if (mounted) setState(() => _recentSongs = recent);
+    }
     if (playlists != null) {
-      setState(() {
-        _playlists = playlists.map((p) {
-          List<String> parts = p.split('|||');
-          return {
-            'name': parts[0],
-            'songs': parts.length > 1
-                ? parts[1].split(',').where((s) => s.isNotEmpty).toList()
-                : <String>[],
-          };
-        }).toList();
-      });
+      if (mounted) {
+        setState(() {
+          _playlists = playlists.map((p) {
+            List<String> parts = p.split('|||');
+            return {
+              'name': parts[0],
+              'songs': parts.length > 1
+                  ? parts[1].split(',').where((s) => s.isNotEmpty).toList()
+                  : <String>[],
+            };
+          }).toList();
+        });
+      }
     }
   }
 
@@ -566,9 +564,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
   Future<void> _loadHiddenFolders() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _hiddenFolders = prefs.getStringList('hidden_folders') ?? [];
-    });
+    if (mounted) {
+      setState(() {
+        _hiddenFolders = prefs.getStringList('hidden_folders') ?? [];
+      });
+    }
   }
 
   Future<void> _saveHiddenFolders() async {
@@ -594,10 +594,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
             onPressed: () {
-              setState(() {
-                _hiddenFolders.add(folderName);
-                _hideBanner = false;
-              });
+              if (mounted) {
+                setState(() {
+                  _hiddenFolders.add(folderName);
+                  _hideBanner = false;
+                });
+              }
               _saveHiddenFolders();
               _applyFilter();
               Navigator.pop(context);
@@ -676,7 +678,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 onTap: () {
                   Navigator.pop(context);
                   if (isHidden) {
-                    setState(() => _hiddenFolders.remove(folderName));
+                    if (mounted) setState(() => _hiddenFolders.remove(folderName));
                     _saveHiddenFolders();
                     _applyFilter();
                     _showSnackBar('✅ Folder shown', Colors.green);
@@ -728,7 +730,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 title: Text(folder, style: TextStyle(color: AppTheme.text)),
                 trailing: const Icon(Icons.restore, color: Colors.green),
                 onTap: () {
-                  setState(() => _hiddenFolders.remove(folder));
+                  if (mounted) setState(() => _hiddenFolders.remove(folder));
                   _saveHiddenFolders();
                   _applyFilter();
                   Navigator.pop(context);
@@ -798,7 +800,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       subtitle: Text(subtitle, style: TextStyle(color: AppTheme.subText, fontSize: 11)),
       trailing: isActive ? Icon(Icons.check_circle, color: AppTheme.accent, size: 22) : null,
       onTap: () async {
-        setState(() => _sortMode = index);
+        if (mounted) setState(() => _sortMode = index);
         await _saveSortMode();
         await _applyFilter();
         Navigator.pop(context);
@@ -834,10 +836,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           .map((path) => File(path))
           .where((f) => f.existsSync())
           .toList();
-      setState(() {
-        _videos = videos;
-        _buildVideoFolderMap();
-      });
+      if (mounted) {
+        setState(() {
+          _videos = videos;
+          _buildVideoFolderMap();
+        });
+      }
     }
   }
 
@@ -876,12 +880,14 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             .map((p) => File(p!))
             .where((f) => !_isVoiceNoteFile(f))
             .toList();
-        setState(() {
-          for (var song in picked) {
-            if (!_songs.any((f) => f.path == song.path)) _songs.add(song);
-          }
-          _buildFolderMap();
-        });
+        if (mounted) {
+          setState(() {
+            for (var song in picked) {
+              if (!_songs.any((f) => f.path == song.path)) _songs.add(song);
+            }
+            _buildFolderMap();
+          });
+        }
         await _saveSongs();
         await _applyFilter();
         _showSnackBar('✅ ${picked.length} songs added!', Colors.green);
@@ -893,12 +899,14 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
   Future<void> _scanDefaultFolder() async {
     try {
-      setState(() {
-        _songs.clear();
-        _videos.clear();
-        _songsByFolder.clear();
-        _videosByFolder.clear();
-      });
+      if (mounted) {
+        setState(() {
+          _songs.clear();
+          _videos.clear();
+          _songsByFolder.clear();
+          _videosByFolder.clear();
+        });
+      }
 
       List<File> allSongs = [];
       List<File> allVideos = [];
@@ -956,16 +964,18 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         }
       }
 
-      setState(() {
-        for (var song in allSongs) {
-          if (!_songs.any((f) => f.path == song.path)) _songs.add(song);
-        }
-        for (var video in allVideos) {
-          if (!_videos.any((f) => f.path == video.path)) _videos.add(video);
-        }
-        _buildFolderMap();
-        _buildVideoFolderMap();
-      });
+      if (mounted) {
+        setState(() {
+          for (var song in allSongs) {
+            if (!_songs.any((f) => f.path == song.path)) _songs.add(song);
+          }
+          for (var video in allVideos) {
+            if (!_videos.any((f) => f.path == video.path)) _videos.add(video);
+          }
+          _buildFolderMap();
+          _buildVideoFolderMap();
+        });
+      }
 
       await _saveSongs();
       await _saveVideos();
@@ -986,11 +996,13 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       return;
     }
 
-    setState(() {
-      _currentSong = song;
-      _currentIndex = index;
-      isPlaying = true;
-    });
+    if (mounted) {
+      setState(() {
+        _currentSong = song;
+        _currentIndex = index;
+        isPlaying = true;
+      });
+    }
     _isPlayingNotifier.value = true;
 
     if (!_recentSongs.contains(song.path)) {
@@ -1146,23 +1158,25 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   }
 
   void _deleteSongPermanently(File song) {
-    setState(() {
-      if (song == _currentSong) {
-        if (audioHandler != null) audioHandler!.stop();
-        _fallbackPlayer.stop();
-        _currentSong = null;
-        _currentIndex = -1;
-        isPlaying = false;
-        _isPlayingNotifier.value = false;
-      }
-      _songs.remove(song);
-      _recentSongs.remove(song.path);
-      _favorites.remove(song.path);
-      for (var playlist in _playlists) {
-        (playlist['songs'] as List<String>).remove(song.path);
-      }
-      _buildFolderMap();
-    });
+    if (mounted) {
+      setState(() {
+        if (song == _currentSong) {
+          if (audioHandler != null) audioHandler!.stop();
+          _fallbackPlayer.stop();
+          _currentSong = null;
+          _currentIndex = -1;
+          isPlaying = false;
+          _isPlayingNotifier.value = false;
+        }
+        _songs.remove(song);
+        _recentSongs.remove(song.path);
+        _favorites.remove(song.path);
+        for (var playlist in _playlists) {
+          (playlist['songs'] as List<String>).remove(song.path);
+        }
+        _buildFolderMap();
+      });
+    }
     _saveSongs();
     _saveFavorites();
     _saveRecent();
@@ -1173,25 +1187,29 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
   void _removeFromPlaylist(File song) {
     if (_openedPlaylist == null) return;
-    setState(() {
-      var playlist = _playlists.firstWhere((p) => p['name'] == _openedPlaylist);
-      (playlist['songs'] as List<String>).remove(song.path);
-    });
+    if (mounted) {
+      setState(() {
+        var playlist = _playlists.firstWhere((p) => p['name'] == _openedPlaylist);
+        (playlist['songs'] as List<String>).remove(song.path);
+      });
+    }
     _savePlaylists();
     _applyFilter();
     _showSnackBar('🚫 Removed from $_openedPlaylist', Colors.orange);
   }
 
   void _toggleFavorite(File song) {
-    setState(() {
-      if (_favorites.contains(song.path)) {
-        _favorites.remove(song.path);
-        _showSnackBar('💔 Removed from Favorites', Colors.orange);
-      } else {
-        _favorites.add(song.path);
-        _showSnackBar('❤️ Added to Favorites', Colors.pink);
-      }
-    });
+    if (mounted) {
+      setState(() {
+        if (_favorites.contains(song.path)) {
+          _favorites.remove(song.path);
+          _showSnackBar('💔 Removed from Favorites', Colors.orange);
+        } else {
+          _favorites.add(song.path);
+          _showSnackBar('❤️ Added to Favorites', Colors.pink);
+        }
+      });
+    }
     _saveFavorites();
     _applyFilter();
   }
@@ -1236,13 +1254,15 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         style: TextStyle(color: AppTheme.text)),
                     trailing: isIn ? const Icon(Icons.check, color: Colors.green) : null,
                     onTap: () {
-                      setState(() {
-                        if (isIn) {
-                          (playlist['songs'] as List<String>).remove(song.path);
-                        } else {
-                          (playlist['songs'] as List<String>).add(song.path);
-                        }
-                      });
+                      if (mounted) {
+                        setState(() {
+                          if (isIn) {
+                            (playlist['songs'] as List<String>).remove(song.path);
+                          } else {
+                            (playlist['songs'] as List<String>).add(song.path);
+                          }
+                        });
+                      }
                       _savePlaylists();
                       Navigator.pop(context);
                     },
@@ -1295,9 +1315,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           ElevatedButton(
             onPressed: () {
               if (nameCtrl.text.trim().isNotEmpty) {
-                setState(() {
-                  _playlists.add({'name': nameCtrl.text.trim(), 'songs': [song.path]});
-                });
+                if (mounted) {
+                  setState(() {
+                    _playlists.add({'name': nameCtrl.text.trim(), 'songs': [song.path]});
+                  });
+                }
                 _savePlaylists();
                 Navigator.pop(context);
               }
@@ -1817,7 +1839,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       title: 'Favorites', subtitle: '${_favorites.length} songs',
                       onTap: () {
                         Navigator.pop(context);
-                        setState(() { _selectedTab = 1; });
+                        if (mounted) setState(() { _selectedTab = 1; });
                         _applyFilter();
                       },
                     ),
@@ -1826,7 +1848,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       title: 'Recent', subtitle: '${_recentSongs.length} songs',
                       onTap: () {
                         Navigator.pop(context);
-                        setState(() { _selectedTab = 2; });
+                        if (mounted) setState(() { _selectedTab = 2; });
                         _applyFilter();
                       },
                     ),
@@ -2002,12 +2024,14 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     return Expanded(
       child: GestureDetector(
         onTap: () {
-          setState(() {
-            _selectedTab = index;
-            _openedPlaylist = null;
-            _selectedFolder = null;
-            _selectedVideoFolder = null;
-          });
+          if (mounted) {
+            setState(() {
+              _selectedTab = index;
+              _openedPlaylist = null;
+              _selectedFolder = null;
+              _selectedVideoFolder = null;
+            });
+          }
           _applyFilter();
         },
         child: Container(
@@ -2090,7 +2114,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         int count = (playlist['songs'] as List<String>).length;
         return GestureDetector(
           onTap: () {
-            setState(() { _openedPlaylist = playlist['name']; });
+            if (mounted) setState(() { _openedPlaylist = playlist['name']; });
             _applyFilter();
           },
           child: Container(
@@ -2579,10 +2603,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
     return GestureDetector(
       onTap: () {
-        setState(() {
-          _filteredSongs = folderSongs;
-          _currentIndex = index;
-        });
+        if (mounted) {
+          setState(() {
+            _filteredSongs = folderSongs;
+            _currentIndex = index;
+          });
+        }
         _playSong(song, index);
       },
       onLongPress: () => _showMainSongOptions(song),
