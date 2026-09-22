@@ -13,6 +13,7 @@ import 'video_player_screen.dart';
 
 // ✅ 4 PREMIUM THEMES (Dark + Light)
 class AppColors {
+  // Dark
   static const Color bg0 = Color(0xFF0B1310);
   static const Color card0 = Color(0xFF13221C);
   static const Color accent0 = Color(0xFF34D399);
@@ -33,6 +34,7 @@ class AppColors {
   static const Color accent3 = Color(0xFF8B5CF6);
   static const List<Color> gradient3 = [Color(0xFF8B5CF6), Color(0xFFD946EF)];
 
+  // ✅ Light
   static const Color lbg0 = Color(0xFFF5F9F7);
   static const Color lcard0 = Color(0xFFFFFFFF);
   static const Color laccent0 = Color(0xFF059669);
@@ -136,6 +138,7 @@ class AppTheme {
 
   static Color get text => isLightMode ? const Color(0xFF1A1A1A) : Colors.white;
   static Color get subText => isLightMode ? const Color(0xFF6B6B6B) : Colors.grey.shade500;
+  static Color get cardShadow => isLightMode ? Colors.black.withOpacity(0.05) : Colors.transparent;
 }
 
 Future<void> main() async {
@@ -176,8 +179,7 @@ class MusicPlayerScreen extends StatefulWidget {
   State<MusicPlayerScreen> createState() => _MusicPlayerScreenState();
 }
 
-class _MusicPlayerScreenState extends State<MusicPlayerScreen>
-    with WidgetsBindingObserver {
+class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   final ValueNotifier<bool> _isPlayingNotifier = ValueNotifier<bool>(false);
   List<File> _songs = [];
   List<File> _filteredSongs = [];
@@ -268,7 +270,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     AlbumArtService.init();
     _requestNotificationPermission();
 
@@ -304,136 +305,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
     _loadTheme();
     _loadHiddenFolders();
     _loadSortMode();
-
-    // ✅ Auto-scan 3 second baad (permission dialog ke baad)
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) _autoScanNewContent();
-    });
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-    if (state == AppLifecycleState.resumed) {
-      Future.delayed(const Duration(seconds: 1), () {
-        if (mounted) _autoScanNewContent();
-      });
-    }
-  }
-
-  Future<void> _scanDefaultFolder() async {
-  // ✅ Loading indicator dikhao
-  if (mounted) {
-    _showSnackBar('🔍 Scanning started...', AppTheme.accent);
-  }
-
-  try {
-    // ✅ Pehle purana data clear karo
-    setState(() {
-      _songs.clear();
-      _videos.clear();
-      _songsByFolder.clear();
-      _videosByFolder.clear();
-    });
-
-    List<File> allSongs = [];
-    List<File> allVideos = [];
-    Directory rootDir = Directory('/storage/emulated/0/');
-
-    if (rootDir.existsSync()) {
-      try {
-        for (var entity in rootDir.listSync(recursive: true)) {
-          String path = entity.path.toLowerCase();
-
-          // ✅ Skip system folders
-          if (path.contains('/android/data/') ||
-              path.contains('/android/obb/') ||
-              path.contains('/android/media/')) {
-            continue;
-          }
-
-          // ✅ Skip call recording folders
-          if (path.contains('/call_rec/') ||
-              path.contains('/callrec/') ||
-              path.contains('/call recording/') ||
-              path.contains('/callrecordings/') ||
-              path.contains('/sound_recorder/') ||
-              path.contains('/voicerecorder/') ||
-              path.contains('/voice_recorder/') ||
-              path.contains('/recordings/') ||
-              path.contains('/voice notes/') ||
-              path.contains('/whatsapp audio/')) {
-            continue;
-          }
-
-          if (entity is File) {
-            String p = entity.path.toLowerCase();
-
-            // ✅ Audio files
-            bool isAudio = p.endsWith('.mp3') ||
-                p.endsWith('.m4a') ||
-                p.endsWith('.wav') ||
-                p.endsWith('.aac') ||
-                p.endsWith('.flac') ||
-                p.endsWith('.wma') ||
-                p.endsWith('.mp4a');
-
-            if (isAudio && !_isVoiceNoteFile(entity)) {
-              allSongs.add(entity);
-            }
-
-            // ✅ Video files
-            bool isVideo = p.endsWith('.mp4') ||
-                p.endsWith('.mkv') ||
-                p.endsWith('.avi') ||
-                p.endsWith('.mov') ||
-                p.endsWith('.wmv') ||
-                p.endsWith('.flv') ||
-                p.endsWith('.webm') ||
-                p.endsWith('.m4v') ||
-                p.endsWith('.ts') ||
-                p.endsWith('.mpg') ||
-                p.endsWith('.mpeg');
-
-            if (isVideo) {
-              allVideos.add(entity);
-            }
-          }
-        }
-      } catch (e) {
-        debugPrint('⚠️ Scan error: $e');
-      }
-    }
-
-    // ✅ UI update karo
-    if (mounted) {
-      setState(() {
-        for (var song in allSongs) {
-          if (!_songs.any((f) => f.path == song.path)) _songs.add(song);
-        }
-        for (var video in allVideos) {
-          if (!_videos.any((f) => f.path == video.path)) _videos.add(video);
-        }
-        _buildFolderMap();
-        _buildVideoFolderMap();
-      });
-    }
-
-    // ✅ Save karo
-    await _saveSongs();
-    await _saveVideos();
-
-    // ✅ Filter apply karo
-    await _applyFilter();
-
-    // ✅ Result snackbar
-    _showSnackBar(
-      '✅ ${allSongs.length} songs + ${allVideos.length} videos found!',
-      Colors.green,
-    );
-  } catch (e) {
-    _showSnackBar('⚠️ Error: $e', Colors.red);
-  }
   }
 
   Future<void> _requestNotificationPermission() async {
@@ -586,34 +457,26 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
           .where((f) => f.existsSync())
           .where((f) => !_isVoiceNoteFile(f))
           .toList();
-      if (mounted) {
-        setState(() {
-          _songs = songs;
-          _filteredSongs = songs;
-          _buildFolderMap();
-        });
-      }
+      setState(() {
+        _songs = songs;
+        _filteredSongs = songs;
+        _buildFolderMap();
+      });
     }
-    if (favs != null) {
-      if (mounted) setState(() => _favorites = favs);
-    }
-    if (recent != null) {
-      if (mounted) setState(() => _recentSongs = recent);
-    }
+    if (favs != null) setState(() => _favorites = favs);
+    if (recent != null) setState(() => _recentSongs = recent);
     if (playlists != null) {
-      if (mounted) {
-        setState(() {
-          _playlists = playlists.map((p) {
-            List<String> parts = p.split('|||');
-            return {
-              'name': parts[0],
-              'songs': parts.length > 1
-                  ? parts[1].split(',').where((s) => s.isNotEmpty).toList()
-                  : <String>[],
-            };
-          }).toList();
-        });
-      }
+      setState(() {
+        _playlists = playlists.map((p) {
+          List<String> parts = p.split('|||');
+          return {
+            'name': parts[0],
+            'songs': parts.length > 1
+                ? parts[1].split(',').where((s) => s.isNotEmpty).toList()
+                : <String>[],
+          };
+        }).toList();
+      });
     }
   }
 
@@ -683,11 +546,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
 
   Future<void> _loadHiddenFolders() async {
     final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      setState(() {
-        _hiddenFolders = prefs.getStringList('hidden_folders') ?? [];
-      });
-    }
+    setState(() {
+      _hiddenFolders = prefs.getStringList('hidden_folders') ?? [];
+    });
   }
 
   Future<void> _saveHiddenFolders() async {
@@ -953,12 +814,10 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
           .map((path) => File(path))
           .where((f) => f.existsSync())
           .toList();
-      if (mounted) {
-        setState(() {
-          _videos = videos;
-          _buildVideoFolderMap();
-        });
-      }
+      setState(() {
+        _videos = videos;
+        _buildVideoFolderMap();
+      });
     }
   }
 
@@ -1077,18 +936,16 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
         }
       }
 
-      if (mounted) {
-        setState(() {
-          for (var song in allSongs) {
-            if (!_songs.any((f) => f.path == song.path)) _songs.add(song);
-          }
-          for (var video in allVideos) {
-            if (!_videos.any((f) => f.path == video.path)) _videos.add(video);
-          }
-          _buildFolderMap();
-          _buildVideoFolderMap();
-        });
-      }
+      setState(() {
+        for (var song in allSongs) {
+          if (!_songs.any((f) => f.path == song.path)) _songs.add(song);
+        }
+        for (var video in allVideos) {
+          if (!_videos.any((f) => f.path == video.path)) _videos.add(video);
+        }
+        _buildFolderMap();
+        _buildVideoFolderMap();
+      });
 
       await _saveSongs();
       await _saveVideos();
@@ -1188,7 +1045,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
     audioHandler!.skipToPrevious();
   }
 
-  // ✅ FAST FILTER: Render pehle, art refine baad mein
   Future<void> _applyFilter() async {
     List<File> sourceSongs = _visibleSongs;
     List<File> baseList = [];
@@ -1197,16 +1053,25 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
       baseList = List.from(sourceSongs);
 
       if (_sortMode == 0) {
-        // ✅ IMMEDIATE: Simple sort (recordings last)
-        List<File> musicList = [];
+        List<File> withArt = [];
+        List<File> withoutArt = [];
         List<File> recList = [];
 
         for (var song in baseList) {
           String name = getSongName(song.path);
           if (_isRecordingName(name) || _isVoiceNoteFile(song)) {
             recList.add(song);
-          } else {
-            musicList.add(song);
+            continue;
+          }
+          try {
+            bool hasArt = await AlbumArtService.hasArtwork(song.path);
+            if (hasArt) {
+              withArt.add(song);
+            } else {
+              withoutArt.add(song);
+            }
+          } catch (e) {
+            withoutArt.add(song);
           }
         }
 
@@ -1214,7 +1079,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
             .toLowerCase()
             .compareTo(getSongName(b.path).toLowerCase());
 
-        musicList.sort(alphaSort);
+        withArt.sort(alphaSort);
+        withoutArt.sort(alphaSort);
         recList.sort((a, b) {
           try {
             return b.lastModifiedSync().compareTo(a.lastModifiedSync());
@@ -1223,7 +1089,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
           }
         });
 
-        baseList = [...musicList, ...recList];
+        baseList = [...withArt, ...withoutArt, ...recList];
       } else if (_sortMode == 1) {
         baseList.sort((a, b) =>
             getSongName(a.path).toLowerCase().compareTo(getSongName(b.path).toLowerCase()));
@@ -1267,66 +1133,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
           .where((f) => getSongName(f.path).toLowerCase().contains(query))
           .toList();
     }
-
-    // ✅ Screen render TURANT
     if (mounted) setState(() => _filteredSongs = baseList);
-
-    // ✅ Background: Album art refine (Smart mode only)
-    if (_selectedTab == 0 && _sortMode == 0) {
-      _refineWithAlbumArt();
-    }
-  }
-
-  // ✅ Background album art refinement
-  Future<void> _refineWithAlbumArt() async {
-    if (!mounted) return;
-    try {
-      List<File> withArt = [];
-      List<File> withoutArt = [];
-      List<File> recList = [];
-
-      List<File> snapshot = List.from(_filteredSongs);
-
-      for (var song in snapshot) {
-        if (!mounted) return;
-        String name = getSongName(song.path);
-        if (_isRecordingName(name) || _isVoiceNoteFile(song)) {
-          recList.add(song);
-          continue;
-        }
-        try {
-          bool hasArt = await AlbumArtService.hasArtwork(song.path);
-          if (hasArt) {
-            withArt.add(song);
-          } else {
-            withoutArt.add(song);
-          }
-        } catch (e) {
-          withoutArt.add(song);
-        }
-      }
-
-      int alphaSort(File a, File b) => getSongName(a.path)
-          .toLowerCase()
-          .compareTo(getSongName(b.path).toLowerCase());
-
-      withArt.sort(alphaSort);
-      withoutArt.sort(alphaSort);
-      recList.sort((a, b) {
-        try {
-          return b.lastModifiedSync().compareTo(a.lastModifiedSync());
-        } catch (e) {
-          return 0;
-        }
-      });
-
-      List<File> finalList = [...withArt, ...withoutArt, ...recList];
-      if (mounted) {
-        setState(() => _filteredSongs = finalList);
-      }
-    } catch (e) {
-      debugPrint('⚠️ Art refine error: $e');
-    }
   }
 
   void _deleteSongPermanently(File song) {
@@ -2039,6 +1846,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                       },
                     ),
                     Divider(color: AppTheme.subText.withOpacity(0.2), height: 1),
+                    // ✅ Light/Dark toggle
                     ListTile(
                       leading: Icon(
                         AppTheme.isLightMode ? Icons.dark_mode : Icons.light_mode,
@@ -2123,62 +1931,59 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
   }
 
   Widget _buildSlimMiniPlayer() {
-    return Container(
-      color: AppTheme.bg,
-      child: GestureDetector(
-        onTap: _showFullScreenPlayer,
-        child: Container(
-          margin: const EdgeInsets.all(8),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: AppTheme.primaryGradient),
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  AlbumArtWidget(audioPath: _currentSong!.path, size: 40, isPlaying: isPlaying),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(getSongName(_currentSong!.path),
-                        maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.skip_previous, color: Colors.white, size: 24),
-                    onPressed: _playPrevious, padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                  ValueListenableBuilder<bool>(
-                    valueListenable: _isPlayingNotifier,
-                    builder: (context, playing, child) => IconButton(
-                      icon: Icon(playing ? Icons.pause_circle_filled : Icons.play_circle_filled,
-                          color: Colors.white, size: 38),
-                      onPressed: _togglePlay, padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.skip_next, color: Colors.white, size: 24),
-                    onPressed: _playNext, padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(2),
-                child: LinearProgressIndicator(
-                  value: _duration.inSeconds > 0 ? _position.inSeconds / _duration.inSeconds : 0,
-                  backgroundColor: Colors.white.withOpacity(0.2),
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                  minHeight: 2,
+    return GestureDetector(
+      onTap: _showFullScreenPlayer,
+      child: Container(
+        margin: const EdgeInsets.all(8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: AppTheme.primaryGradient),
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                AlbumArtWidget(audioPath: _currentSong!.path, size: 40, isPlaying: isPlaying),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(getSongName(_currentSong!.path),
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
                 ),
+                IconButton(
+                  icon: const Icon(Icons.skip_previous, color: Colors.white, size: 24),
+                  onPressed: _playPrevious, padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+                ValueListenableBuilder<bool>(
+                  valueListenable: _isPlayingNotifier,
+                  builder: (context, playing, child) => IconButton(
+                    icon: Icon(playing ? Icons.pause_circle_filled : Icons.play_circle_filled,
+                        color: Colors.white, size: 38),
+                    onPressed: _togglePlay, padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.skip_next, color: Colors.white, size: 24),
+                  onPressed: _playNext, padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: LinearProgressIndicator(
+                value: _duration.inSeconds > 0 ? _position.inSeconds / _duration.inSeconds : 0,
+                backgroundColor: Colors.white.withOpacity(0.2),
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                minHeight: 2,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -2847,7 +2652,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _isPlayingNotifier.dispose();
     _searchController.dispose();
     _fallbackPlayer.dispose();
@@ -2857,7 +2661,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.bg,
       drawer: _buildDrawer(),
       body: Container(
         decoration: BoxDecoration(gradient: LinearGradient(colors: [AppTheme.bg, AppTheme.card])),
@@ -2885,6 +2688,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
                         ],
                       ),
                     ),
+                    // ✅ Light/Dark toggle
                     GestureDetector(
                       onTap: _toggleLightMode,
                       child: Padding(
@@ -2971,15 +2775,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
           ),
         ),
       ),
-      bottomNavigationBar: _currentSong != null
-          ? Container(
-              color: AppTheme.bg,
-              child: SafeArea(
-                top: false,
-                child: _buildSlimMiniPlayer(),
-              ),
-            )
-          : Container(color: AppTheme.bg),
+      bottomNavigationBar: _currentSong != null ? _buildSlimMiniPlayer() : null,
     );
   }
 }
