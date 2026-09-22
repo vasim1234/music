@@ -321,109 +321,119 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
     }
   }
 
-  // ✅ Silent auto-scan (30 sec throttle)
-  Future<void> _autoScanNewContent() async {
-    if (!mounted) return;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      int lastScan = prefs.getInt('last_auto_scan') ?? 0;
-      int now = DateTime.now().millisecondsSinceEpoch;
-      if (now - lastScan < 30000) return;
-      await prefs.setInt('last_auto_scan', now);
+  Future<void> _scanDefaultFolder() async {
+  // ✅ Loading indicator dikhao
+  if (mounted) {
+    _showSnackBar('🔍 Scanning started...', AppTheme.accent);
+  }
 
-      debugPrint('🔄 AUTO SCAN STARTED');
+  try {
+    // ✅ Pehle purana data clear karo
+    setState(() {
+      _songs.clear();
+      _videos.clear();
+      _songsByFolder.clear();
+      _videosByFolder.clear();
+    });
 
-      List<File> newSongs = [];
-      List<File> newVideos = [];
-      Directory rootDir = Directory('/storage/emulated/0/');
+    List<File> allSongs = [];
+    List<File> allVideos = [];
+    Directory rootDir = Directory('/storage/emulated/0/');
 
-      if (rootDir.existsSync()) {
-        try {
-          for (var entity in rootDir.listSync(recursive: true)) {
-            String path = entity.path.toLowerCase();
-            if (path.contains('/android/data/') ||
-                path.contains('/android/obb/') ||
-                path.contains('/android/media/')) {
-              continue;
+    if (rootDir.existsSync()) {
+      try {
+        for (var entity in rootDir.listSync(recursive: true)) {
+          String path = entity.path.toLowerCase();
+
+          // ✅ Skip system folders
+          if (path.contains('/android/data/') ||
+              path.contains('/android/obb/') ||
+              path.contains('/android/media/')) {
+            continue;
+          }
+
+          // ✅ Skip call recording folders
+          if (path.contains('/call_rec/') ||
+              path.contains('/callrec/') ||
+              path.contains('/call recording/') ||
+              path.contains('/callrecordings/') ||
+              path.contains('/sound_recorder/') ||
+              path.contains('/voicerecorder/') ||
+              path.contains('/voice_recorder/') ||
+              path.contains('/recordings/') ||
+              path.contains('/voice notes/') ||
+              path.contains('/whatsapp audio/')) {
+            continue;
+          }
+
+          if (entity is File) {
+            String p = entity.path.toLowerCase();
+
+            // ✅ Audio files
+            bool isAudio = p.endsWith('.mp3') ||
+                p.endsWith('.m4a') ||
+                p.endsWith('.wav') ||
+                p.endsWith('.aac') ||
+                p.endsWith('.flac') ||
+                p.endsWith('.wma') ||
+                p.endsWith('.mp4a');
+
+            if (isAudio && !_isVoiceNoteFile(entity)) {
+              allSongs.add(entity);
             }
-            if (path.contains('/call_rec/') ||
-                path.contains('/callrec/') ||
-                path.contains('/call recording/') ||
-                path.contains('/callrecordings/') ||
-                path.contains('/sound_recorder/') ||
-                path.contains('/voicerecorder/') ||
-                path.contains('/voice_recorder/') ||
-                path.contains('/recordings/') ||
-                path.contains('/voice notes/') ||
-                path.contains('/whatsapp audio/')) {
-              continue;
-            }
-            if (entity is File) {
-              String p = entity.path.toLowerCase();
-              bool isAudio = p.endsWith('.mp3') ||
-                  p.endsWith('.m4a') ||
-                  p.endsWith('.wav') ||
-                  p.endsWith('.aac') ||
-                  p.endsWith('.flac') ||
-                  p.endsWith('.wma') ||
-                  p.endsWith('.mp4a');
-              if (isAudio && !_isVoiceNoteFile(entity)) {
-                if (!_songs.any((f) => f.path == entity.path)) {
-                  newSongs.add(entity);
-                }
-              }
-              bool isVideo = p.endsWith('.mp4') ||
-                  p.endsWith('.mkv') ||
-                  p.endsWith('.avi') ||
-                  p.endsWith('.mov') ||
-                  p.endsWith('.wmv') ||
-                  p.endsWith('.flv') ||
-                  p.endsWith('.webm') ||
-                  p.endsWith('.m4v') ||
-                  p.endsWith('.ts') ||
-                  p.endsWith('.mpg') ||
-                  p.endsWith('.mpeg');
-              if (isVideo) {
-                if (!_videos.any((f) => f.path == entity.path)) {
-                  newVideos.add(entity);
-                }
-              }
+
+            // ✅ Video files
+            bool isVideo = p.endsWith('.mp4') ||
+                p.endsWith('.mkv') ||
+                p.endsWith('.avi') ||
+                p.endsWith('.mov') ||
+                p.endsWith('.wmv') ||
+                p.endsWith('.flv') ||
+                p.endsWith('.webm') ||
+                p.endsWith('.m4v') ||
+                p.endsWith('.ts') ||
+                p.endsWith('.mpg') ||
+                p.endsWith('.mpeg');
+
+            if (isVideo) {
+              allVideos.add(entity);
             }
           }
-        } catch (e) {
-          debugPrint('⚠️ Auto-scan error: $e');
         }
+      } catch (e) {
+        debugPrint('⚠️ Scan error: $e');
       }
-
-      if (!mounted) return;
-
-      if (newSongs.isNotEmpty || newVideos.isNotEmpty) {
-        setState(() {
-          for (var song in newSongs) {
-            if (!_songs.any((f) => f.path == song.path)) _songs.add(song);
-          }
-          for (var video in newVideos) {
-            if (!_videos.any((f) => f.path == video.path)) _videos.add(video);
-          }
-          _buildFolderMap();
-          _buildVideoFolderMap();
-        });
-        await _saveSongs();
-        await _saveVideos();
-        await _applyFilter();
-        debugPrint('✅ Auto-scan: ${newSongs.length} new songs, ${newVideos.length} new videos');
-        if (mounted) {
-          _showSnackBar(
-            '✅ ${newSongs.length} new songs + ${newVideos.length} new videos',
-            Colors.green,
-          );
-        }
-      } else {
-        debugPrint('ℹ️ Auto-scan: No new content');
-      }
-    } catch (e) {
-      debugPrint('⚠️ Auto-scan error: $e');
     }
+
+    // ✅ UI update karo
+    if (mounted) {
+      setState(() {
+        for (var song in allSongs) {
+          if (!_songs.any((f) => f.path == song.path)) _songs.add(song);
+        }
+        for (var video in allVideos) {
+          if (!_videos.any((f) => f.path == video.path)) _videos.add(video);
+        }
+        _buildFolderMap();
+        _buildVideoFolderMap();
+      });
+    }
+
+    // ✅ Save karo
+    await _saveSongs();
+    await _saveVideos();
+
+    // ✅ Filter apply karo
+    await _applyFilter();
+
+    // ✅ Result snackbar
+    _showSnackBar(
+      '✅ ${allSongs.length} songs + ${allVideos.length} videos found!',
+      Colors.green,
+    );
+  } catch (e) {
+    _showSnackBar('⚠️ Error: $e', Colors.red);
+  }
   }
 
   Future<void> _requestNotificationPermission() async {
