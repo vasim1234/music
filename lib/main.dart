@@ -80,16 +80,13 @@ class AppTheme {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   debugPrint('🚀 APP STARTING');
-
   try {
     await initAudioService();
     debugPrint('✅ AUDIO SERVICE INITIALIZED');
   } catch (e) {
     debugPrint('❌ AUDIO SERVICE ERROR: $e');
   }
-
   debugPrint('🎵 RUNNING APP');
   runApp(const MyApp());
 }
@@ -134,11 +131,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   bool isRepeat = false;
   bool isRepeatOne = false;
 
-  // ✅ Folder-wise songs
   Map<String, List<File>> _songsByFolder = {};
   String? _selectedFolder;
 
-  // ✅ Videos
   List<File> _videos = [];
   Map<String, List<File>> _videosByFolder = {};
   String? _selectedVideoFolder;
@@ -149,23 +144,42 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   int _selectedTab = 0;
   int _themeIndex = 0;
 
-  // ✅ NEW: Hidden folders + banner dismiss
+  // ✅ Hidden folders + banner dismiss
   List<String> _hiddenFolders = [];
   bool _hideBanner = false;
+
+  // ✅ NEW: Sort mode (0=Smart, 1=Title, 2=Date, 3=Folder)
+  int _sortMode = 0;
 
   final TextEditingController _searchController = TextEditingController();
   final AudioPlayer _fallbackPlayer = AudioPlayer();
 
-  // ✅ NEW: Hidden folder check
+  // ✅ Hidden folder check
   bool _isSongInHiddenFolder(File song) {
     String folderName = song.parent.path.split('/').last;
     if (folderName.isEmpty) folderName = 'Root';
     return _hiddenFolders.contains(folderName);
   }
 
-  // ✅ NEW: Visible songs getter (hidden folders ke songs hata ke)
+  // ✅ Visible songs getter
   List<File> get _visibleSongs =>
       _songs.where((f) => !_isSongInHiddenFolder(f)).toList();
+
+  // ✅ NEW: Recording pattern detect
+  bool _isRecordingName(String name) {
+    String n = name.trim().toLowerCase();
+    if (RegExp(r'^\d{7,}').hasMatch(n)) return true;
+    if (RegExp(r'^\d{1,2}\s+\w{3},?\s+\d{1,2}\.\d{2}').hasMatch(n)) return true;
+    const recKeywords = [
+      'call_rec', 'callrec', 'call record', 'record_', 'recording',
+      'audio_20', 'voice_', 'voice rec', 'sound_rec',
+    ];
+    for (String kw in recKeywords) {
+      if (n.contains(kw)) return true;
+    }
+    if (RegExp(r'^[\d\s\-_().]+$').hasMatch(n)) return true;
+    return false;
+  }
 
   @override
   void initState() {
@@ -182,15 +196,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           _isPlayingNotifier.value = playing;
         }
       });
-
       audioHandler!.positionStream.listen((pos) {
         if (mounted) setState(() => _position = pos);
       });
-
       audioHandler!.durationStream.listen((dur) {
         if (mounted && dur != null) setState(() => _duration = dur);
       });
-
       audioHandler!.mediaItem.listen((item) {
         if (item != null && mounted) {
           setState(() {
@@ -207,6 +218,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _loadVideos();
     _loadTheme();
     _loadHiddenFolders();
+    _loadSortMode();
   }
 
   Future<void> _requestNotificationPermission() async {
@@ -228,11 +240,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         _playNextFallback();
       }
     });
-
     _fallbackPlayer.durationStream.listen((dur) {
       if (mounted && dur != null) setState(() => _duration = dur);
     });
-
     _fallbackPlayer.positionStream.listen((pos) {
       if (mounted) setState(() => _position = pos);
     });
@@ -262,6 +272,21 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     });
   }
 
+  // ✅ NEW: Load sort mode
+  Future<void> _loadSortMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _sortMode = prefs.getInt('sortMode') ?? 0;
+    });
+    _applyFilter();
+  }
+
+  // ✅ NEW: Save sort mode
+  Future<void> _saveSortMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('sortMode', _sortMode);
+  }
+
   Future<void> _toggleTheme(int index) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('themeIndex', index);
@@ -277,17 +302,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     final prefs = await SharedPreferences.getInstance();
     setState(() => is3DOn = !is3DOn);
     await prefs.setBool('is3DOn', is3DOn);
-
     if (is3DOn) {
-      if (audioHandler != null) {
-        await audioHandler!.setVolume(0.6);
-      }
+      if (audioHandler != null) await audioHandler!.setVolume(0.6);
       await _fallbackPlayer.setVolume(0.6);
       _showSnackBar('🎧 Bass Boost ON', AppTheme.accent);
     } else {
-      if (audioHandler != null) {
-        await audioHandler!.setVolume(1.0);
-      }
+      if (audioHandler != null) await audioHandler!.setVolume(1.0);
       await _fallbackPlayer.setVolume(1.0);
       _showSnackBar('🔊 Normal Audio', Colors.grey);
     }
@@ -318,12 +338,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
   Future<void> _checkPermission() async {
     if (Platform.isAndroid) {
-      if (await Permission.audio.isDenied) {
-        await Permission.audio.request();
-      }
-      if (await Permission.storage.isDenied) {
-        await Permission.storage.request();
-      }
+      if (await Permission.audio.isDenied) await Permission.audio.request();
+      if (await Permission.storage.isDenied) await Permission.storage.request();
       if (await Permission.manageExternalStorage.isDenied) {
         await Permission.manageExternalStorage.request();
       }
@@ -365,7 +381,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
   }
 
-  // ✅ Folder map banao (songs) - SMART SORTING
+  // ✅ Folder map with smart sorting
   void _buildFolderMap() {
     _songsByFolder.clear();
     for (var song in _songs) {
@@ -378,7 +394,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       _songsByFolder[folderName]!.add(song);
     }
 
-    // ✅ SMART SORT: Music folders upar, call recordings neeche
     const callRecKeywords = [
       'call_rec', 'callrec', 'call record', 'callrecord', 'call_recording',
       'sound_recorder', 'voicerecorder', 'voice_recorder', 'recordings',
@@ -389,11 +404,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
     int getPriority(String folder) {
       String lower = folder.toLowerCase();
-
       for (String kw in callRecKeywords) {
         if (lower.contains(kw)) return 100;
       }
-
       List<File> songs = _songsByFolder[folder]!;
       int dateLikeCount = 0;
       for (var s in songs) {
@@ -404,10 +417,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           dateLikeCount++;
         }
       }
-      if (songs.isNotEmpty && dateLikeCount / songs.length > 0.7) {
-        return 100;
-      }
-
+      if (songs.isNotEmpty && dateLikeCount / songs.length > 0.7) return 100;
       return 0;
     }
 
@@ -424,26 +434,19 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
     _songsByFolder = sorted;
 
-    // ✅ Smart song sorting: Music pehle, recordings baad mein
     for (var key in _songsByFolder.keys) {
       _songsByFolder[key]!.sort((a, b) {
         String na = getSongName(a.path).toLowerCase();
         String nb = getSongName(b.path).toLowerCase();
-
-        bool aIsRec = RegExp(r'^\d{1,2}\s+\w{3},?\s+\d{1,2}\.\d{2}',
-                caseSensitive: false)
-            .hasMatch(na.trim());
-        bool bIsRec = RegExp(r'^\d{1,2}\s+\w{3},?\s+\d{1,2}\.\d{2}',
-                caseSensitive: false)
-            .hasMatch(nb.trim());
-
+        bool aIsRec = _isRecordingName(na);
+        bool bIsRec = _isRecordingName(nb);
         if (aIsRec != bIsRec) return aIsRec ? 1 : -1;
         return na.compareTo(nb);
       });
     }
   }
 
-  // ✅ Hidden folders load/save
+  // ✅ Hidden folders
   Future<void> _loadHiddenFolders() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -476,10 +479,10 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             onPressed: () {
               setState(() {
                 _hiddenFolders.add(folderName);
-                _hideBanner = false; // ✅ Banner dobara dikhao
+                _hideBanner = false;
               });
               _saveHiddenFolders();
-              _applyFilter(); // ✅ All Songs se bhi hatao
+              _applyFilter();
               Navigator.pop(context);
               _showSnackBar('🗑️ "$folderName" removed from list', Colors.orange);
             },
@@ -573,7 +576,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
-  // ✅ Hidden folders ko wapas laane ka option
   void _showHiddenFolders() {
     if (_hiddenFolders.isEmpty) {
       _showSnackBar('Koi hidden folder nahi hai', Colors.grey);
@@ -621,6 +623,72 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  // ✅ NEW: Sort options sheet
+  void _showSortOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: AppTheme.card,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 15),
+              Container(
+                width: 50, height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade700,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Icon(Icons.sort, color: Colors.white, size: 24),
+                    SizedBox(width: 12),
+                    Text('Sort Songs By',
+                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+              _sortOption(0, Icons.auto_awesome, 'Smart (Songs first)', 'Music upar, recordings neeche'),
+              _sortOption(1, Icons.sort_by_alpha, 'Title (A-Z)', 'Naam se'),
+              _sortOption(2, Icons.access_time, 'Date Added', 'Naye pehle'),
+              _sortOption(3, Icons.folder, 'Folder Name', 'Folder se group'),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sortOption(int index, IconData icon, String title, String subtitle) {
+    bool isActive = _sortMode == index;
+    return ListTile(
+      leading: Icon(icon, color: isActive ? AppTheme.accent : Colors.grey, size: 22),
+      title: Text(title,
+          style: TextStyle(
+              color: isActive ? AppTheme.accent : Colors.white,
+              fontWeight: isActive ? FontWeight.bold : FontWeight.normal)),
+      subtitle: Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 11)),
+      trailing: isActive ? Icon(Icons.check_circle, color: AppTheme.accent, size: 22) : null,
+      onTap: () {
+        setState(() => _sortMode = index);
+        _saveSortMode();
+        _applyFilter();
+        Navigator.pop(context);
+        const names = ['Smart', 'Title', 'Date', 'Folder'];
+        _showSnackBar('✅ Sorted by ${names[index]}', AppTheme.accent);
+      },
     );
   }
 
@@ -718,47 +786,28 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
       List<File> allSongs = [];
       List<File> allVideos = [];
-
       Directory rootDir = Directory('/storage/emulated/0/');
 
       if (rootDir.existsSync()) {
         try {
           for (var entity in rootDir.listSync(recursive: true)) {
             String path = entity.path.toLowerCase();
-
             if (path.contains('/android/data/') ||
                 path.contains('/android/obb/') ||
                 path.contains('/android/media/')) {
               continue;
             }
-
             if (entity is File) {
               String p = entity.path.toLowerCase();
-
-              if (p.endsWith('.mp3') ||
-                  p.endsWith('.m4a') ||
-                  p.endsWith('.wav') ||
-                  p.endsWith('.aac') ||
-                  p.endsWith('.ogg') ||
-                  p.endsWith('.flac') ||
-                  p.endsWith('.opus') ||
-                  p.endsWith('.wma') ||
-                  p.endsWith('.mp4a')) {
+              if (p.endsWith('.mp3') || p.endsWith('.m4a') || p.endsWith('.wav') ||
+                  p.endsWith('.aac') || p.endsWith('.ogg') || p.endsWith('.flac') ||
+                  p.endsWith('.opus') || p.endsWith('.wma') || p.endsWith('.mp4a')) {
                 allSongs.add(entity);
               }
-
-              if (p.endsWith('.mp4') ||
-                  p.endsWith('.mkv') ||
-                  p.endsWith('.avi') ||
-                  p.endsWith('.mov') ||
-                  p.endsWith('.wmv') ||
-                  p.endsWith('.flv') ||
-                  p.endsWith('.webm') ||
-                  p.endsWith('.3gp') ||
-                  p.endsWith('.m4v') ||
-                  p.endsWith('.ts') ||
-                  p.endsWith('.mpg') ||
-                  p.endsWith('.mpeg')) {
+              if (p.endsWith('.mp4') || p.endsWith('.mkv') || p.endsWith('.avi') ||
+                  p.endsWith('.mov') || p.endsWith('.wmv') || p.endsWith('.flv') ||
+                  p.endsWith('.webm') || p.endsWith('.3gp') || p.endsWith('.m4v') ||
+                  p.endsWith('.ts') || p.endsWith('.mpg') || p.endsWith('.mpeg')) {
                 allVideos.add(entity);
               }
             }
@@ -782,7 +831,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
       await _saveSongs();
       await _saveVideos();
-
       _showSnackBar(
         '✅ ${allSongs.length} songs + ${allVideos.length} videos found!',
         Colors.green,
@@ -877,21 +925,61 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     audioHandler!.skipToPrevious();
   }
 
-  // ✅ UPDATED: Hidden folder songs filter + default sort
+  // ✅ UPDATED: Smart categorization + Sort modes
   void _applyFilter() {
-    List<File> sourceSongs = _visibleSongs; // ✅ hidden folders remove
+    List<File> sourceSongs = _visibleSongs;
     List<File> baseList = [];
 
     if (_selectedTab == 0) {
       baseList = List.from(sourceSongs);
-      // ✅ Default sort: Modified date descending (naye songs upar)
-      baseList.sort((a, b) {
-        try {
-          return b.lastModifiedSync().compareTo(a.lastModifiedSync());
-        } catch (e) {
-          return 0;
+
+      if (_sortMode == 0) {
+        // Smart: Music pehle, recordings baad
+        List<File> musicList = [];
+        List<File> recList = [];
+
+        for (var song in baseList) {
+          String name = getSongName(song.path);
+          if (_isRecordingName(name)) {
+            recList.add(song);
+          } else {
+            musicList.add(song);
+          }
         }
-      });
+
+        musicList.sort((a, b) =>
+            getSongName(a.path).toLowerCase().compareTo(getSongName(b.path).toLowerCase()));
+
+        recList.sort((a, b) {
+          try {
+            return b.lastModifiedSync().compareTo(a.lastModifiedSync());
+          } catch (e) {
+            return 0;
+          }
+        });
+
+        baseList = [...musicList, ...recList];
+      } else if (_sortMode == 1) {
+        baseList.sort((a, b) =>
+            getSongName(a.path).toLowerCase().compareTo(getSongName(b.path).toLowerCase()));
+      } else if (_sortMode == 2) {
+        baseList.sort((a, b) {
+          try {
+            return b.lastModifiedSync().compareTo(a.lastModifiedSync());
+          } catch (e) {
+            return 0;
+          }
+        });
+      } else if (_sortMode == 3) {
+        baseList.sort((a, b) {
+          String fa = a.parent.path.split('/').last.toLowerCase();
+          String fb = b.parent.path.split('/').last.toLowerCase();
+          if (fa == fb) {
+            return getSongName(a.path).toLowerCase().compareTo(getSongName(b.path).toLowerCase());
+          }
+          return fa.compareTo(fb);
+        });
+      }
     } else if (_selectedTab == 1) {
       baseList = sourceSongs.where((f) => _favorites.contains(f.path)).toList();
     } else if (_selectedTab == 2) {
@@ -1244,7 +1332,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     if (mp3Index == -1) mp3Index = name.toUpperCase().indexOf('(192K');
     if (mp3Index == -1) mp3Index = name.toUpperCase().indexOf('(256K');
     if (mp3Index == -1) mp3Index = name.toUpperCase().indexOf('[320K');
-
     if (mp3Index != -1) {
       name = name.substring(0, mp3Index);
     }
@@ -1603,7 +1690,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         setState(() { _selectedTab = 2; _applyFilter(); });
                       },
                     ),
-                    // ✅ NEW: Hidden folders drawer item
                     _drawerItem(
                       icon: Icons.visibility_off, iconColor: Colors.orange,
                       title: 'Hidden Folders', subtitle: '${_hiddenFolders.length} folder(s)',
@@ -1870,7 +1956,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
-  // ✅ Folders View (Songs) - WITH REMOVE OPTION + DISMISSABLE BANNER
+  // ✅ Folders View
   Widget _buildFoldersView() {
     Map<String, List<File>> visibleFolders = Map.fromEntries(
       _songsByFolder.entries
@@ -1941,7 +2027,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
     return Column(
       children: [
-        // ✅ Dismissable hidden folders banner
         if (_hiddenFolders.isNotEmpty && !_hideBanner)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
@@ -2043,7 +2128,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
-  // ✅ Videos View (Folder-wise)
+  // ✅ Videos View
   Widget _buildVideosView() {
     if (_selectedVideoFolder != null) {
       List<File> folderVideos = _videosByFolder[_selectedVideoFolder] ?? [];
@@ -2444,6 +2529,19 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       ],
                     ),
                     const Spacer(),
+                    // ✅ NEW: Sort icon (sirf All tab pe)
+                    if (_selectedTab == 0)
+                      GestureDetector(
+                        onTap: _showSortOptions,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 15),
+                          child: Icon(
+                            Icons.sort,
+                            color: _sortMode != 0 ? AppTheme.accent : Colors.white70,
+                            size: 24,
+                          ),
+                        ),
+                      ),
                     GestureDetector(
                       onTap: _toggle3D,
                       child: Icon(
