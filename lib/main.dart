@@ -138,7 +138,6 @@ class AppTheme {
 
   static Color get text => isLightMode ? const Color(0xFF1A1A1A) : Colors.white;
   static Color get subText => isLightMode ? const Color(0xFF6B6B6B) : Colors.grey.shade500;
-  static Color get cardShadow => isLightMode ? Colors.black.withOpacity(0.05) : Colors.transparent;
 }
 
 Future<void> main() async {
@@ -179,7 +178,8 @@ class MusicPlayerScreen extends StatefulWidget {
   State<MusicPlayerScreen> createState() => _MusicPlayerScreenState();
 }
 
-class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
+class _MusicPlayerScreenState extends State<MusicPlayerScreen>
+    with WidgetsBindingObserver {
   final ValueNotifier<bool> _isPlayingNotifier = ValueNotifier<bool>(false);
   List<File> _songs = [];
   List<File> _filteredSongs = [];
@@ -270,6 +270,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     AlbumArtService.init();
     _requestNotificationPermission();
 
@@ -305,6 +306,117 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _loadTheme();
     _loadHiddenFolders();
     _loadSortMode();
+  }
+
+  // ✅ AUTO SCAN on app resume
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      _autoScanNewContent();
+    }
+  }
+
+  // ✅ Silent auto-scan (30 sec throttle)
+  Future<void> _autoScanNewContent() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      int lastScan = prefs.getInt('last_auto_scan') ?? 0;
+      int now = DateTime.now().millisecondsSinceEpoch;
+      if (now - lastScan < 30000) return;
+      await prefs.setInt('last_auto_scan', now);
+
+      debugPrint('🔄 AUTO SCAN STARTED');
+
+      List<File> newSongs = [];
+      List<File> newVideos = [];
+      Directory rootDir = Directory('/storage/emulated/0/');
+
+      if (rootDir.existsSync()) {
+        try {
+          for (var entity in rootDir.listSync(recursive: true)) {
+            String path = entity.path.toLowerCase();
+            if (path.contains('/android/data/') ||
+                path.contains('/android/obb/') ||
+                path.contains('/android/media/')) {
+              continue;
+            }
+            if (path.contains('/call_rec/') ||
+                path.contains('/callrec/') ||
+                path.contains('/call recording/') ||
+                path.contains('/callrecordings/') ||
+                path.contains('/sound_recorder/') ||
+                path.contains('/voicerecorder/') ||
+                path.contains('/voice_recorder/') ||
+                path.contains('/recordings/') ||
+                path.contains('/voice notes/') ||
+                path.contains('/whatsapp audio/')) {
+              continue;
+            }
+            if (entity is File) {
+              String p = entity.path.toLowerCase();
+              bool isAudio = p.endsWith('.mp3') ||
+                  p.endsWith('.m4a') ||
+                  p.endsWith('.wav') ||
+                  p.endsWith('.aac') ||
+                  p.endsWith('.flac') ||
+                  p.endsWith('.wma') ||
+                  p.endsWith('.mp4a');
+              if (isAudio && !_isVoiceNoteFile(entity)) {
+                if (!_songs.any((f) => f.path == entity.path)) {
+                  newSongs.add(entity);
+                }
+              }
+              bool isVideo = p.endsWith('.mp4') ||
+                  p.endsWith('.mkv') ||
+                  p.endsWith('.avi') ||
+                  p.endsWith('.mov') ||
+                  p.endsWith('.wmv') ||
+                  p.endsWith('.flv') ||
+                  p.endsWith('.webm') ||
+                  p.endsWith('.m4v') ||
+                  p.endsWith('.ts') ||
+                  p.endsWith('.mpg') ||
+                  p.endsWith('.mpeg');
+              if (isVideo) {
+                if (!_videos.any((f) => f.path == entity.path)) {
+                  newVideos.add(entity);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('⚠️ Auto-scan error: $e');
+        }
+      }
+
+      if (newSongs.isNotEmpty || newVideos.isNotEmpty) {
+        setState(() {
+          for (var song in newSongs) {
+            if (!_songs.any((f) => f.path == song.path)) _songs.add(song);
+          }
+          for (var video in newVideos) {
+            if (!_videos.any((f) => f.path == video.path)) _videos.add(video);
+          }
+          _buildFolderMap();
+          _buildVideoFolderMap();
+        });
+        await _saveSongs();
+        await _saveVideos();
+        await _applyFilter();
+        debugPrint('✅ Auto-scan: ${newSongs.length} new songs, ${newVideos.length} new videos');
+        if (mounted) {
+          _showSnackBar(
+            '✅ ${newSongs.length} new songs + ${newVideos.length} new videos',
+            Colors.green,
+          );
+        }
+      } else {
+        debugPrint('ℹ️ Auto-scan: No new content');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Auto-scan error: $e');
+    }
   }
 
   Future<void> _requestNotificationPermission() async {
@@ -1846,7 +1958,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       },
                     ),
                     Divider(color: AppTheme.subText.withOpacity(0.2), height: 1),
-                    // ✅ Light/Dark toggle
                     ListTile(
                       leading: Icon(
                         AppTheme.isLightMode ? Icons.dark_mode : Icons.light_mode,
@@ -1931,59 +2042,62 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   }
 
   Widget _buildSlimMiniPlayer() {
-    return GestureDetector(
-      onTap: _showFullScreenPlayer,
-      child: Container(
-        margin: const EdgeInsets.all(8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(colors: AppTheme.primaryGradient),
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                AlbumArtWidget(audioPath: _currentSong!.path, size: 40, isPlaying: isPlaying),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(getSongName(_currentSong!.path),
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.skip_previous, color: Colors.white, size: 24),
-                  onPressed: _playPrevious, padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-                ValueListenableBuilder<bool>(
-                  valueListenable: _isPlayingNotifier,
-                  builder: (context, playing, child) => IconButton(
-                    icon: Icon(playing ? Icons.pause_circle_filled : Icons.play_circle_filled,
-                        color: Colors.white, size: 38),
-                    onPressed: _togglePlay, padding: EdgeInsets.zero,
+    return Container(
+      color: AppTheme.bg,
+      child: GestureDetector(
+        onTap: _showFullScreenPlayer,
+        child: Container(
+          margin: const EdgeInsets.all(8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: AppTheme.primaryGradient),
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  AlbumArtWidget(audioPath: _currentSong!.path, size: 40, isPlaying: isPlaying),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(getSongName(_currentSong!.path),
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.skip_previous, color: Colors.white, size: 24),
+                    onPressed: _playPrevious, padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.skip_next, color: Colors.white, size: 24),
-                  onPressed: _playNext, padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(2),
-              child: LinearProgressIndicator(
-                value: _duration.inSeconds > 0 ? _position.inSeconds / _duration.inSeconds : 0,
-                backgroundColor: Colors.white.withOpacity(0.2),
-                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                minHeight: 2,
+                  ValueListenableBuilder<bool>(
+                    valueListenable: _isPlayingNotifier,
+                    builder: (context, playing, child) => IconButton(
+                      icon: Icon(playing ? Icons.pause_circle_filled : Icons.play_circle_filled,
+                          color: Colors.white, size: 38),
+                      onPressed: _togglePlay, padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.skip_next, color: Colors.white, size: 24),
+                    onPressed: _playNext, padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(2),
+                child: LinearProgressIndicator(
+                  value: _duration.inSeconds > 0 ? _position.inSeconds / _duration.inSeconds : 0,
+                  backgroundColor: Colors.white.withOpacity(0.2),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                  minHeight: 2,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -2652,6 +2766,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _isPlayingNotifier.dispose();
     _searchController.dispose();
     _fallbackPlayer.dispose();
@@ -2661,6 +2776,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.bg,
       drawer: _buildDrawer(),
       body: Container(
         decoration: BoxDecoration(gradient: LinearGradient(colors: [AppTheme.bg, AppTheme.card])),
@@ -2688,7 +2804,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         ],
                       ),
                     ),
-                    // ✅ Light/Dark toggle
                     GestureDetector(
                       onTap: _toggleLightMode,
                       child: Padding(
@@ -2775,7 +2890,15 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: _currentSong != null ? _buildSlimMiniPlayer() : null,
+      bottomNavigationBar: _currentSong != null
+          ? Container(
+              color: AppTheme.bg,
+              child: SafeArea(
+                top: false,
+                child: _buildSlimMiniPlayer(),
+              ),
+            )
+          : Container(color: AppTheme.bg),
     );
   }
 }
