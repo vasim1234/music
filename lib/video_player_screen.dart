@@ -304,14 +304,30 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
-  // ✅ Share Video Function
+  // ✅ Share Video Function (Optimized for Large Files to Prevent Freezing)
   Future<void> _shareCurrentVideo() async {
     if (_playlist.isEmpty) return;
     final currentFile = _playlist[_currentIndex];
+
+    // 1. Share karte waqt video ko pause kar do taaki RAM aur CPU free ho jaye
+    if (_videoController.value.isPlaying) {
+      _videoController.pause();
+      setState(() {});
+    }
+
+    // 2. User ko turant message dikhao taaki unhe lage ki app hang nahi hui hai
+    _showSnackBar('⏳ Processing video for share, please wait...');
+
     try {
-      await Share.shareXFiles([XFile(currentFile.path)], text: 'Sharing Video');
+      // 3. UI thread ko thoda time dene ke liye micro-delay lagao (Isse app chapkegi nahi)
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      await Share.shareXFiles(
+        [XFile(currentFile.path)], 
+        text: 'Sharing Video'
+      );
     } catch (e) {
-      _showSnackBar('Error sharing video: $e');
+      _showSnackBar('❌ Error sharing video: $e');
     }
   }
 
@@ -868,7 +884,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                           ],
                         ),
                         actions: [
-                          // Top bar se rotate option hata kar sirf Three-Dots option menu rakha hai
                           IconButton(
                             iconSize: 24,
                             icon: const Icon(Icons.more_vert, color: Colors.white),
@@ -1027,7 +1042,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                                       ),
                                       const SizedBox(width: 10),
 
-                                      // 2. Rotate Screen Button (Shifted from Top Bar)
+                                      // 2. Rotate Screen Button
                                       InkWell(
                                         onTap: _toggleFullscreen,
                                         child: Padding(
@@ -1200,3 +1215,4 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 }
+
