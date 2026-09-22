@@ -161,7 +161,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   List<File> get _visibleSongs =>
       _songs.where((f) => !_isSongInHiddenFolder(f)).toList();
 
-  // ✅ Recording name detect (numbers, call rec, date-time)
+  // ✅ Recording name detect
   bool _isRecordingName(String name) {
     String n = name.trim().toLowerCase();
     if (RegExp(r'^\d{7,}').hasMatch(n)) return true;
@@ -177,11 +177,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     return false;
   }
 
-  // ✅ VOICE NOTE DETECTOR (extensions + patterns + size)
+  // ✅ SMART AUDIO FILTER: Voice notes + Call recordings
   bool _isVoiceNoteFile(File f) {
     String p = f.path.toLowerCase();
 
-    // 1. Extension check — pure voice note formats
+    // 1. Extension
     if (p.endsWith('.opus') ||
         p.endsWith('.ogg') ||
         p.endsWith('.amr') ||
@@ -189,7 +189,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       return true;
     }
 
-    // 2. WhatsApp / recorder filename patterns
+    // 2. Filename patterns
     if (p.contains('aud-20') ||
         p.contains('ptt-20') ||
         p.contains('broadcast') ||
@@ -199,15 +199,21 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       return true;
     }
 
-    // 3. Folder path check
+    // 3. Folder path patterns
     if (p.contains('/whatsapp audio/') ||
         p.contains('/voice notes/') ||
         p.contains('/voicerecorder/') ||
-        p.contains('/voice recorder/')) {
+        p.contains('/voice recorder/') ||
+        p.contains('/call_rec/') ||
+        p.contains('/callrec/') ||
+        p.contains('/call recording/') ||
+        p.contains('/callrecordings/') ||
+        p.contains('/sound_recorder/') ||
+        p.contains('/recordings/')) {
       return true;
     }
 
-    // 4. Size check — chhoti file < 300KB = voice note
+    // 4. Size check (< 300KB = voice note)
     try {
       int sizeKB = (f.lengthSync() / 1024).round();
       if (sizeKB < 300) return true;
@@ -312,7 +318,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     setState(() {
       _sortMode = prefs.getInt('sortMode') ?? 0;
     });
-    _applyFilter();
+    await _applyFilter();
   }
 
   Future<void> _saveSortMode() async {
@@ -390,7 +396,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       List<File> songs = savedPaths
           .map((path) => File(path))
           .where((f) => f.existsSync())
-          .where((f) => !_isVoiceNoteFile(f)) // ✅ voice notes filter
+          .where((f) => !_isVoiceNoteFile(f))
           .toList();
       setState(() {
         _songs = songs;
@@ -690,7 +696,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   ],
                 ),
               ),
-              _sortOption(0, Icons.auto_awesome, 'Smart (Songs first)', 'Music upar, recordings neeche'),
+              _sortOption(0, Icons.auto_awesome, 'Smart (Best First)', 'Album art wale upar'),
               _sortOption(1, Icons.sort_by_alpha, 'Title (A-Z)', 'Naam se'),
               _sortOption(2, Icons.access_time, 'Date Added', 'Naye pehle'),
               _sortOption(3, Icons.folder, 'Folder Name', 'Folder se group'),
@@ -712,10 +718,10 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
               fontWeight: isActive ? FontWeight.bold : FontWeight.normal)),
       subtitle: Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 11)),
       trailing: isActive ? Icon(Icons.check_circle, color: AppTheme.accent, size: 22) : null,
-      onTap: () {
+      onTap: () async {
         setState(() => _sortMode = index);
-        _saveSortMode();
-        _applyFilter();
+        await _saveSortMode();
+        await _applyFilter();
         Navigator.pop(context);
         const names = ['Smart', 'Title', 'Date', 'Folder'];
         _showSnackBar('✅ Sorted by ${names[index]}', AppTheme.accent);
@@ -789,16 +795,16 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         List<File> picked = result.paths
             .where((p) => p != null)
             .map((p) => File(p!))
-            .where((f) => !_isVoiceNoteFile(f)) // ✅ voice notes skip
+            .where((f) => !_isVoiceNoteFile(f))
             .toList();
         setState(() {
           for (var song in picked) {
             if (!_songs.any((f) => f.path == song.path)) _songs.add(song);
           }
           _buildFolderMap();
-          _applyFilter();
         });
         await _saveSongs();
+        await _applyFilter();
         _showSnackBar('✅ ${picked.length} songs added!', Colors.green);
       }
     } catch (e) {
@@ -823,15 +829,32 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         try {
           for (var entity in rootDir.listSync(recursive: true)) {
             String path = entity.path.toLowerCase();
+
+            // ✅ Skip system folders
             if (path.contains('/android/data/') ||
                 path.contains('/android/obb/') ||
                 path.contains('/android/media/')) {
               continue;
             }
+
+            // ✅ Skip call recording folders completely
+            if (path.contains('/call_rec/') ||
+                path.contains('/callrec/') ||
+                path.contains('/call recording/') ||
+                path.contains('/callrecordings/') ||
+                path.contains('/sound_recorder/') ||
+                path.contains('/voicerecorder/') ||
+                path.contains('/voice_recorder/') ||
+                path.contains('/recordings/') ||
+                path.contains('/voice notes/') ||
+                path.contains('/whatsapp audio/')) {
+              continue;
+            }
+
             if (entity is File) {
               String p = entity.path.toLowerCase();
 
-              // ✅ AUDIO FILES (voice notes filter with _isVoiceNoteFile)
+              // ✅ Audio filter
               bool isAudio = p.endsWith('.mp3') ||
                   p.endsWith('.m4a') ||
                   p.endsWith('.wav') ||
@@ -867,11 +890,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         }
         _buildFolderMap();
         _buildVideoFolderMap();
-        _applyFilter();
       });
 
       await _saveSongs();
       await _saveVideos();
+      await _applyFilter();
+
       _showSnackBar(
         '✅ ${allSongs.length} songs + ${allVideos.length} videos found!',
         Colors.green,
@@ -966,7 +990,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     audioHandler!.skipToPrevious();
   }
 
-  void _applyFilter() {
+  // ✅ UPDATED: Album art wale top par, recordings neeche
+  Future<void> _applyFilter() async {
     List<File> sourceSongs = _visibleSongs;
     List<File> baseList = [];
 
@@ -974,18 +999,37 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       baseList = List.from(sourceSongs);
 
       if (_sortMode == 0) {
-        List<File> musicList = [];
+        // ✅ SMART: Album art wale upar
+        List<File> withArt = [];
+        List<File> withoutArt = [];
         List<File> recList = [];
+
         for (var song in baseList) {
           String name = getSongName(song.path);
-          if (_isRecordingName(name)) {
+
+          if (_isRecordingName(name) || _isVoiceNoteFile(song)) {
             recList.add(song);
-          } else {
-            musicList.add(song);
+            continue;
+          }
+
+          try {
+            bool hasArt = await AlbumArtService.hasArtwork(song.path);
+            if (hasArt) {
+              withArt.add(song);
+            } else {
+              withoutArt.add(song);
+            }
+          } catch (e) {
+            withoutArt.add(song);
           }
         }
-        musicList.sort((a, b) =>
-            getSongName(a.path).toLowerCase().compareTo(getSongName(b.path).toLowerCase()));
+
+        int alphaSort(File a, File b) => getSongName(a.path)
+            .toLowerCase()
+            .compareTo(getSongName(b.path).toLowerCase());
+
+        withArt.sort(alphaSort);
+        withoutArt.sort(alphaSort);
         recList.sort((a, b) {
           try {
             return b.lastModifiedSync().compareTo(a.lastModifiedSync());
@@ -993,7 +1037,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             return 0;
           }
         });
-        baseList = [...musicList, ...recList];
+
+        baseList = [...withArt, ...withoutArt, ...recList];
       } else if (_sortMode == 1) {
         baseList.sort((a, b) =>
             getSongName(a.path).toLowerCase().compareTo(getSongName(b.path).toLowerCase()));
@@ -1037,7 +1082,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           .where((f) => getSongName(f.path).toLowerCase().contains(query))
           .toList();
     }
-    setState(() => _filteredSongs = baseList);
+    if (mounted) setState(() => _filteredSongs = baseList);
   }
 
   void _deleteSongPermanently(File song) {
@@ -1057,12 +1102,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         (playlist['songs'] as List<String>).remove(song.path);
       }
       _buildFolderMap();
-      _applyFilter();
     });
     _saveSongs();
     _saveFavorites();
     _saveRecent();
     _savePlaylists();
+    _applyFilter();
     _showSnackBar('🗑️ Song deleted', Colors.red);
   }
 
@@ -1071,9 +1116,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     setState(() {
       var playlist = _playlists.firstWhere((p) => p['name'] == _openedPlaylist);
       (playlist['songs'] as List<String>).remove(song.path);
-      _applyFilter();
     });
     _savePlaylists();
+    _applyFilter();
     _showSnackBar('🚫 Removed from $_openedPlaylist', Colors.orange);
   }
 
@@ -1086,9 +1131,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         _favorites.add(song.path);
         _showSnackBar('❤️ Added to Favorites', Colors.pink);
       }
-      _applyFilter();
     });
     _saveFavorites();
+    _applyFilter();
   }
 
   void _showAddToPlaylist(File song) {
@@ -1714,7 +1759,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       title: 'Favorites', subtitle: '${_favorites.length} songs',
                       onTap: () {
                         Navigator.pop(context);
-                        setState(() { _selectedTab = 1; _applyFilter(); });
+                        setState(() { _selectedTab = 1; });
+                        _applyFilter();
                       },
                     ),
                     _drawerItem(
@@ -1722,7 +1768,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       title: 'Recent', subtitle: '${_recentSongs.length} songs',
                       onTap: () {
                         Navigator.pop(context);
-                        setState(() { _selectedTab = 2; _applyFilter(); });
+                        setState(() { _selectedTab = 2; });
+                        _applyFilter();
                       },
                     ),
                     _drawerItem(
@@ -1887,8 +1934,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             _openedPlaylist = null;
             _selectedFolder = null;
             _selectedVideoFolder = null;
-            _applyFilter();
           });
+          _applyFilter();
         },
         child: Container(
           decoration: BoxDecoration(
@@ -1969,7 +2016,10 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         var playlist = _playlists[index];
         int count = (playlist['songs'] as List<String>).length;
         return GestureDetector(
-          onTap: () => setState(() { _openedPlaylist = playlist['name']; _applyFilter(); }),
+          onTap: () {
+            setState(() { _openedPlaylist = playlist['name']; });
+            _applyFilter();
+          },
           child: Container(
             padding: const EdgeInsets.all(15),
             decoration: BoxDecoration(
