@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:math' as math;
 import 'services/audio_handler.dart';
 
 class EqualizerScreen extends StatefulWidget {
@@ -28,14 +29,14 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
   bool _isLoading = true;
 
   final List<Map<String, dynamic>> _presets = [
-    {'name': 'Flat', 'emoji': '➖'},
-    {'name': 'Rock', 'emoji': '🎸'},
-    {'name': 'Pop', 'emoji': '🎤'},
-    {'name': 'Jazz', 'emoji': '🎷'},
-    {'name': 'Classical', 'emoji': '🎻'},
-    {'name': 'BassBoost', 'emoji': '🔥'},
-    {'name': 'TrebleBoost', 'emoji': '✨'},
-    {'name': 'Vocal', 'emoji': '🎙️'},
+    {'name': 'Flat', 'emoji': '➖', 'color': 0xFF6B7280},
+    {'name': 'Rock', 'emoji': '🎸', 'color': 0xFFEF4444},
+    {'name': 'Pop', 'emoji': '🎤', 'color': 0xFFEC4899},
+    {'name': 'Jazz', 'emoji': '🎷', 'color': 0xFFF59E0B},
+    {'name': 'Classical', 'emoji': '🎻', 'color': 0xFF8B5CF6},
+    {'name': 'BassBoost', 'emoji': '🔥', 'color': 0xFFDC2626},
+    {'name': 'TrebleBoost', 'emoji': '✨', 'color': 0xFF06B6D4},
+    {'name': 'Vocal', 'emoji': '🎙️', 'color': 0xFF10B981},
   ];
 
   @override
@@ -68,8 +69,8 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
   }
 
   String _formatFreq(int hz) {
-    if (hz >= 1000) return '${(hz / 1000).toStringAsFixed(1)}k';
-    return '${hz}';
+    if (hz >= 1000) return '${(hz / 1000).toStringAsFixed(hz % 1000 == 0 ? 0 : 1)}k';
+    return '$hz';
   }
 
   Future<void> _applyPreset(String presetName) async {
@@ -86,55 +87,13 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
     for (int i = 0; i < _numBands; i++) {
       final freq = i < _centerFreqs.length ? _centerFreqs[i] : 0;
       levels[i] = switch (presetName) {
-        'Rock' => freq < 200
-            ? 600
-            : freq < 1000
-                ? -200
-                : freq < 4000
-                    ? 300
-                    : 700,
-        'Pop' => freq < 200
-            ? 300
-            : freq < 1000
-                ? 500
-                : freq < 4000
-                    ? 400
-                    : 200,
-        'Jazz' => freq < 200
-            ? 400
-            : freq < 1000
-                ? 200
-                : freq < 4000
-                    ? 300
-                    : 500,
-        'Classical' => freq < 200
-            ? 400
-            : freq < 1000
-                ? 0
-                : freq < 4000
-                    ? 300
-                    : 600,
-        'BassBoost' => freq < 200
-            ? 1200
-            : freq < 1000
-                ? 700
-                : freq < 4000
-                    ? 200
-                    : 0,
-        'TrebleBoost' => freq < 200
-            ? 0
-            : freq < 1000
-                ? 100
-                : freq < 4000
-                    ? 700
-                    : 1200,
-        'Vocal' => freq < 200
-            ? -300
-            : freq < 1000
-                ? 600
-                : freq < 4000
-                    ? 700
-                    : 300,
+        'Rock' => freq < 200 ? 600 : freq < 1000 ? -200 : freq < 4000 ? 300 : 700,
+        'Pop' => freq < 200 ? 300 : freq < 1000 ? 500 : freq < 4000 ? 400 : 200,
+        'Jazz' => freq < 200 ? 400 : freq < 1000 ? 200 : freq < 4000 ? 300 : 500,
+        'Classical' => freq < 200 ? 400 : freq < 1000 ? 0 : freq < 4000 ? 300 : 600,
+        'BassBoost' => freq < 200 ? 1200 : freq < 1000 ? 700 : freq < 4000 ? 200 : 0,
+        'TrebleBoost' => freq < 200 ? 0 : freq < 1000 ? 100 : freq < 4000 ? 700 : 1200,
+        'Vocal' => freq < 200 ? -300 : freq < 1000 ? 600 : freq < 4000 ? 700 : 300,
         _ => 0,
       };
     }
@@ -150,17 +109,21 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
     await audioHandler!.setEqualizerBand(index, newLevel);
   }
 
-  void _resetToFlat() {
-    _applyPreset('Flat');
-  }
+  void _resetToFlat() => _applyPreset('Flat');
 
   @override
   Widget build(BuildContext context) {
     final isDark = widget.isDarkTheme;
-    final bg = isDark ? const Color(0xFF0F0F14) : Colors.white;
-    final card = isDark ? const Color(0xFF181820) : const Color(0xFFF5F5F7);
+    final bg = isDark ? const Color(0xFF0F0F14) : const Color(0xFFF7F5FB);
+    final card = isDark ? const Color(0xFF181820) : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black87;
     final subText = isDark ? Colors.grey.shade500 : Colors.grey.shade600;
+    final activeColor = _selectedPreset == 'Custom'
+        ? widget.accentColor
+        : Color(_presets.firstWhere(
+            (p) => p['name'] == _selectedPreset,
+            orElse: () => _presets[0],
+          )['color']);
 
     return Scaffold(
       backgroundColor: bg,
@@ -175,175 +138,319 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
           'Equalizer',
           style: TextStyle(
             color: textColor,
-            fontSize: 24,
+            fontSize: 26,
             fontWeight: FontWeight.bold,
+            letterSpacing: -0.5,
           ),
         ),
+        actions: [
+          if (_selectedPreset != 'Flat')
+            IconButton(
+              icon: Icon(Icons.refresh, color: widget.accentColor),
+              tooltip: 'Reset',
+              onPressed: _resetToFlat,
+            ),
+        ],
       ),
       body: _isLoading
-          ? Center(
-              child: CircularProgressIndicator(color: widget.accentColor),
-            )
+          ? Center(child: CircularProgressIndicator(color: widget.accentColor))
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 30),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Preset info
+                  // ✅ Frequency Response Curve Card
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: widget.accentColor.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.equalizer,
-                          color: widget.accentColor,
-                          size: 20,
+                      gradient: LinearGradient(
+                        colors: isDark
+                            ? [card, card.withOpacity(0.6)]
+                            : [Colors.white, Colors.grey.shade50],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: activeColor.withOpacity(0.15),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
                         ),
-                        const SizedBox(width: 10),
-                        Text(
-                          'Preset: $_selectedPreset',
-                          style: TextStyle(
-                            color: widget.accentColor,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
+                      ],
+                      border: Border.all(
+                        color: activeColor.withOpacity(0.2),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: activeColor.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    _presets.firstWhere(
+                                      (p) => p['name'] == _selectedPreset,
+                                      orElse: () => _presets[0],
+                                    )['emoji'] as String,
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _selectedPreset,
+                                    style: TextStyle(
+                                      color: activeColor,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Spacer(),
+                            Icon(Icons.graphic_eq, color: subText, size: 16),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        // ✅ Live Frequency Curve
+                        SizedBox(
+                          height: 90,
+                          child: CustomPaint(
+                            size: Size.infinite,
+                            painter: _FrequencyCurvePainter(
+                              bandLevels: _bandLevels,
+                              centerFreqs: _centerFreqs,
+                              minLevel: _minLevel,
+                              maxLevel: _maxLevel,
+                              activeColor: activeColor,
+                              gridColor: subText.withOpacity(0.2),
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 25),
 
-                  // Preset chips
-                  Text(
-                    'PRESETS',
-                    style: TextStyle(
-                      color: subText,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: _presets.map((p) {
-                      final isActive = _selectedPreset == p['name'];
-                      return GestureDetector(
-                        onTap: () => _applyPreset(p['name'] as String),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            gradient: isActive
-                                ? LinearGradient(colors: widget.gradientColors)
-                                : null,
-                            color: isActive ? null : card,
-                            borderRadius: BorderRadius.circular(25),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                p['emoji'] as String,
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                p['name'] as String,
-                                style: TextStyle(
-                                  color: isActive ? Colors.white : textColor,
-                                  fontWeight: isActive
-                                      ? FontWeight.bold
-                                      : FontWeight.w500,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
+                  const SizedBox(height: 30),
+
+                  // ✅ Preset section
+                  Row(
+                    children: [
+                      Text(
+                        'PRESETS',
+                        style: TextStyle(
+                          color: subText,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.8,
                         ),
-                      );
-                    }).toList(),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${_presets.length} available',
+                        style: TextStyle(color: subText, fontSize: 10),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 35),
-
-                  // Band sliders
-                  Text(
-                    'BANDS',
-                    style: TextStyle(
-                      color: subText,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.5,
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    height: 42,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _presets.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (context, i) {
+                        final p = _presets[i];
+                        final isActive = _selectedPreset == p['name'];
+                        final pColor = Color(p['color'] as int);
+                        return GestureDetector(
+                          onTap: () => _applyPreset(p['name'] as String),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 250),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              gradient: isActive
+                                  ? LinearGradient(
+                                      colors: [
+                                        pColor,
+                                        pColor.withOpacity(0.7),
+                                      ],
+                                    )
+                                  : null,
+                              color: isActive ? null : card,
+                              borderRadius: BorderRadius.circular(21),
+                              border: isActive
+                                  ? null
+                                  : Border.all(
+                                      color: isDark
+                                          ? Colors.grey.shade800
+                                          : Colors.grey.shade200,
+                                    ),
+                              boxShadow: isActive
+                                  ? [
+                                      BoxShadow(
+                                        color: pColor.withOpacity(0.4),
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Row(
+                              children: [
+                                Text(p['emoji'] as String,
+                                    style: const TextStyle(fontSize: 13)),
+                                const SizedBox(width: 6),
+                                Text(
+                                  p['name'] as String,
+                                  style: TextStyle(
+                                    color: isActive ? Colors.white : textColor,
+                                    fontWeight: isActive
+                                        ? FontWeight.bold
+                                        : FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
-                  const SizedBox(height: 15),
+
+                  const SizedBox(height: 32),
+
+                  // ✅ Bands section
+                  Row(
+                    children: [
+                      Text(
+                        'BANDS',
+                        style: TextStyle(
+                          color: subText,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.8,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${_minLevel ~/ 100} dB  ↔  +${_maxLevel ~/ 100} dB',
+                        style: TextStyle(color: subText, fontSize: 10),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
                   Container(
-                    height: 320,
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 20,
+                      horizontal: 8,
+                      vertical: 16,
                     ),
                     decoration: BoxDecoration(
                       color: card,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
                     ),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: List.generate(_numBands, (i) {
-                        final freq = i < _centerFreqs.length
-                            ? _centerFreqs[i]
-                            : 0;
-                        return _buildVerticalBand(
-                          index: i,
-                          label: _formatFreq(freq),
-                          isDark: isDark,
-                        );
-                      }),
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        // Left dB labels
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 30),
+                          child: Column(
+                            children: [
+                              Text('+15',
+                                  style: TextStyle(
+                                      color: subText,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 30),
+                              Text('0',
+                                  style: TextStyle(
+                                      color: subText,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 30),
+                              Text('-15',
+                                  style: TextStyle(
+                                      color: subText,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: List.generate(_numBands, (i) {
+                              final freq =
+                                  i < _centerFreqs.length ? _centerFreqs[i] : 0;
+                              return _buildBand(i, _formatFreq(freq), activeColor,
+                                  isDark, card);
+                            }),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 30),
 
-                  // Reset button
+                  const SizedBox(height: 28),
+
+                  // ✅ Reset button
                   Center(
                     child: GestureDetector(
                       onTap: _resetToFlat,
-                      child: Container(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 30,
+                          horizontal: 32,
                           vertical: 14,
                         ),
                         decoration: BoxDecoration(
-                          color: widget.accentColor.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(25),
-                          border: Border.all(
-                            color: widget.accentColor.withOpacity(0.4),
+                          gradient: LinearGradient(
+                            colors: widget.gradientColors,
                           ),
+                          borderRadius: BorderRadius.circular(26),
+                          boxShadow: [
+                            BoxShadow(
+                              color: widget.gradientColors[0].withOpacity(0.4),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.restore,
-                              color: widget.accentColor,
-                              size: 18,
-                            ),
-                            const SizedBox(width: 8),
+                            Icon(Icons.restore, color: Colors.white, size: 18),
+                            SizedBox(width: 8),
                             Text(
                               'Reset to Flat',
                               style: TextStyle(
-                                color: widget.accentColor,
-                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
                               ),
                             ),
                           ],
@@ -351,78 +458,220 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
                 ],
               ),
             ),
     );
   }
 
-  Widget _buildVerticalBand({
-    required int index,
-    required String label,
-    required bool isDark,
-  }) {
+  Widget _buildBand(
+    int index,
+    String label,
+    Color activeColor,
+    bool isDark,
+    Color card,
+  ) {
     final level = _bandLevels[index];
-    final maxAbs = _maxLevel > 0 ? _maxLevel : 1500;
-    // level / maxAbs se -1.0 se +1.0 value
-    final double normalized = level / maxAbs;
+    final double normalized = level / _maxLevel;
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // Level text
-        Text(
-          '${(level / 100).toStringAsFixed(0)}',
-          style: TextStyle(
-            color: widget.accentColor,
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 6),
-
-        // Vertical slider
-        Expanded(
-          child: RotatedBox(
-            quarterTurns: 3,
-            child: SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                trackHeight: 4,
-                activeTrackColor: widget.accentColor,
-                inactiveTrackColor: isDark
-                    ? Colors.grey.shade800
-                    : Colors.grey.shade300,
-                thumbColor: widget.accentColor,
-                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-                overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-              ),
-              child: Slider(
-                value: level.toDouble().clamp(
-                      _minLevel.toDouble(),
-                      _maxLevel.toDouble(),
-                    ),
-                min: _minLevel.toDouble(),
-                max: _maxLevel.toDouble(),
-                onChanged: (v) {
-                  _onBandChanged(index, v.round());
-                },
+    return Expanded(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Level chip
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: level != 0
+                  ? activeColor.withOpacity(0.15)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              level == 0 ? '0' : '${level > 0 ? '+' : ''}${(level / 100).toStringAsFixed(0)}',
+              style: TextStyle(
+                color: level != 0 ? activeColor : Colors.grey.shade500,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 6),
-
-        // Frequency label
-        Text(
-          label,
-          style: TextStyle(
-            color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
+          const SizedBox(height: 10),
+          // Vertical slider
+          SizedBox(
+            height: 180,
+            child: RotatedBox(
+              quarterTurns: 3,
+              child: SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  trackHeight: 6,
+                  activeTrackColor: activeColor,
+                  inactiveTrackColor: isDark
+                      ? Colors.grey.shade800
+                      : Colors.grey.shade200,
+                  thumbColor: activeColor,
+                  thumbShape: const RoundSliderThumbShape(
+                    enabledThumbRadius: 9,
+                    elevation: 4,
+                  ),
+                  overlayColor: activeColor.withOpacity(0.2),
+                  overlayShape:
+                      const RoundSliderOverlayShape(overlayRadius: 18),
+                ),
+                child: Slider(
+                  value: level.toDouble().clamp(
+                        _minLevel.toDouble(),
+                        _maxLevel.toDouble(),
+                      ),
+                  min: _minLevel.toDouble(),
+                  max: _maxLevel.toDouble(),
+                  onChanged: (v) => _onBandChanged(index, v.round()),
+                ),
+              ),
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 8),
+          // Freq label
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.grey.shade900
+                  : Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
+  }
+}
+
+// ✅ Live Frequency Curve Painter
+class _FrequencyCurvePainter extends CustomPainter {
+  final List<int> bandLevels;
+  final List<int> centerFreqs;
+  final int minLevel;
+  final int maxLevel;
+  final Color activeColor;
+  final Color gridColor;
+
+  _FrequencyCurvePainter({
+    required this.bandLevels,
+    required this.centerFreqs,
+    required this.minLevel,
+    required this.maxLevel,
+    required this.activeColor,
+    required this.gridColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Draw horizontal grid lines (0 dB baseline, top, bottom)
+    final gridPaint = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1;
+
+    // Top line (+15 dB)
+    canvas.drawLine(
+      Offset(0, size.height * 0.1),
+      Offset(size.width, size.height * 0.1),
+      gridPaint,
+    );
+    // Middle line (0 dB) — dashed look
+    final dashPaint = Paint()
+      ..color = gridColor.withOpacity(0.5)
+      ..strokeWidth = 1;
+    for (double x = 0; x < size.width; x += 8) {
+      canvas.drawLine(
+        Offset(x, size.height * 0.5),
+        Offset(x + 4, size.height * 0.5),
+        dashPaint,
+      );
+    }
+    // Bottom line (-15 dB)
+    canvas.drawLine(
+      Offset(0, size.height * 0.9),
+      Offset(size.width, size.height * 0.9),
+      gridPaint,
+    );
+
+    if (bandLevels.isEmpty) return;
+
+    // Compute points for curve
+    final points = <Offset>[];
+    for (int i = 0; i < bandLevels.length; i++) {
+      final x = (i / (bandLevels.length - 1)) * size.width;
+      // Map level from min-max to bottom-top
+      final levelNorm = bandLevels[i] / maxLevel; // -1 to +1
+      final y = size.height * (0.5 - levelNorm * 0.4);
+      points.add(Offset(x, y));
+    }
+
+    // Draw smooth curve using quadratic bezier
+    final curvePaint = Paint()
+      ..color = activeColor
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    if (points.length >= 2) {
+      final path = Path();
+      path.moveTo(points[0].dx, points[0].dy);
+      for (int i = 1; i < points.length; i++) {
+        final prev = points[i - 1];
+        final curr = points[i];
+        final midX = (prev.dx + curr.dx) / 2;
+        final midY = (prev.dy + curr.dy) / 2;
+        path.quadraticBezierTo(prev.dx, prev.dy, midX, midY);
+      }
+      path.lineTo(points.last.dx, points.last.dy);
+      canvas.drawPath(path, curvePaint);
+
+      // Fill area below curve
+      final fillPath = Path.from(path);
+      fillPath.lineTo(size.width, size.height * 0.5);
+      fillPath.lineTo(0, size.height * 0.5);
+      fillPath.close();
+      final fillPaint = Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            activeColor.withOpacity(0.35),
+            activeColor.withOpacity(0.05),
+          ],
+        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+      canvas.drawPath(fillPath, fillPaint);
+    }
+
+    // Draw dots at each band
+    for (final p in points) {
+      canvas.drawCircle(
+        p,
+        4.5,
+        Paint()..color = activeColor,
+      );
+      canvas.drawCircle(
+        p,
+        2.5,
+        Paint()..color = Colors.white,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _FrequencyCurvePainter oldDelegate) {
+    return oldDelegate.bandLevels != bandLevels ||
+        oldDelegate.activeColor != activeColor;
   }
 }
