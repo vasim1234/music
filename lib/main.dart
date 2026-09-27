@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'services/audio_handler.dart';
 import 'package:audio_service/audio_service.dart';
 import 'video_player_screen.dart';
+import 'equalizer_screen.dart';
 
 // ✅ 4 PREMIUM THEMES (Dark + Light)
 class AppColors {
@@ -1869,6 +1870,23 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         );
                       },
                     ),
+                    _drawerItem(
+  icon: Icons.tune, iconColor: Colors.teal,
+  title: 'Equalizer', subtitle: 'Presets & Band control',
+  onTap: () {
+    Navigator.pop(context);
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EqualizerScreen(
+          isDarkTheme: !AppTheme.isLightMode,
+          accentColor: AppTheme.accent,
+          gradientColors: AppTheme.primaryGradient,
+        ),
+      ),
+    );
+  },
+),
                     Divider(color: AppTheme.subText.withOpacity(0.2), height: 1),
                     // ✅ Light/Dark toggle
                     ListTile(
