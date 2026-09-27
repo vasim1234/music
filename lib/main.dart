@@ -12,7 +12,7 @@ import 'package:audio_service/audio_service.dart';
 import 'video_player_screen.dart';
 import 'equalizer_screen.dart';
 
-// ✅ 4 PREMIUM THEMES (Dark + Light)
+// ✅ 2 PREMIUM THEMES (Dark + Light)
 class AppColors {
   // Dark
   static const Color bg0 = Color(0xFF0B1310);
@@ -20,20 +20,10 @@ class AppColors {
   static const Color accent0 = Color(0xFF34D399);
   static const List<Color> gradient0 = [Color(0xFF059669), Color(0xFF34D399)];
 
-  static const Color bg1 = Color(0xFF121212);
-  static const Color card1 = Color(0xFF1E1E1E);
-  static const Color accent1 = Color(0xFFD4AF37);
-  static const List<Color> gradient1 = [Color(0xFFD4AF37), Color(0xFFC5A059)];
-
   static const Color bg2 = Color(0xFF0A0E1A);
   static const Color card2 = Color(0xFF141B2D);
   static const Color accent2 = Color(0xFF06B6D4);
   static const List<Color> gradient2 = [Color(0xFF4F46E5), Color(0xFF06B6D4)];
-
-  static const Color bg3 = Color(0xFF0F0F14);
-  static const Color card3 = Color(0xFF181820);
-  static const Color accent3 = Color(0xFF8B5CF6);
-  static const List<Color> gradient3 = [Color(0xFF8B5CF6), Color(0xFFD946EF)];
 
   // ✅ Light
   static const Color lbg0 = Color(0xFFF5F9F7);
@@ -41,20 +31,10 @@ class AppColors {
   static const Color laccent0 = Color(0xFF059669);
   static const List<Color> lgradient0 = [Color(0xFF059669), Color(0xFF34D399)];
 
-  static const Color lbg1 = Color(0xFFFAF7F0);
-  static const Color lcard1 = Color(0xFFFFFFFF);
-  static const Color laccent1 = Color(0xFFB8860B);
-  static const List<Color> lgradient1 = [Color(0xFFD4AF37), Color(0xFFB8860B)];
-
   static const Color lbg2 = Color(0xFFF0F4FA);
   static const Color lcard2 = Color(0xFFFFFFFF);
   static const Color laccent2 = Color(0xFF0284C7);
   static const List<Color> lgradient2 = [Color(0xFF4F46E5), Color(0xFF06B6D4)];
-
-  static const Color lbg3 = Color(0xFFF7F5FB);
-  static const Color lcard3 = Color(0xFFFFFFFF);
-  static const Color laccent3 = Color(0xFF7C3AED);
-  static const List<Color> lgradient3 = [Color(0xFF8B5CF6), Color(0xFFD946EF)];
 }
 
 class AppTheme {
@@ -64,18 +44,12 @@ class AppTheme {
   static Color get bg {
     if (isLightMode) {
       switch (themeIndex) {
-        case 0: return AppColors.lbg0;
-        case 1: return AppColors.lbg1;
         case 2: return AppColors.lbg2;
-        case 3: return AppColors.lbg3;
         default: return AppColors.lbg0;
       }
     }
     switch (themeIndex) {
-      case 0: return AppColors.bg0;
-      case 1: return AppColors.bg1;
       case 2: return AppColors.bg2;
-      case 3: return AppColors.bg3;
       default: return AppColors.bg0;
     }
   }
@@ -83,18 +57,12 @@ class AppTheme {
   static Color get card {
     if (isLightMode) {
       switch (themeIndex) {
-        case 0: return AppColors.lcard0;
-        case 1: return AppColors.lcard1;
         case 2: return AppColors.lcard2;
-        case 3: return AppColors.lcard3;
         default: return AppColors.lcard0;
       }
     }
     switch (themeIndex) {
-      case 0: return AppColors.card0;
-      case 1: return AppColors.card1;
       case 2: return AppColors.card2;
-      case 3: return AppColors.card3;
       default: return AppColors.card0;
     }
   }
@@ -102,18 +70,12 @@ class AppTheme {
   static Color get accent {
     if (isLightMode) {
       switch (themeIndex) {
-        case 0: return AppColors.laccent0;
-        case 1: return AppColors.laccent1;
         case 2: return AppColors.laccent2;
-        case 3: return AppColors.laccent3;
         default: return AppColors.laccent0;
       }
     }
     switch (themeIndex) {
-      case 0: return AppColors.accent0;
-      case 1: return AppColors.accent1;
       case 2: return AppColors.accent2;
-      case 3: return AppColors.accent3;
       default: return AppColors.accent0;
     }
   }
@@ -121,18 +83,12 @@ class AppTheme {
   static List<Color> get primaryGradient {
     if (isLightMode) {
       switch (themeIndex) {
-        case 0: return AppColors.lgradient0;
-        case 1: return AppColors.lgradient1;
         case 2: return AppColors.lgradient2;
-        case 3: return AppColors.lgradient3;
         default: return AppColors.lgradient0;
       }
     }
     switch (themeIndex) {
-      case 0: return AppColors.gradient0;
-      case 1: return AppColors.gradient1;
       case 2: return AppColors.gradient2;
-      case 3: return AppColors.gradient3;
       default: return AppColors.gradient0;
     }
   }
@@ -351,6 +307,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
     int theme = prefs.getInt('themeIndex') ?? 0;
+    // ✅ Safety: agar purana theme (1 ya 3) save hai toh 0 pe reset karo
+    if (theme != 0 && theme != 2) {
+      theme = 0;
+      await prefs.setInt('themeIndex', 0);
+    }
     bool is3D = prefs.getBool('is3DOn') ?? false;
     bool light = prefs.getBool('isLightMode') ?? false;
     setState(() {
@@ -400,8 +361,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       _themeIndex = index;
       AppTheme.themeIndex = index;
     });
-    const names = ['🟢 Emerald', '🟡 Gold', '🔵 Indigo', '🟣 Purple'];
-    _showSnackBar('🎨 ${names[index]} applied', AppTheme.accent);
+    const names = {0: '🟢 Emerald', 2: '🔵 Indigo'};
+    _showSnackBar('🎨 ${names[index] ?? 'Emerald'} applied', AppTheme.accent);
   }
 
   // ✅ UPDATED: Actual bass boost + immersive audio
@@ -413,7 +374,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       // Actual bass boost + immersive audio ON
       if (audioHandler != null) {
         await audioHandler!.setBassBoost(true, 600);   // 60% bass
-        await audioHandler!.setImmersive(true, 800);   // 40% immersive
+        await audioHandler!.setImmersive(true, 800);   // 80% immersive
       }
       await _fallbackPlayer.setVolume(0.6);
       _showSnackBar('🎧 Bass Boost ON', AppTheme.accent);
@@ -1846,7 +1807,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         _showHiddenFolders();
                       },
                     ),
-                    // ✅ UPDATED: Enhance Sound with actual bass boost callback
                     _drawerItem(
                       icon: Icons.graphic_eq, iconColor: Colors.deepPurpleAccent,
                       title: 'Enhance Sound', subtitle: 'Bass & Immersive',
@@ -1858,8 +1818,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                             builder: (context) => EnhanceSoundScreen(
                               isDarkTheme: !AppTheme.isLightMode,
                               onEffectsChanged: (bass, immersive) {
-                                // bass aur immersive 0.0 se 1.0 range mein aate hain
-                                // Android API 0-1000 range maangta hai, isliye * 1000
                                 if (audioHandler != null) {
                                   audioHandler!.setBassBoost(bass > 0, (bass * 1000).round());
                                   audioHandler!.setImmersive(immersive > 0, (immersive * 1000).round());
@@ -1871,24 +1829,23 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       },
                     ),
                     _drawerItem(
-  icon: Icons.tune, iconColor: Colors.teal,
-  title: 'Equalizer', subtitle: 'Presets & Band control',
-  onTap: () {
-    Navigator.pop(context);
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => EqualizerScreen(
-          isDarkTheme: !AppTheme.isLightMode,
-          accentColor: AppTheme.accent,
-          gradientColors: AppTheme.primaryGradient,
-        ),
-      ),
-    );
-  },
-),
+                      icon: Icons.tune, iconColor: Colors.teal,
+                      title: 'Equalizer', subtitle: 'Presets & Band control',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => EqualizerScreen(
+                              isDarkTheme: !AppTheme.isLightMode,
+                              accentColor: AppTheme.accent,
+                              gradientColors: AppTheme.primaryGradient,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                     Divider(color: AppTheme.subText.withOpacity(0.2), height: 1),
-                    // ✅ Light/Dark toggle
                     ListTile(
                       leading: Icon(
                         AppTheme.isLightMode ? Icons.dark_mode : Icons.light_mode,
@@ -1926,16 +1883,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                           Row(
                             children: [
                               Expanded(child: _buildThemeCard(0, 'Emerald', '🟢', AppColors.gradient0)),
-                              const SizedBox(width: 8),
-                              Expanded(child: _buildThemeCard(1, 'Gold', '🟡', AppColors.gradient1)),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
+                              const SizedBox(width: 12),
                               Expanded(child: _buildThemeCard(2, 'Indigo', '🔵', AppColors.gradient2)),
-                              const SizedBox(width: 8),
-                              Expanded(child: _buildThemeCard(3, 'Purple', '🟣', AppColors.gradient3)),
                             ],
                           ),
                         ],
@@ -2730,7 +2679,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         ],
                       ),
                     ),
-                    // ✅ Light/Dark toggle
                     GestureDetector(
                       onTap: _toggleLightMode,
                       child: Padding(
