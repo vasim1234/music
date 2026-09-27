@@ -2,11 +2,11 @@ import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';   // 👈 NAYA
+import 'package:flutter/services.dart';
 
 class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   final AudioPlayer _player = AudioPlayer();
-  static const _bassChannel = MethodChannel('com.example.music_player/bass_boost');  // 👈 NAYA
+  static const _bassChannel = MethodChannel('com.example.music_player/bass_boost');
   List<MediaItem> _queue = [];
   int _currentIndex = 0;
 
@@ -58,7 +58,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       }
     });
 
-    // ✅ NAYA: AudioSession ID native ko bhejo
     _player.androidAudioSessionIdStream.listen((sessionId) {
       if (sessionId != null) {
         _bassChannel.invokeMethod('setAudioSessionId', {'sessionId': sessionId});
@@ -137,7 +136,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     debugPrint('🔊 Volume set to: $volume');
   }
 
-  // ✅ NAYA: Bass Boost control
+  // ✅ Bass Boost control
   Future<void> setBassBoost(bool enabled, int strength) async {
     try {
       await _bassChannel.invokeMethod('setBassBoost', {
@@ -150,7 +149,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     }
   }
 
-  // ✅ NAYA: Immersive Audio control
+  // ✅ Immersive Audio control
   Future<void> setImmersive(bool enabled, int strength) async {
     try {
       await _bassChannel.invokeMethod('setImmersive', {
@@ -160,6 +159,59 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       debugPrint('🌊 Immersive: $enabled @ $strength');
     } catch (e) {
       debugPrint('❌ setImmersive error: $e');
+    }
+  }
+
+  // ✅ NAYA: Equalizer preset apply karo
+  Future<void> setEqualizerPreset(String presetName) async {
+    try {
+      await _bassChannel.invokeMethod('setEqualizerPreset', {
+        'preset': presetName,
+      });
+      debugPrint('🎛️ EQ Preset: $presetName');
+    } catch (e) {
+      debugPrint('❌ setEqualizerPreset error: $e');
+    }
+  }
+
+  // ✅ NAYA: Ek band set karo
+  Future<void> setEqualizerBand(int bandIndex, int levelMb) async {
+    try {
+      await _bassChannel.invokeMethod('setEqualizerBand', {
+        'bandIndex': bandIndex,
+        'levelMb': levelMb,
+      });
+      debugPrint('🎛️ EQ Band $bandIndex: $levelMb mB');
+    } catch (e) {
+      debugPrint('❌ setEqualizerBand error: $e');
+    }
+  }
+
+  // ✅ NAYA: Equalizer on/off
+  Future<void> setEqualizerEnabled(bool enabled) async {
+    try {
+      await _bassChannel.invokeMethod('setEqualizerEnabled', {
+        'enabled': enabled,
+      });
+      debugPrint('🎛️ EQ Enabled: $enabled');
+    } catch (e) {
+      debugPrint('❌ setEqualizerEnabled error: $e');
+    }
+  }
+
+  // ✅ NAYA: EQ info (bands + range)
+  Future<Map<String, dynamic>> getEqualizerInfo() async {
+    try {
+      final result = await _bassChannel.invokeMethod('getEqualizerInfo');
+      return Map<String, dynamic>.from(result);
+    } catch (e) {
+      debugPrint('❌ getEqualizerInfo error: $e');
+      return {
+        'numBands': 0,
+        'minLevel': -1500,
+        'maxLevel': 1500,
+        'centerFreqs': <int>[],
+      };
     }
   }
 
