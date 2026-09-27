@@ -21,12 +21,12 @@ class BassBoostPlugin : MethodCallHandler {
         try {
             bassBoost = BassBoost(0, audioSessionId).apply {
                 enabled = false
-                setStrength(300)
+                setStrength(300.toShort())
             }
 
             virtualizer = Virtualizer(0, audioSessionId).apply {
                 enabled = false
-                setStrength(300)
+                setStrength(300.toShort())
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -45,7 +45,7 @@ class BassBoostPlugin : MethodCallHandler {
                 val strength = call.argument<Int>("strength") ?: 0
                 bassBoost?.let {
                     it.enabled = enabled
-                    if (enabled) it.setStrength(strength.coerceIn(0, 1000))
+                    if (enabled) it.setStrength(strength.coerceIn(0, 1000).toShort())
                     result.success(it.enabled)
                 } ?: result.error("NO_SESSION", "Audio session not ready", null)
             }
@@ -54,14 +54,15 @@ class BassBoostPlugin : MethodCallHandler {
                 val strength = call.argument<Int>("strength") ?: 0
                 virtualizer?.let {
                     it.enabled = enabled
-                    if (enabled) it.setStrength(strength.coerceIn(0, 1000))
+                    if (enabled) it.setStrength(strength.coerceIn(0, 1000).toShort())
                     result.success(it.enabled)
                 } ?: result.error("NO_SESSION", "Audio session not ready", null)
             }
             "getBassBoost" -> {
-                result.success(bassBoost?.let {
-                    mapOf("enabled" to it.enabled, "strength" to it.strength)
-                } ?: mapOf("enabled" to false, "strength" to 0))
+                // Android BassBoost/Virtualizer mein direct "getStrength" nahi hota
+                // Isliye sirf enabled status bhej rahe hain
+                val enabled = bassBoost?.enabled ?: false
+                result.success(mapOf("enabled" to enabled, "strength" to 0))
             }
             else -> result.notImplemented()
         }
