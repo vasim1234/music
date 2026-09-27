@@ -362,7 +362,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     // ✅ App start hone par 3D Audio restore karo
     if (is3D && audioHandler != null) {
       await audioHandler!.setBassBoost(true, 600);
-      await audioHandler!.setImmersive(true, 400);
+      await audioHandler!.setImmersive(true, 800);
       debugPrint('🎧 3D Audio restored on app start');
     }
   }
@@ -412,7 +412,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       // Actual bass boost + immersive audio ON
       if (audioHandler != null) {
         await audioHandler!.setBassBoost(true, 600);   // 60% bass
-        await audioHandler!.setImmersive(true, 400);   // 40% immersive
+        await audioHandler!.setImmersive(true, 800);   // 40% immersive
       }
       await _fallbackPlayer.setVolume(0.6);
       _showSnackBar('🎧 Bass Boost ON', AppTheme.accent);
