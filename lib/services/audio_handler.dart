@@ -2,9 +2,11 @@ import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';   // 👈 NAYA
 
 class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   final AudioPlayer _player = AudioPlayer();
+  static const _bassChannel = MethodChannel('com.example.music_player/bass_boost');  // 👈 NAYA
   List<MediaItem> _queue = [];
   int _currentIndex = 0;
 
@@ -53,6 +55,14 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     _player.processingStateStream.listen((state) {
       if (state == ProcessingState.completed) {
         skipToNext();
+      }
+    });
+
+    // ✅ NAYA: AudioSession ID native ko bhejo
+    _player.androidAudioSessionIdStream.listen((sessionId) {
+      if (sessionId != null) {
+        _bassChannel.invokeMethod('setAudioSessionId', {'sessionId': sessionId});
+        debugPrint('🎵 AudioSession ID sent to native: $sessionId');
       }
     });
   }
@@ -120,11 +130,39 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     _currentIndex = index;
     await _playCurrent();
   }
-// ✅ Volume control method (3D Audio / Bass Boost ke liye)
-Future<void> setVolume(double volume) async {
-  await _player.setVolume(volume);
-  debugPrint('🔊 Volume set to: $volume');
-}
+
+  // ✅ Volume control method (3D Audio / Bass Boost ke liye)
+  Future<void> setVolume(double volume) async {
+    await _player.setVolume(volume);
+    debugPrint('🔊 Volume set to: $volume');
+  }
+
+  // ✅ NAYA: Bass Boost control
+  Future<void> setBassBoost(bool enabled, int strength) async {
+    try {
+      await _bassChannel.invokeMethod('setBassBoost', {
+        'enabled': enabled,
+        'strength': strength,
+      });
+      debugPrint('🎸 Bass Boost: $enabled @ $strength');
+    } catch (e) {
+      debugPrint('❌ setBassBoost error: $e');
+    }
+  }
+
+  // ✅ NAYA: Immersive Audio control
+  Future<void> setImmersive(bool enabled, int strength) async {
+    try {
+      await _bassChannel.invokeMethod('setImmersive', {
+        'enabled': enabled,
+        'strength': strength,
+      });
+      debugPrint('🌊 Immersive: $enabled @ $strength');
+    } catch (e) {
+      debugPrint('❌ setImmersive error: $e');
+    }
+  }
+
   Future<void> _playCurrent() async {
     if (_queue.isEmpty) return;
     final item = _queue[_currentIndex];
@@ -179,7 +217,7 @@ Future<void> initAudioService() async {
         androidNotificationChannelId: 'com.bhaibhai.music.channel.audio',
         androidNotificationChannelName: 'Bhai Bhai Music',
         androidNotificationOngoing: true,
-        androidStopForegroundOnPause: true,   // ✅ true karo
+        androidStopForegroundOnPause: true,
         androidNotificationIcon: 'mipmap/ic_launcher',
         androidShowNotificationBadge: false,
       ),
@@ -189,4 +227,3 @@ Future<void> initAudioService() async {
     debugPrint('❌ initAudioService ERROR: $e');
   }
 }
-
