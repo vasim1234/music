@@ -358,6 +358,13 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       is3DOn = is3D;
       AppTheme.isLightMode = light;
     });
+
+    // ✅ App start hone par 3D Audio restore karo
+    if (is3D && audioHandler != null) {
+      await audioHandler!.setBassBoost(true, 600);
+      await audioHandler!.setImmersive(true, 400);
+      debugPrint('🎧 3D Audio restored on app start');
+    }
   }
 
   Future<void> _toggleLightMode() async {
@@ -396,16 +403,25 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _showSnackBar('🎨 ${names[index]} applied', AppTheme.accent);
   }
 
+  // ✅ UPDATED: Actual bass boost + immersive audio
   Future<void> _toggle3D() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() => is3DOn = !is3DOn);
     await prefs.setBool('is3DOn', is3DOn);
     if (is3DOn) {
-      if (audioHandler != null) await audioHandler!.setVolume(0.6);
+      // Actual bass boost + immersive audio ON
+      if (audioHandler != null) {
+        await audioHandler!.setBassBoost(true, 600);   // 60% bass
+        await audioHandler!.setImmersive(true, 400);   // 40% immersive
+      }
       await _fallbackPlayer.setVolume(0.6);
       _showSnackBar('🎧 Bass Boost ON', AppTheme.accent);
     } else {
-      if (audioHandler != null) await audioHandler!.setVolume(1.0);
+      // Band karo
+      if (audioHandler != null) {
+        await audioHandler!.setBassBoost(false, 0);
+        await audioHandler!.setImmersive(false, 0);
+      }
       await _fallbackPlayer.setVolume(1.0);
       _showSnackBar('🔊 Normal Audio', AppTheme.subText);
     }
@@ -1829,6 +1845,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         _showHiddenFolders();
                       },
                     ),
+                    // ✅ UPDATED: Enhance Sound with actual bass boost callback
                     _drawerItem(
                       icon: Icons.graphic_eq, iconColor: Colors.deepPurpleAccent,
                       title: 'Enhance Sound', subtitle: 'Bass & Immersive',
@@ -1839,7 +1856,14 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                           MaterialPageRoute(
                             builder: (context) => EnhanceSoundScreen(
                               isDarkTheme: !AppTheme.isLightMode,
-                              onEffectsChanged: (bass, immersive) {},
+                              onEffectsChanged: (bass, immersive) {
+                                // bass aur immersive 0.0 se 1.0 range mein aate hain
+                                // Android API 0-1000 range maangta hai, isliye * 1000
+                                if (audioHandler != null) {
+                                  audioHandler!.setBassBoost(bass > 0, (bass * 1000).round());
+                                  audioHandler!.setImmersive(immersive > 0, (immersive * 1000).round());
+                                }
+                              },
                             ),
                           ),
                         );
