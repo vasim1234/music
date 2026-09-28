@@ -1508,7 +1508,9 @@ void _showFullScreenPlayer() {
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
-    barrierColor: Colors.black.withOpacity(0.3),   // 👈 YE ADD KARO
+    barrierColor: AppTheme.isLightMode 
+    ? Colors.black.withOpacity(0.7)    // 👈 Light mode mein zyada dark
+    : Colors.black.withOpacity(0.9),   // 👈 Dark mode mein almost full black
     builder: (context) => StatefulBuilder(
       builder: (context, setModalState) {
         return StreamBuilder<MediaItem?>(
