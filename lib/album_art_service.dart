@@ -22,10 +22,18 @@ class AlbumArtService {
   }
 
   // ✅ NAYA: Artwork provider for palette generator
-  static ImageProvider getArtworkProvider(String audioPath) {
-    final file = File(audioPath);
-    return FileImage(file);
+// Ye asli album art extract karta hai, MP3 file nahi
+static Future<ImageProvider?> getArtworkProvider(String audioPath) async {
+  try {
+    final artFile = await getAlbumArt(audioPath);
+    if (artFile != null && artFile.existsSync()) {
+      return FileImage(artFile);
+    }
+    return null;
+  } catch (e) {
+    return null;
   }
+}
 
   static Future<File?> getAlbumArt(String audioPath) async {
     try {
