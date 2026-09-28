@@ -1500,17 +1500,14 @@ Future<void> _extractColorsFromArt(String audioPath) async {
     );
   }
 
-// ✅ FULL SCREEN PLAYER — Auto-update + Dynamic Colors
+// ✅ FULL SCREEN PLAYER — Always Dark + Dynamic Colors
 void _showFullScreenPlayer() {
   if (_currentSong == null) return;
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    useSafeArea: true,
-    backgroundColor: Colors.transparent,
-    barrierColor: AppTheme.isLightMode 
-    ? Colors.black.withOpacity(0.7)    // 👈 Light mode mein zyada dark
-    : Colors.black.withOpacity(0.9),   // 👈 Dark mode mein almost full black
+    backgroundColor: const Color(0xFF0A0A0A),
+    barrierColor: Colors.black.withOpacity(0.9),
     builder: (context) => StatefulBuilder(
       builder: (context, setModalState) {
         return StreamBuilder<MediaItem?>(
@@ -1539,25 +1536,17 @@ void _showFullScreenPlayer() {
 
             return Container(
               height: MediaQuery.of(context).size.height,
-  decoration: BoxDecoration(
-  // ✅ NAYA: Solid base color — gradient ke peeche
-  color: AppTheme.isLightMode
-      ? Colors.white
-      : const Color(0xFF0A0A0A),
-  gradient: LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: AppTheme.isLightMode
-        ? [
-            Colors.white,
-            (_dynamicAccent ?? AppTheme.accent).withOpacity(0.15),
-          ]
-        : [
-            _dynamicGradient?[0] ?? const Color(0xFF1A1A1A),
-            const Color(0xFF0A0A0A),
-          ],
-  ),
-),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0A0A0A),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    _dynamicGradient?[0] ?? const Color(0xFF1A1A1A),
+                    const Color(0xFF0A0A0A),
+                  ],
+                ),
+              ),
               child: SafeArea(
                 child: Column(
                   children: [
@@ -1569,22 +1558,22 @@ void _showFullScreenPlayer() {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           IconButton(
-                            icon: Icon(Icons.keyboard_arrow_down,
-                                color: AppTheme.text, size: 30),
+                            icon: const Icon(Icons.keyboard_arrow_down,
+                                color: Colors.white, size: 30),
                             onPressed: () => Navigator.pop(context),
                           ),
-                          Text(
+                          const Text(
                             'Now Playing',
                             style: TextStyle(
-                                color: AppTheme.text,
+                                color: Colors.white,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600),
                           ),
                           Row(
                             children: [
                               IconButton(
-                                icon: Icon(Icons.tune,
-                                    color: AppTheme.text, size: 22),
+                                icon: const Icon(Icons.tune,
+                                    color: Colors.white, size: 22),
                                 tooltip: 'Audio Settings',
                                 onPressed: () {
                                   Navigator.pop(context);
@@ -1593,7 +1582,7 @@ void _showFullScreenPlayer() {
                                     MaterialPageRoute(
                                       builder: (context) =>
                                           AudioSettingsScreen(
-                                        isDarkTheme: !AppTheme.isLightMode,
+                                        isDarkTheme: true,
                                         accentColor: dynamicAccent,
                                         gradientColors:
                                             AppTheme.primaryGradient,
@@ -1603,8 +1592,8 @@ void _showFullScreenPlayer() {
                                 },
                               ),
                               IconButton(
-                                icon: Icon(Icons.more_vert,
-                                    color: AppTheme.text, size: 22),
+                                icon: const Icon(Icons.more_vert,
+                                    color: Colors.white, size: 22),
                                 onPressed: () =>
                                     _showPlayerMenu(setModalState),
                               ),
@@ -1645,8 +1634,8 @@ void _showFullScreenPlayer() {
                             getSongName(_currentSong!.path),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                color: AppTheme.text,
+                            style: const TextStyle(
+                                color: Colors.white,
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold),
                           ),
@@ -1654,7 +1643,7 @@ void _showFullScreenPlayer() {
                           Text(
                             'Local Audio',
                             style: TextStyle(
-                                color: AppTheme.subText, fontSize: 13),
+                                color: Colors.grey.shade400, fontSize: 13),
                           ),
                         ],
                       ),
@@ -1683,7 +1672,7 @@ void _showFullScreenPlayer() {
                                   trackHeight: 3,
                                   activeTrackColor: dynamicAccent,
                                   inactiveTrackColor:
-                                      AppTheme.subText.withOpacity(0.3),
+                                      Colors.white.withOpacity(0.3),
                                   thumbColor: dynamicAccent,
                                   thumbShape: const RoundSliderThumbShape(
                                       enabledThumbRadius: 7),
@@ -1716,13 +1705,13 @@ void _showFullScreenPlayer() {
                                     Text(
                                       formatTime(pos),
                                       style: TextStyle(
-                                          color: AppTheme.subText,
+                                          color: Colors.grey.shade400,
                                           fontSize: 12),
                                     ),
                                     Text(
                                       formatTime(_duration),
                                       style: TextStyle(
-                                          color: AppTheme.subText,
+                                          color: Colors.grey.shade400,
                                           fontSize: 12),
                                     ),
                                   ],
@@ -1747,7 +1736,7 @@ void _showFullScreenPlayer() {
                               Icons.shuffle,
                               color: isShuffle
                                   ? dynamicAccent
-                                  : AppTheme.text.withOpacity(0.6),
+                                  : Colors.white.withOpacity(0.6),
                               size: 24,
                             ),
                             onPressed: () {
@@ -1756,8 +1745,8 @@ void _showFullScreenPlayer() {
                             },
                           ),
                           IconButton(
-                            icon: Icon(Icons.skip_previous,
-                                color: AppTheme.text, size: 40),
+                            icon: const Icon(Icons.skip_previous,
+                                color: Colors.white, size: 40),
                             onPressed: () {
                               _playPrevious();
                               setModalState(() {});
@@ -1775,8 +1764,9 @@ void _showFullScreenPlayer() {
                               child: IconButton(
                                 iconSize: 38,
                                 color: Colors.white,
-                                icon: Icon(
-                                    playing ? Icons.pause : Icons.play_arrow),
+                                icon: Icon(playing
+                                    ? Icons.pause
+                                    : Icons.play_arrow),
                                 onPressed: () {
                                   _togglePlay();
                                   setModalState(() {});
@@ -1785,8 +1775,8 @@ void _showFullScreenPlayer() {
                             ),
                           ),
                           IconButton(
-                            icon: Icon(Icons.skip_next,
-                                color: AppTheme.text, size: 40),
+                            icon: const Icon(Icons.skip_next,
+                                color: Colors.white, size: 40),
                             onPressed: () {
                               _playNext();
                               setModalState(() {});
@@ -1797,7 +1787,7 @@ void _showFullScreenPlayer() {
                               isRepeatOne ? Icons.repeat_one : Icons.repeat,
                               color: (isRepeat || isRepeatOne)
                                   ? dynamicAccent
-                                  : AppTheme.text.withOpacity(0.6),
+                                  : Colors.white.withOpacity(0.6),
                               size: 24,
                             ),
                             onPressed: () {
@@ -1825,7 +1815,7 @@ void _showFullScreenPlayer() {
                                   : Icons.favorite_border,
                               color: _favorites.contains(_currentSong!.path)
                                   ? Colors.pinkAccent
-                                  : AppTheme.text.withOpacity(0.7),
+                                  : Colors.white.withOpacity(0.7),
                               size: 24,
                             ),
                             onPressed: () {
@@ -1836,7 +1826,7 @@ void _showFullScreenPlayer() {
                           ),
                           IconButton(
                             icon: Icon(Icons.queue_music,
-                                color: AppTheme.text.withOpacity(0.7),
+                                color: Colors.white.withOpacity(0.7),
                                 size: 24),
                             onPressed: () {
                               Navigator.pop(context);
