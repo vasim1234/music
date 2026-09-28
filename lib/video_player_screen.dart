@@ -7,7 +7,7 @@ import 'package:chewie/chewie.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
-import 'audio_settings_screen.dart';   // 👈 NAYA
+import 'audio_settings_screen.dart';
 
 class VideoPlayerScreen extends StatefulWidget {
   final File videoFile;
@@ -153,10 +153,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
       setState(() {});
     } catch (e) {
-      debugPrint('❌ Video init error: $e');
+      debugPrint('Video init error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('⚠️ Video play error: $e')),
+          SnackBar(content: Text('Video play error: $e')),
         );
       }
     }
@@ -173,7 +173,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   void _playNextVideo() {
     if (_playlist.isEmpty || _currentIndex >= _playlist.length - 1) {
-      _showSnackBar('✅ All videos completed');
+      _showSnackBar('All videos completed');
       return;
     }
     setState(() {
@@ -206,7 +206,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       setState(() {});
       _startTitleTimer();
     } catch (e) {
-      debugPrint('❌ Next video error: $e');
+      debugPrint('Next video error: $e');
     }
   }
 
@@ -279,11 +279,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     setState(() {
       if (isLeft) {
         _videoController.seekTo(currentPos - const Duration(seconds: 10));
-        _doubleTapText = "⏪ 10s";
+        _doubleTapText = "10s back";
         _doubleTapAlignment = Alignment.centerLeft;
       } else {
         _videoController.seekTo(currentPos + const Duration(seconds: 10));
-        _doubleTapText = "10s ⏩";
+        _doubleTapText = "10s forward";
         _doubleTapAlignment = Alignment.centerRight;
       }
       _showDoubleTap = true;
@@ -305,37 +305,31 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
-  // ✅ Share Video Function (Optimized for Large Files to Prevent Freezing)
   Future<void> _shareCurrentVideo() async {
     if (_playlist.isEmpty) return;
     final currentFile = _playlist[_currentIndex];
 
-    // 1. Share karte waqt video ko pause kar do taaki RAM aur CPU free ho jaye
     if (_videoController.value.isPlaying) {
       _videoController.pause();
       setState(() {});
     }
 
-    // 2. User ko turant message dikhao taaki unhe lage ki app hang nahi hui hai
-    _showSnackBar('⏳ Processing video for share, please wait...');
+    _showSnackBar('Processing video for share, please wait...');
 
     try {
-      // 3. UI thread ko thoda time dene ke liye micro-delay lagao (Isse app chapkegi nahi)
       await Future.delayed(const Duration(milliseconds: 300));
-
       await Share.shareXFiles(
-        [XFile(currentFile.path)], 
-        text: 'Sharing Video'
+        [XFile(currentFile.path)],
+        text: 'Sharing Video',
       );
     } catch (e) {
-      _showSnackBar('❌ Error sharing video: $e');
+      _showSnackBar('Error sharing video: $e');
     }
   }
 
-  // ✅ Delete Video Function
   Future<void> _deleteCurrentVideo() async {
     if (_playlist.isEmpty) return;
-    
+
     bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -362,9 +356,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         if (await currentFile.exists()) {
           await currentFile.delete();
         }
-        
+
         _playlist.removeAt(_currentIndex);
-        _showSnackBar('🗑️ Video deleted successfully');
+        _showSnackBar('Video deleted successfully');
 
         if (_playlist.isEmpty) {
           if (mounted) Navigator.pop(context);
@@ -380,7 +374,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
-  // ✅ Three-Dots Options Sheet (Fixed for Landscape Scrolling)
   void _showVideoOptionsSheet() {
     _startTitleTimer();
     showModalBottomSheet(
@@ -404,8 +397,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-
-              // 1. Playback Speed
               ListTile(
                 leading: const Icon(Icons.speed, color: Colors.white),
                 title: const Text('Playback Speed', style: TextStyle(color: Colors.white)),
@@ -418,8 +409,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   _showSpeedSheet();
                 },
               ),
-
-              // 2. Loop Video
               ListTile(
                 leading: Icon(
                   _isLooping ? Icons.repeat_one : Icons.repeat,
@@ -438,8 +427,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   _toggleLoop();
                 },
               ),
-
-              // 3. Brightness Control
               ListTile(
                 leading: const Icon(Icons.brightness_6, color: Colors.white),
                 title: const Text('Brightness', style: TextStyle(color: Colors.white)),
@@ -452,8 +439,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   _showBrightnessSheet();
                 },
               ),
-
-              // 4. Volume Boost
               ListTile(
                 leading: const Icon(Icons.volume_up, color: Colors.white),
                 title: const Text('Volume', style: TextStyle(color: Colors.white)),
@@ -469,12 +454,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   _showVolumeSheet();
                 },
               ),
-
-              // 5. Audio Settings (NEW)
               ListTile(
                 leading: const Icon(Icons.tune, color: Colors.white),
                 title: const Text('Audio Settings', style: TextStyle(color: Colors.white)),
-                subtitle: const Text('Bass, EQ, Reverb & more', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                subtitle: const Text('Bass, EQ, Reverb & more',
+                    style: TextStyle(color: Colors.white54, fontSize: 11)),
                 onTap: () {
                   Navigator.pop(context);
                   final wasPlaying = _videoController.value.isPlaying;
@@ -493,8 +477,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   });
                 },
               ),
-
-              // 6. Share Video
               ListTile(
                 leading: const Icon(Icons.share, color: Colors.white),
                 title: const Text('Share Video', style: TextStyle(color: Colors.white)),
@@ -503,8 +485,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   _shareCurrentVideo();
                 },
               ),
-
-              // 7. Delete Video
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
                 title: const Text('Delete Video', style: TextStyle(color: Colors.redAccent)),
@@ -750,7 +730,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       _isLooping = !_isLooping;
       _recreateChewieController(context);
     });
-    _showSnackBar(_isLooping ? '🔁 Loop ON' : '➡️ Loop OFF');
+    _showSnackBar(_isLooping ? 'Loop ON' : 'Loop OFF');
   }
 
   Future<void> _toggleFullscreen() async {
@@ -864,7 +844,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   ),
                 ),
 
-              // ✅ Top Control Bar
+              // Top Control Bar
               Positioned(
                 top: 0,
                 left: 0,
@@ -892,10 +872,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                           children: [
                             Text(
                               _playlist.isNotEmpty
-                                  ? _playlist[_currentIndex]
-                                      .path
-                                      .split('/')
-                                      .last
+                                  ? _playlist[_currentIndex].path.split('/').last
                                   : widget.videoFile.path.split('/').last,
                               style: const TextStyle(color: Colors.white, fontSize: 13),
                               maxLines: 1,
@@ -909,7 +886,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                           ],
                         ),
                         actions: [
-                          // ✅ NAYA: Audio Settings shortcut
                           IconButton(
                             iconSize: 24,
                             icon: const Icon(Icons.tune, color: Colors.white),
@@ -944,322 +920,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ),
               ),
 
-              // Center Play/Pause Control
-              Center(
-                child: AnimatedOpacity(
-                  opacity: _showTitle && !_showDoubleTap ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 300),
-                  child: IgnorePointer(
-                    ignoring: !_showTitle || _showDoubleTap,
-                    child: Container(
-                      decoration: const BoxDecoration(
-                        color: Colors.black54,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        iconSize: 55,
-                        icon: ValueListenableBuilder(
-                          valueListenable: _videoController,
-                          builder: (context, VideoPlayerValue value, child) {
-                            return Icon(
-                              value.isPlaying ? Icons.pause : Icons.play_arrow,
-                              color: Colors.white,
-                            );
-                          },
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            if (_videoController.value.isPlaying) {
-                              _videoController.pause();
-                            } else {
-                              _videoController.play();
-                            }
-                          });
-                          _startTitleTimer();
-                        },
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Next / Previous Buttons
-              if (_playlist.length > 1 && !_showDoubleTap)
-                Positioned.fill(
-                  child: AnimatedOpacity(
-                    opacity: _showTitle ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 300),
-                    child: IgnorePointer(
-                      ignoring: !_showTitle,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(left: 30),
-                            child: Container(
-                              decoration: const BoxDecoration(
-                                color: Colors.black54,
-                                shape: BoxShape.circle,
-                              ),
-                              child: IconButton(
-                                iconSize: 35,
-                                icon: Icon(
-                                  Icons.skip_previous,
-                                  color: _currentIndex > 0 ? Colors.white : Colors.white38,
-                                ),
-                                onPressed: _currentIndex > 0 ? _playPreviousVideo : null,
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(right: 30),
-                            child: Container(
-                              decoration: const BoxDecoration(
-                                color: Colors.black54,
-                                shape: BoxShape.circle,
-                              ),
-                              child: IconButton(
-                                iconSize: 35,
-                                icon: Icon(
-                                  Icons.skip_next,
-                                  color: _currentIndex < _playlist.length - 1 ? Colors.white : Colors.white38,
-                                ),
-                                onPressed: _currentIndex < _playlist.length - 1 ? _playNextVideo : null,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-              // ✅ Bottom Control Bar (Aspect Ratio + Rotate Screen Option Combo)
+              // Bottom Control Bar
               Positioned(
                 bottom: 0,
-                left: 0,
-                right: 0,
-                child: AnimatedOpacity(
-                  opacity: _showTitle ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 300),
-                  child: IgnorePointer(
-                    ignoring: !_showTitle,
-                    child: Container(
-                      padding: const EdgeInsets.only(bottom: 25, top: 20, left: 15, right: 15),
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Colors.transparent, Colors.black87],
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ValueListenableBuilder(
-                            valueListenable: _videoController,
-                            builder: (context, VideoPlayerValue value, child) {
-                              return Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    _formatDuration(value.position),
-                                    style: const TextStyle(color: Colors.white, fontSize: 13),
-                                  ),
-                                  Row(
-                                    children: [
-                                      Text(
-                                        _formatDuration(value.duration),
-                                        style: const TextStyle(color: Colors.white, fontSize: 13),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      
-                                      // 1. Zoom / Aspect Ratio Button
-                                      InkWell(
-                                        onTap: _showAspectRatioSheet,
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                          child: Row(
-                                            children: const [
-                                              Icon(Icons.aspect_ratio, color: Colors.white, size: 20),
-                                              SizedBox(width: 3),
-                                              Text('Zoom', style: TextStyle(color: Colors.white70, fontSize: 11)),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-
-                                      // 2. Rotate Screen Button
-                                      InkWell(
-                                        onTap: _toggleFullscreen,
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                          child: Row(
-                                            children: [
-                                              Icon(
-                                                isLandscape ? Icons.screen_lock_portrait : Icons.screen_lock_landscape,
-                                                color: Colors.white,
-                                                size: 20,
-                                              ),
-                                              const SizedBox(width: 3),
-                                              Text(
-                                                isLandscape ? 'Portrait' : 'Rotate',
-                                                style: const TextStyle(color: Colors.white70, fontSize: 11),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 8),
-                          SizedBox(
-                            height: 12,
-                            child: VideoProgressIndicator(
-                              _videoController,
-                              allowScrubbing: true,
-                              colors: const VideoProgressColors(
-                                playedColor: Color(0xFF34D399),
-                                bufferedColor: Colors.white24,
-                                backgroundColor: Colors.white12,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              if (_showVolumeIndicator)
-                Positioned(
-                  left: 20,
-                  top: screenSize.height * 0.25,
-                  child: Container(
-                    width: 45,
-                    height: 180,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.75),
-                      borderRadius: BorderRadius.circular(25),
-                      border: Border.all(color: Colors.white24, width: 0.8),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Icon(
-                          _volume == 0
-                              ? Icons.volume_off
-                              : _volume > 1.0
-                                  ? Icons.volume_up_outlined
-                                  : Icons.volume_up,
-                          color: _volume > 1.0 ? Colors.orangeAccent : Colors.white,
-                          size: 20,
-                        ),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: RotatedBox(
-                              quarterTurns: 3,
-                              child: LinearProgressIndicator(
-                                value: _volume / 2.0,
-                                backgroundColor: Colors.white24,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  _volume > 1.0 ? Colors.orangeAccent : const Color(0xFF34D399),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Text(
-                          '${(_volume * 100).toInt()}%',
-                          style: TextStyle(
-                            color: _volume > 1.0 ? Colors.orangeAccent : Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-              if (_showBrightnessIndicator)
-                Positioned(
-                  right: 20,
-                  top: screenSize.height * 0.25,
-                  child: Container(
-                    width: 45,
-                    height: 180,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.75),
-                      borderRadius: BorderRadius.circular(25),
-                      border: Border.all(color: Colors.white24, width: 0.8),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Icon(Icons.brightness_6, color: Colors.white, size: 20),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: RotatedBox(
-                              quarterTurns: 3,
-                              child: LinearProgressIndicator(
-                                value: _brightness,
-                                backgroundColor: Colors.white24,
-                                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF34D399)),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Text(
-                          '${(_brightness * 100).toInt()}%',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-              if (_scaleX != 1.0 || _scaleY != 1.0)
-                Positioned(
-                  bottom: 100,
-                  right: 20,
-                  child: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _scaleX = 1.0;
-                        _scaleY = 1.0;
-                      });
-                      _showSnackBar('↩️ Stretch Reset');
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.7),
-                        borderRadius: BorderRadius.circular(25),
-                        border: Border.all(color: Colors.white24),
-                      ),
-                      child: const Icon(Icons.restore, color: Colors.white, size: 22),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+                left: 
