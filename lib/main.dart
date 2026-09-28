@@ -2593,6 +2593,7 @@ void _showFullScreenPlayer() {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.bg,
       drawer: _buildDrawer(),
       body: Container(
         decoration: BoxDecoration(gradient: LinearGradient(colors: [AppTheme.bg, AppTheme.card])),
