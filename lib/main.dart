@@ -1537,22 +1537,21 @@ void _showFullScreenPlayer() {
             return Container(
               height: MediaQuery.of(context).size.height,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: AppTheme.isLightMode
-                      ? [
-                          Colors.white,
-                          (_dynamicAccent ?? AppTheme.accent)
-                              .withOpacity(0.08),
-                        ]
-                      : [
-                          (_dynamicGradient?[0] ?? const Color(0xFF1A1A1A))
-                              .withOpacity(0.85),
-                          const Color(0xFF0A0A0A),
-                        ],
-                ),
-              ),
+  gradient: LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: AppTheme.isLightMode
+        ? [
+            Colors.white,
+            (_dynamicAccent ?? AppTheme.accent).withOpacity(0.15),
+          ]
+        : [
+            // ✅ FIX: Solid color, transparent nahi
+            _dynamicGradient?[0] ?? const Color(0xFF1A1A1A),
+            const Color(0xFF0A0A0A),
+          ],
+  ),
+),
               child: SafeArea(
                 child: Column(
                   children: [
