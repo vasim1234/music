@@ -21,6 +21,12 @@ class AlbumArtService {
     }
   }
 
+  // ✅ NAYA: Artwork provider for palette generator
+  static ImageProvider getArtworkProvider(String audioPath) {
+    final file = File(audioPath);
+    return FileImage(file);
+  }
+
   static Future<File?> getAlbumArt(String audioPath) async {
     try {
       final tag = await AudioTags.read(audioPath);
