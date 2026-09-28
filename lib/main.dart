@@ -321,8 +321,22 @@ List<Color>? _dynamicGradient;
 // ✅ NAYA: Album art se color extract karo
 Future<void> _extractColorsFromArt(String audioPath) async {
   try {
+    // Pehle album art extract karo
+    final artProvider = await AlbumArtService.getArtworkProvider(audioPath);
+
+    if (artProvider == null) {
+      // Album art nahi hai — default theme use karo
+      if (mounted) {
+        setState(() {
+          _dynamicAccent = null;
+          _dynamicGradient = null;
+        });
+      }
+      return;
+    }
+
     final palette = await PaletteGenerator.fromImageProvider(
-      AlbumArtService.getArtworkProvider(audioPath),
+      artProvider,
       size: const Size(200, 200),
       maximumColorCount: 8,
     );
