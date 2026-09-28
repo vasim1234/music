@@ -7,6 +7,7 @@ import 'package:chewie/chewie.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
+import 'audio_settings_screen.dart';   // 👈 NAYA
 
 class VideoPlayerScreen extends StatefulWidget {
   final File videoFile;
@@ -469,7 +470,31 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 },
               ),
 
-              // 5. Share Video
+              // 5. Audio Settings (NEW)
+              ListTile(
+                leading: const Icon(Icons.tune, color: Colors.white),
+                title: const Text('Audio Settings', style: TextStyle(color: Colors.white)),
+                subtitle: const Text('Bass, EQ, Reverb & more', style: TextStyle(color: Colors.white54, fontSize: 11)),
+                onTap: () {
+                  Navigator.pop(context);
+                  final wasPlaying = _videoController.value.isPlaying;
+                  if (wasPlaying) _videoController.pause();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AudioSettingsScreen(
+                        isDarkTheme: true,
+                        accentColor: Color(0xFF34D399),
+                        gradientColors: [Color(0xFF059669), Color(0xFF34D399)],
+                      ),
+                    ),
+                  ).then((_) {
+                    if (mounted && wasPlaying) _videoController.play();
+                  });
+                },
+              ),
+
+              // 6. Share Video
               ListTile(
                 leading: const Icon(Icons.share, color: Colors.white),
                 title: const Text('Share Video', style: TextStyle(color: Colors.white)),
@@ -479,7 +504,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 },
               ),
 
-              // 6. Delete Video
+              // 7. Delete Video
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
                 title: const Text('Delete Video', style: TextStyle(color: Colors.redAccent)),
@@ -884,6 +909,29 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                           ],
                         ),
                         actions: [
+                          // ✅ NAYA: Audio Settings shortcut
+                          IconButton(
+                            iconSize: 24,
+                            icon: const Icon(Icons.tune, color: Colors.white),
+                            tooltip: 'Audio Settings',
+                            onPressed: () {
+                              _startTitleTimer();
+                              final wasPlaying = _videoController.value.isPlaying;
+                              if (wasPlaying) _videoController.pause();
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const AudioSettingsScreen(
+                                    isDarkTheme: true,
+                                    accentColor: Color(0xFF34D399),
+                                    gradientColors: [Color(0xFF059669), Color(0xFF34D399)],
+                                  ),
+                                ),
+                              ).then((_) {
+                                if (mounted && wasPlaying) _videoController.play();
+                              });
+                            },
+                          ),
                           IconButton(
                             iconSize: 24,
                             icon: const Icon(Icons.more_vert, color: Colors.white),
@@ -1215,4 +1263,3 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 }
-
