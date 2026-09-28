@@ -1524,7 +1524,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 }
               }
 
-              final dynamicAccent = _dynamicAccent ?? AppTheme.accent;
+              final dynamicAccent = AppTheme.accent;
 
               return Container(
                 height: MediaQuery.of(context).size.height,
@@ -1548,29 +1548,22 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 30),
-                              onPressed: () => Navigator.pop(context),
-                            ),
-                            const Text('Now Playing', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
-                            Row(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.tune, color: Colors.white, size: 22),
-                                  tooltip: 'Audio Settings',
-                                  onPressed: () {
-                                    Navigator.pop(context);
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => AudioSettingsScreen(
-                                          isDarkTheme: true,
-                                          accentColor: dynamicAccent,
-                                          gradientColors: AppTheme.primaryGradient,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
+  icon: const Icon(Icons.tune, color: Colors.white, size: 22),
+  tooltip: 'Audio Settings',
+  onPressed: () {
+    Navigator.pop(context);
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AudioSettingsScreen(
+          isDarkTheme: !AppTheme.isLightMode,     // 👈 Theme based
+          accentColor: AppTheme.accent,            // 👈 Theme accent
+          gradientColors: AppTheme.primaryGradient,
+        ),
+      ),
+    );
+  },
+),
                                 IconButton(
                                   icon: const Icon(Icons.more_vert, color: Colors.white, size: 22),
                                   onPressed: () => _showPlayerMenu(setModalState),
