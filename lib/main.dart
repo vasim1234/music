@@ -1506,6 +1506,7 @@ void _showFullScreenPlayer() {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,   // 👈 YE ADD KARO
     backgroundColor: const Color(0xFF0A0A0A),
     barrierColor: Colors.black.withOpacity(0.9),
     builder: (context) => StatefulBuilder(
