@@ -923,4 +923,285 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               // Bottom Control Bar
               Positioned(
                 bottom: 0,
-                left: 
+                left: 0,
+                right: 0,
+                child: AnimatedOpacity(
+                  opacity: _showTitle ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: IgnorePointer(
+                    ignoring: !_showTitle,
+                    child: Container(
+                      padding: const EdgeInsets.only(bottom: 20, top: 15, left: 15, right: 15),
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.transparent, Colors.black87],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Time + Zoom + Rotate
+                          ValueListenableBuilder(
+                            valueListenable: _videoController,
+                            builder: (context, VideoPlayerValue value, child) {
+                              return Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    _formatDuration(value.position),
+                                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                                  ),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        _formatDuration(value.duration),
+                                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      InkWell(
+                                        onTap: _showAspectRatioSheet,
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                          child: Row(
+                                            children: const [
+                                              Icon(Icons.aspect_ratio, color: Colors.white, size: 20),
+                                              SizedBox(width: 3),
+                                              Text('Zoom', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      InkWell(
+                                        onTap: _toggleFullscreen,
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                isLandscape ? Icons.screen_lock_portrait : Icons.screen_lock_landscape,
+                                                color: Colors.white,
+                                                size: 20,
+                                              ),
+                                              const SizedBox(width: 3),
+                                              Text(
+                                                isLandscape ? 'Portrait' : 'Rotate',
+                                                style: const TextStyle(color: Colors.white70, fontSize: 11),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                          // Progress bar
+                          SizedBox(
+                            height: 12,
+                            child: VideoProgressIndicator(
+                              _videoController,
+                              allowScrubbing: true,
+                              colors: const VideoProgressColors(
+                                playedColor: Color(0xFF34D399),
+                                bufferedColor: Colors.white24,
+                                backgroundColor: Colors.white12,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // ⬇️ 3 BUTTONS AT BOTTOM (Prev / Play-Pause / Next)
+                          ValueListenableBuilder(
+                            valueListenable: _videoController,
+                            builder: (context, VideoPlayerValue value, child) {
+                              return Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  // Previous
+                                  IconButton(
+                                    iconSize: 40,
+                                    icon: Icon(
+                                      Icons.skip_previous,
+                                      color: _currentIndex > 0 ? Colors.white : Colors.white38,
+                                    ),
+                                    onPressed: _currentIndex > 0 ? _playPreviousVideo : null,
+                                  ),
+                                  const SizedBox(width: 30),
+                                  // Play/Pause (big circle)
+                                  Container(
+                                    height: 60,
+                                    width: 60,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: IconButton(
+                                      iconSize: 34,
+                                      icon: Icon(
+                                        value.isPlaying ? Icons.pause : Icons.play_arrow,
+                                        color: Colors.black,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          if (_videoController.value.isPlaying) {
+                                            _videoController.pause();
+                                          } else {
+                                            _videoController.play();
+                                          }
+                                        });
+                                        _startTitleTimer();
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(width: 30),
+                                  // Next
+                                  IconButton(
+                                    iconSize: 40,
+                                    icon: Icon(
+                                      Icons.skip_next,
+                                      color: _currentIndex < _playlist.length - 1 ? Colors.white : Colors.white38,
+                                    ),
+                                    onPressed: _currentIndex < _playlist.length - 1 ? _playNextVideo : null,
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              if (_showVolumeIndicator)
+                Positioned(
+                  left: 20,
+                  top: screenSize.height * 0.25,
+                  child: Container(
+                    width: 45,
+                    height: 180,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.75),
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(color: Colors.white24, width: 0.8),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Icon(
+                          _volume == 0
+                              ? Icons.volume_off
+                              : _volume > 1.0
+                                  ? Icons.volume_up_outlined
+                                  : Icons.volume_up,
+                          color: _volume > 1.0 ? Colors.orangeAccent : Colors.white,
+                          size: 20,
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: RotatedBox(
+                              quarterTurns: 3,
+                              child: LinearProgressIndicator(
+                                value: _volume / 2.0,
+                                backgroundColor: Colors.white24,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  _volume > 1.0 ? Colors.orangeAccent : const Color(0xFF34D399),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${(_volume * 100).toInt()}%',
+                          style: TextStyle(
+                            color: _volume > 1.0 ? Colors.orangeAccent : Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              if (_showBrightnessIndicator)
+                Positioned(
+                  right: 20,
+                  top: screenSize.height * 0.25,
+                  child: Container(
+                    width: 45,
+                    height: 180,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.75),
+                      borderRadius: BorderRadius.circular(25),
+                      border: Border.all(color: Colors.white24, width: 0.8),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Icon(Icons.brightness_6, color: Colors.white, size: 20),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: RotatedBox(
+                              quarterTurns: 3,
+                              child: LinearProgressIndicator(
+                                value: _brightness,
+                                backgroundColor: Colors.white24,
+                                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF34D399)),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${(_brightness * 100).toInt()}%',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              if (_scaleX != 1.0 || _scaleY != 1.0)
+                Positioned(
+                  bottom: 120,
+                  right: 20,
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _scaleX = 1.0;
+                        _scaleY = 1.0;
+                      });
+                      _showSnackBar('Stretch Reset');
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(25),
+                        border: Border.all(color: Colors.white24),
+                      ),
+                      child: const Icon(Icons.restore, color: Colors.white, size: 22),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
