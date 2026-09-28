@@ -10,6 +10,7 @@ import 'services/audio_handler.dart';
 import 'package:audio_service/audio_service.dart';
 import 'video_player_screen.dart';
 import 'audio_settings_screen.dart';
+import 'package:palette_generator/palette_generator.dart';
 
 // ✅ 2 PREMIUM THEMES (Dark + Light)
 class AppColors {
@@ -160,6 +161,10 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   int _currentIndex = -1;
   int _selectedTab = 0;
   int _themeIndex = 0;
+
+  // ✅ NAYA: Album art se extract kiye colors
+Color? _dynamicAccent;
+List<Color>? _dynamicGradient;
 
   List<String> _hiddenFolders = [];
   bool _hideBanner = false;
@@ -312,7 +317,51 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       debugPrint('🎧 3D Audio restored on app start');
     }
   }
+  
+// ✅ NAYA: Album art se color extract karo
+Future<void> _extractColorsFromArt(String audioPath) async {
+  try {
+    final palette = await PaletteGenerator.fromImageProvider(
+      AlbumArtService.getArtworkProvider(audioPath),
+      size: const Size(200, 200),
+      maximumColorCount: 8,
+    );
 
+    if (palette.colors.isEmpty) return;
+
+    final dominant = palette.dominantColor?.color ??
+        palette.vibrantColor?.color ??
+        palette.mutedColor?.color;
+
+    if (dominant == null) return;
+
+    final List<Color> gradient = [];
+    if (palette.darkVibrantColor != null) {
+      gradient.add(palette.darkVibrantColor!.color);
+    } else if (palette.darkMutedColor != null) {
+      gradient.add(palette.darkMutedColor!.color);
+    } else {
+      gradient.add(dominant);
+    }
+    if (palette.vibrantColor != null) {
+      gradient.add(palette.vibrantColor!.color);
+    } else if (palette.lightVibrantColor != null) {
+      gradient.add(palette.lightVibrantColor!.color);
+    } else {
+      gradient.add(dominant);
+    }
+
+    if (mounted) {
+      setState(() {
+        _dynamicAccent = dominant;
+        _dynamicGradient = gradient;
+      });
+    }
+  } catch (e) {
+    debugPrint('Color extract error: $e');
+  }
+}
+  
   Future<void> _savePlaybackMode() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isShuffle', isShuffle);
@@ -909,6 +958,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       isPlaying = true;
     });
     _isPlayingNotifier.value = true;
+    _extractColorsFromArt(song.path);
 
     if (!_recentSongs.contains(song.path)) {
       _recentSongs.insert(0, song.path);
@@ -1436,7 +1486,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
-// ✅ FULL SCREEN PLAYER — Auto-update on song change
+// ✅ FULL SCREEN PLAYER — Auto-update + Dynamic Colors
 void _showFullScreenPlayer() {
   if (_currentSong == null) return;
   showModalBottomSheet(
@@ -1467,6 +1517,9 @@ void _showFullScreenPlayer() {
               }
             }
 
+            // ✅ Dynamic accent color
+            final dynamicAccent = _dynamicAccent ?? AppTheme.accent;
+
             return Container(
               height: MediaQuery.of(context).size.height,
               decoration: BoxDecoration(
@@ -1474,8 +1527,16 @@ void _showFullScreenPlayer() {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: AppTheme.isLightMode
-                      ? [Colors.white, Colors.grey.shade50]
-                      : [const Color(0xFF1A1A1A), const Color(0xFF0A0A0A)],
+                      ? [
+                          Colors.white,
+                          (_dynamicAccent ?? AppTheme.accent)
+                              .withOpacity(0.08),
+                        ]
+                      : [
+                          (_dynamicGradient?[0] ?? const Color(0xFF1A1A1A))
+                              .withOpacity(0.85),
+                          const Color(0xFF0A0A0A),
+                        ],
                 ),
               ),
               child: SafeArea(
@@ -1514,7 +1575,7 @@ void _showFullScreenPlayer() {
                                       builder: (context) =>
                                           AudioSettingsScreen(
                                         isDarkTheme: !AppTheme.isLightMode,
-                                        accentColor: AppTheme.accent,
+                                        accentColor: dynamicAccent,
                                         gradientColors:
                                             AppTheme.primaryGradient,
                                       ),
@@ -1601,10 +1662,10 @@ void _showFullScreenPlayer() {
                               SliderTheme(
                                 data: SliderTheme.of(context).copyWith(
                                   trackHeight: 3,
-                                  activeTrackColor: AppTheme.accent,
+                                  activeTrackColor: dynamicAccent,
                                   inactiveTrackColor:
                                       AppTheme.subText.withOpacity(0.3),
-                                  thumbColor: AppTheme.accent,
+                                  thumbColor: dynamicAccent,
                                   thumbShape: const RoundSliderThumbShape(
                                       enabledThumbRadius: 7),
                                   overlayShape:
@@ -1666,7 +1727,7 @@ void _showFullScreenPlayer() {
                             icon: Icon(
                               Icons.shuffle,
                               color: isShuffle
-                                  ? AppTheme.accent
+                                  ? dynamicAccent
                                   : AppTheme.text.withOpacity(0.6),
                               size: 24,
                             ),
@@ -1690,7 +1751,7 @@ void _showFullScreenPlayer() {
                               width: 70,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: AppTheme.accent,
+                                color: dynamicAccent,
                               ),
                               child: IconButton(
                                 iconSize: 38,
@@ -1716,7 +1777,7 @@ void _showFullScreenPlayer() {
                             icon: Icon(
                               isRepeatOne ? Icons.repeat_one : Icons.repeat,
                               color: (isRepeat || isRepeatOne)
-                                  ? AppTheme.accent
+                                  ? dynamicAccent
                                   : AppTheme.text.withOpacity(0.6),
                               size: 24,
                             ),
@@ -1733,8 +1794,8 @@ void _showFullScreenPlayer() {
 
                     // ─── BOTTOM ROW ───
                     Padding(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 8),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
