@@ -11,6 +11,7 @@ import 'services/audio_handler.dart';
 import 'package:audio_service/audio_service.dart';
 import 'video_player_screen.dart';
 import 'equalizer_screen.dart';
+import 'audio_settings_screen.dart';
 
 // ✅ 2 PREMIUM THEMES (Dark + Light)
 class AppColors {
