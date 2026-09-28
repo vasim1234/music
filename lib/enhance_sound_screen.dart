@@ -39,7 +39,8 @@ class _EnhanceSoundScreenState extends State<EnhanceSoundScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black87),
+          icon: Icon(Icons.arrow_back,
+              color: isDark ? Colors.white : Colors.black87),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -51,23 +52,32 @@ class _EnhanceSoundScreenState extends State<EnhanceSoundScreen> {
           ),
         ),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
+            // Headphones hint
             Row(
               children: [
-                Icon(Icons.headphones, color: isDark ? Colors.grey.shade600 : Colors.grey.shade400, size: 20),
+                Icon(Icons.headphones,
+                    color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
+                    size: 20),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Put in earphones before adjusting sound effects',
-                    style: TextStyle(color: isDark ? Colors.grey.shade500 : Colors.grey.shade600, fontSize: 14),
+                    style: TextStyle(
+                        color: isDark
+                            ? Colors.grey.shade500
+                            : Colors.grey.shade600,
+                        fontSize: 14),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 50),
+            const SizedBox(height: 40),
+
+            // Dials Row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -91,10 +101,44 @@ class _EnhanceSoundScreenState extends State<EnhanceSoundScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 40),
+
+            const SizedBox(height: 30),
+
+            // ✅ NAYA: Bass Intensity Slider
+            _buildIntensitySlider(
+              label: 'Bass Intensity',
+              icon: Icons.graphic_eq,
+              value: _bassLevel,
+              isDark: isDark,
+              color: Colors.deepPurple.shade400,
+              onChanged: (value) {
+                setState(() => _bassLevel = value);
+                _applyEffects();
+              },
+            ),
+
+            const SizedBox(height: 16),
+
+            // ✅ NAYA: Immersive Intensity Slider
+            _buildIntensitySlider(
+              label: 'Immersive Intensity',
+              icon: Icons.surround_sound,
+              value: _immersiveLevel,
+              isDark: isDark,
+              color: Colors.deepPurple.shade400,
+              onChanged: (value) {
+                setState(() => _immersiveLevel = value);
+                _applyEffects();
+              },
+            ),
+
+            const SizedBox(height: 30),
+
+            // Status bar
             Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 decoration: BoxDecoration(
                   color: Colors.deepPurple.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(15),
@@ -102,7 +146,8 @@ class _EnhanceSoundScreenState extends State<EnhanceSoundScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.graphic_eq, color: Colors.deepPurpleAccent, size: 16),
+                    const Icon(Icons.graphic_eq,
+                        color: Colors.deepPurpleAccent, size: 16),
                     const SizedBox(width: 8),
                     Text(
                       'Bass: ${(_bassLevel * 100).toStringAsFixed(0)}%  |  '
@@ -117,7 +162,10 @@ class _EnhanceSoundScreenState extends State<EnhanceSoundScreen> {
                 ),
               ),
             ),
+
             const SizedBox(height: 30),
+
+            // Reset button
             Center(
               child: GestureDetector(
                 onTap: () {
@@ -128,28 +176,109 @@ class _EnhanceSoundScreenState extends State<EnhanceSoundScreen> {
                   _applyEffects();
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
                   decoration: BoxDecoration(
                     color: Colors.deepPurple.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(25),
-                    border: Border.all(color: Colors.deepPurple.withOpacity(0.3)),
+                    border:
+                        Border.all(color: Colors.deepPurple.withOpacity(0.3)),
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.restore, color: Colors.deepPurpleAccent, size: 18),
+                      Icon(Icons.restore,
+                          color: Colors.deepPurpleAccent, size: 18),
                       SizedBox(width: 8),
                       Text(
                         'Reset to default',
-                        style: TextStyle(color: Colors.deepPurpleAccent, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                            color: Colors.deepPurpleAccent,
+                            fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
                 ),
               ),
             ),
+            const SizedBox(height: 20),
           ],
         ),
+      ),
+    );
+  }
+
+  // ✅ NAYA: Intensity Slider widget
+  Widget _buildIntensitySlider({
+    required String label,
+    required IconData icon,
+    required double value,
+    required bool isDark,
+    required Color color,
+    required Function(double) onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF181820) : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.black87,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${(value * 100).toStringAsFixed(0)}%',
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 5,
+              activeTrackColor: color,
+              inactiveTrackColor:
+                  isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+              thumbColor: color,
+              thumbShape:
+                  const RoundSliderThumbShape(enabledThumbRadius: 9),
+              overlayColor: color.withOpacity(0.2),
+              overlayShape:
+                  const RoundSliderOverlayShape(overlayRadius: 16),
+            ),
+            child: Slider(
+              value: value.clamp(0.0, 1.0),
+              min: 0.0,
+              max: 1.0,
+              onChanged: onChanged,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -196,9 +325,17 @@ class _EnhanceSoundScreenState extends State<EnhanceSoundScreen> {
           ),
         ),
         const SizedBox(height: 20),
-        Text(label, style: TextStyle(color: isDark ? Colors.grey.shade400 : Colors.grey.shade700, fontSize: 16, fontWeight: FontWeight.w500)),
+        Text(label,
+            style: TextStyle(
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                fontSize: 16,
+                fontWeight: FontWeight.w500)),
         const SizedBox(height: 4),
-        Text('${(value * 100).toStringAsFixed(0)}%', style: const TextStyle(color: Colors.deepPurpleAccent, fontSize: 13, fontWeight: FontWeight.bold)),
+        Text('${(value * 100).toStringAsFixed(0)}%',
+            style: const TextStyle(
+                color: Colors.deepPurpleAccent,
+                fontSize: 13,
+                fontWeight: FontWeight.bold)),
       ],
     );
   }
