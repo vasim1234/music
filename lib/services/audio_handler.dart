@@ -162,7 +162,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     }
   }
 
-  // ✅ NAYA: Equalizer preset apply karo
+  // ✅ Equalizer preset apply karo
   Future<void> setEqualizerPreset(String presetName) async {
     try {
       await _bassChannel.invokeMethod('setEqualizerPreset', {
@@ -174,7 +174,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     }
   }
 
-  // ✅ NAYA: Ek band set karo
+  // ✅ Ek band set karo
   Future<void> setEqualizerBand(int bandIndex, int levelMb) async {
     try {
       await _bassChannel.invokeMethod('setEqualizerBand', {
@@ -187,7 +187,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     }
   }
 
-  // ✅ NAYA: Equalizer on/off
+  // ✅ Equalizer on/off
   Future<void> setEqualizerEnabled(bool enabled) async {
     try {
       await _bassChannel.invokeMethod('setEqualizerEnabled', {
@@ -199,7 +199,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     }
   }
 
-  // ✅ NAYA: EQ info (bands + range)
+  // ✅ EQ info (bands + range)
   Future<Map<String, dynamic>> getEqualizerInfo() async {
     try {
       final result = await _bassChannel.invokeMethod('getEqualizerInfo');
@@ -212,6 +212,32 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         'maxLevel': 1500,
         'centerFreqs': <int>[],
       };
+    }
+  }
+
+  // ✅ NAYA: Reverb apply karo
+  Future<void> setReverb(bool enabled, String presetName) async {
+    try {
+      await _bassChannel.invokeMethod('setReverb', {
+        'enabled': enabled,
+        'preset': presetName,
+      });
+      debugPrint('🏛️ Reverb: $enabled @ $presetName');
+    } catch (e) {
+      debugPrint('❌ setReverb error: $e');
+    }
+  }
+
+  // ✅ NAYA: Loudness Enhancer
+  Future<void> setLoudness(bool enabled, int gainMb) async {
+    try {
+      await _bassChannel.invokeMethod('setLoudness', {
+        'enabled': enabled,
+        'gainMb': gainMb,
+      });
+      debugPrint('📢 Loudness: $enabled @ $gainMb mB');
+    } catch (e) {
+      debugPrint('❌ setLoudness error: $e');
     }
   }
 
