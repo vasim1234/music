@@ -1442,6 +1442,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,              // 👈 YE NAYA
       backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) => Container(
