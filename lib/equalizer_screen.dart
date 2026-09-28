@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import 'dart:math' as math;
 import 'services/audio_handler.dart';
 
@@ -28,7 +30,14 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
   String _selectedPreset = 'Flat';
   bool _isLoading = true;
 
-  final List<Map<String, dynamic>> _presets = [
+  // ✅ NAYA: Reverb + Loudness + Custom Presets
+  String _selectedReverb = 'None';
+  bool _reverbEnabled = false;
+  bool _loudnessEnabled = false;
+  int _loudnessGain = 500; // 500 mB = +5 dB
+  List<Map<String, dynamic>> _customPresets = [];
+
+  final List<Map<String, dynamic>> _builtinPresets = [
     {'name': 'Flat', 'emoji': '➖', 'color': 0xFF6B7280},
     {'name': 'Rock', 'emoji': '🎸', 'color': 0xFFEF4444},
     {'name': 'Pop', 'emoji': '🎤', 'color': 0xFFEC4899},
@@ -39,10 +48,22 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
     {'name': 'Vocal', 'emoji': '🎙️', 'color': 0xFF10B981},
   ];
 
+  final List<Map<String, dynamic>> _reverbPresets = [
+    {'name': 'None', 'emoji': '🚫', 'label': 'Off'},
+    {'name': 'SmallRoom', 'emoji': '🚪', 'label': 'Small Room'},
+    {'name': 'MediumRoom', 'emoji': '🏠', 'label': 'Medium Room'},
+    {'name': 'LargeRoom', 'emoji': '🏛️', 'label': 'Large Room'},
+    {'name': 'MediumHall', 'emoji': '🎭', 'label': 'Medium Hall'},
+    {'name': 'LargeHall', 'emoji': '🏟️', 'label': 'Large Hall'},
+    {'name': 'Plate', 'emoji': '🎚️', 'label': 'Plate'},
+  ];
+
   @override
   void initState() {
     super.initState();
     _loadEqualizerInfo();
+    _loadCustomPresets();
+    _loadReverbLoudness();
   }
 
   Future<void> _loadEqualizerInfo() async {
@@ -68,6 +89,52 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
     }
   }
 
+  Future<void> _loadCustomPresets() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString('custom_eq_presets');
+    if (data != null) {
+      try {
+        final list = jsonDecode(data) as List;
+        setState(() {
+          _customPresets = list.map((e) => Map<String, dynamic>.from(e)).toList();
+        });
+      } catch (e) {
+        debugPrint('Custom presets load error: $e');
+      }
+    }
+  }
+
+  Future<void> _saveCustomPresets() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('custom_eq_presets', jsonEncode(_customPresets));
+  }
+
+  Future<void> _loadReverbLoudness() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _reverbEnabled = prefs.getBool('reverb_enabled') ?? false;
+      _selectedReverb = prefs.getString('reverb_preset') ?? 'None';
+      _loudnessEnabled = prefs.getBool('loudness_enabled') ?? false;
+      _loudnessGain = prefs.getInt('loudness_gain') ?? 500;
+    });
+    if (audioHandler != null) {
+      if (_reverbEnabled && _selectedReverb != 'None') {
+        await audioHandler!.setReverb(true, _selectedReverb);
+      }
+      if (_loudnessEnabled) {
+        await audioHandler!.setLoudness(true, _loudnessGain);
+      }
+    }
+  }
+
+  Future<void> _saveReverbLoudness() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('reverb_enabled', _reverbEnabled);
+    await prefs.setString('reverb_preset', _selectedReverb);
+    await prefs.setBool('loudness_enabled', _loudnessEnabled);
+    await prefs.setInt('loudness_gain', _loudnessGain);
+  }
+
   String _formatFreq(int hz) {
     if (hz >= 1000) return '${(hz / 1000).toStringAsFixed(hz % 1000 == 0 ? 0 : 1)}k';
     return '$hz';
@@ -80,6 +147,18 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
       _bandLevels = _getPresetBands(presetName);
     });
     await audioHandler!.setEqualizerPreset(presetName);
+  }
+
+  Future<void> _applyCustomPreset(Map<String, dynamic> preset) async {
+    if (audioHandler == null) return;
+    final levels = (preset['levels'] as List).cast<int>();
+    setState(() {
+      _selectedPreset = preset['name'] as String;
+      _bandLevels = List.from(levels);
+    });
+    for (int i = 0; i < levels.length; i++) {
+      await audioHandler!.setEqualizerBand(i, levels[i]);
+    }
   }
 
   List<int> _getPresetBands(String presetName) {
@@ -111,6 +190,131 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
 
   void _resetToFlat() => _applyPreset('Flat');
 
+  // ✅ NAYA: Save custom preset dialog
+  void _showSavePresetDialog() {
+    final nameCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: widget.isDarkTheme ? const Color(0xFF181820) : Colors.white,
+        title: Text('Save Preset',
+            style: TextStyle(
+                color: widget.isDarkTheme ? Colors.white : Colors.black87)),
+        content: TextField(
+          controller: nameCtrl,
+          autofocus: true,
+          style: TextStyle(
+              color: widget.isDarkTheme ? Colors.white : Colors.black87),
+          decoration: InputDecoration(
+            hintText: 'e.g. My Bass',
+            hintStyle: TextStyle(
+                color: widget.isDarkTheme
+                    ? Colors.grey.shade500
+                    : Colors.grey.shade600),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: widget.accentColor),
+            onPressed: () async {
+              final name = nameCtrl.text.trim();
+              if (name.isEmpty) return;
+              final newPreset = {
+                'name': name,
+                'levels': List.from(_bandLevels),
+                'emoji': '⭐',
+                'color': widget.accentColor.value,
+              };
+              setState(() {
+                _customPresets.add(newPreset);
+              });
+              await _saveCustomPresets();
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('✅ "$name" saved!'),
+                  backgroundColor: widget.accentColor,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              );
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _deleteCustomPreset(int index) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: widget.isDarkTheme ? const Color(0xFF181820) : Colors.white,
+        title: Text('Delete Preset?',
+            style: TextStyle(
+                color: widget.isDarkTheme ? Colors.white : Colors.black87)),
+        content: Text('Delete "${_customPresets[index]['name']}"?',
+            style: TextStyle(
+                color: widget.isDarkTheme
+                    ? Colors.grey.shade500
+                    : Colors.grey.shade600)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () async {
+              setState(() {
+                _customPresets.removeAt(index);
+              });
+              await _saveCustomPresets();
+              Navigator.pop(context);
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ NAYA: Reverb toggle
+  Future<void> _onReverbChanged(String presetName) async {
+    final enabled = presetName != 'None';
+    setState(() {
+      _selectedReverb = presetName;
+      _reverbEnabled = enabled;
+    });
+    if (audioHandler != null) {
+      await audioHandler!.setReverb(enabled, presetName);
+    }
+    await _saveReverbLoudness();
+  }
+
+  // ✅ NAYA: Loudness toggle
+  Future<void> _onLoudnessToggle(bool enabled) async {
+    setState(() => _loudnessEnabled = enabled);
+    if (audioHandler != null) {
+      await audioHandler!.setLoudness(enabled, enabled ? _loudnessGain : 0);
+    }
+    await _saveReverbLoudness();
+  }
+
+  Future<void> _onLoudnessGainChanged(int gain) async {
+    setState(() => _loudnessGain = gain);
+    if (audioHandler != null && _loudnessEnabled) {
+      await audioHandler!.setLoudness(true, gain);
+    }
+    await _saveReverbLoudness();
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = widget.isDarkTheme;
@@ -118,12 +322,9 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
     final card = isDark ? const Color(0xFF181820) : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black87;
     final subText = isDark ? Colors.grey.shade500 : Colors.grey.shade600;
-    final activeColor = _selectedPreset == 'Custom'
+    final activeColor = _selectedPreset == 'Custom' || _isCustomSelected()
         ? widget.accentColor
-        : Color(_presets.firstWhere(
-            (p) => p['name'] == _selectedPreset,
-            orElse: () => _presets[0],
-          )['color']);
+        : Color(_getActivePresetColor());
 
     return Scaffold(
       backgroundColor: bg,
@@ -137,13 +338,18 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
         title: Text(
           'Equalizer',
           style: TextStyle(
-            color: textColor,
-            fontSize: 26,
-            fontWeight: FontWeight.bold,
-            letterSpacing: -0.5,
-          ),
+              color: textColor,
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              letterSpacing: -0.5),
         ),
         actions: [
+          if (_selectedPreset == 'Custom')
+            IconButton(
+              icon: Icon(Icons.save, color: widget.accentColor),
+              tooltip: 'Save Preset',
+              onPressed: _showSavePresetDialog,
+            ),
           if (_selectedPreset != 'Flat')
             IconButton(
               icon: Icon(Icons.refresh, color: widget.accentColor),
@@ -159,7 +365,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ✅ Frequency Response Curve Card
+                  // Frequency Curve Card
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -179,9 +385,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                         ),
                       ],
                       border: Border.all(
-                        color: activeColor.withOpacity(0.2),
-                        width: 1.5,
-                      ),
+                          color: activeColor.withOpacity(0.2), width: 1.5),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -190,9 +394,7 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                           children: [
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 5,
-                              ),
+                                  horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
                                 color: activeColor.withOpacity(0.15),
                                 borderRadius: BorderRadius.circular(20),
@@ -200,22 +402,14 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
-                                    _presets.firstWhere(
-                                      (p) => p['name'] == _selectedPreset,
-                                      orElse: () => _presets[0],
-                                    )['emoji'] as String,
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
+                                  Text(_getActivePresetEmoji(),
+                                      style: const TextStyle(fontSize: 12)),
                                   const SizedBox(width: 4),
-                                  Text(
-                                    _selectedPreset,
-                                    style: TextStyle(
-                                      color: activeColor,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
+                                  Text(_selectedPreset,
+                                      style: TextStyle(
+                                          color: activeColor,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold)),
                                 ],
                               ),
                             ),
@@ -224,7 +418,6 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        // ✅ Live Frequency Curve
                         SizedBox(
                           height: 90,
                           child: CustomPaint(
@@ -245,23 +438,18 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
 
                   const SizedBox(height: 30),
 
-                  // ✅ Preset section
+                  // Presets section
                   Row(
                     children: [
-                      Text(
-                        'PRESETS',
-                        style: TextStyle(
-                          color: subText,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.8,
-                        ),
-                      ),
+                      Text('PRESETS',
+                          style: TextStyle(
+                              color: subText,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.8)),
                       const Spacer(),
-                      Text(
-                        '${_presets.length} available',
-                        style: TextStyle(color: subText, fontSize: 10),
-                      ),
+                      Text('${_builtinPresets.length + _customPresets.length} available',
+                          style: TextStyle(color: subText, fontSize: 10)),
                     ],
                   ),
                   const SizedBox(height: 14),
@@ -269,28 +457,32 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                     height: 42,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
-                      itemCount: _presets.length,
+                      itemCount: _builtinPresets.length + _customPresets.length,
                       separatorBuilder: (_, __) => const SizedBox(width: 8),
                       itemBuilder: (context, i) {
-                        final p = _presets[i];
+                        final isCustom = i >= _builtinPresets.length;
+                        final p = isCustom
+                            ? _customPresets[i - _builtinPresets.length]
+                            : _builtinPresets[i];
                         final isActive = _selectedPreset == p['name'];
                         final pColor = Color(p['color'] as int);
                         return GestureDetector(
-                          onTap: () => _applyPreset(p['name'] as String),
+                          onTap: () => isCustom
+                              ? _applyCustomPreset(p)
+                              : _applyPreset(p['name'] as String),
+                          onLongPress: isCustom
+                              ? () => _deleteCustomPreset(i - _builtinPresets.length)
+                              : null,
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 250),
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
+                                horizontal: 16, vertical: 10),
                             decoration: BoxDecoration(
                               gradient: isActive
-                                  ? LinearGradient(
-                                      colors: [
-                                        pColor,
-                                        pColor.withOpacity(0.7),
-                                      ],
-                                    )
+                                  ? LinearGradient(colors: [
+                                      pColor,
+                                      pColor.withOpacity(0.7)
+                                    ])
                                   : null,
                               color: isActive ? null : card,
                               borderRadius: BorderRadius.circular(21),
@@ -299,15 +491,13 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                                   : Border.all(
                                       color: isDark
                                           ? Colors.grey.shade800
-                                          : Colors.grey.shade200,
-                                    ),
+                                          : Colors.grey.shade200),
                               boxShadow: isActive
                                   ? [
                                       BoxShadow(
-                                        color: pColor.withOpacity(0.4),
-                                        blurRadius: 12,
-                                        offset: const Offset(0, 4),
-                                      ),
+                                          color: pColor.withOpacity(0.4),
+                                          blurRadius: 12,
+                                          offset: const Offset(0, 4))
                                     ]
                                   : null,
                             ),
@@ -316,16 +506,14 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                                 Text(p['emoji'] as String,
                                     style: const TextStyle(fontSize: 13)),
                                 const SizedBox(width: 6),
-                                Text(
-                                  p['name'] as String,
-                                  style: TextStyle(
-                                    color: isActive ? Colors.white : textColor,
-                                    fontWeight: isActive
-                                        ? FontWeight.bold
-                                        : FontWeight.w600,
-                                    fontSize: 12,
-                                  ),
-                                ),
+                                Text(p['name'] as String,
+                                    style: TextStyle(
+                                        color:
+                                            isActive ? Colors.white : textColor,
+                                        fontWeight: isActive
+                                            ? FontWeight.bold
+                                            : FontWeight.w600,
+                                        fontSize: 12)),
                               ],
                             ),
                           ),
@@ -336,46 +524,38 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
 
                   const SizedBox(height: 32),
 
-                  // ✅ Bands section
+                  // Bands
                   Row(
                     children: [
-                      Text(
-                        'BANDS',
-                        style: TextStyle(
-                          color: subText,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.8,
-                        ),
-                      ),
+                      Text('BANDS',
+                          style: TextStyle(
+                              color: subText,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.8)),
                       const Spacer(),
-                      Text(
-                        '${_minLevel ~/ 100} dB  ↔  +${_maxLevel ~/ 100} dB',
-                        style: TextStyle(color: subText, fontSize: 10),
-                      ),
+                      Text('${_minLevel ~/ 100} dB  ↔  +${_maxLevel ~/ 100} dB',
+                          style: TextStyle(color: subText, fontSize: 10)),
                     ],
                   ),
                   const SizedBox(height: 14),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 16,
-                    ),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
                     decoration: BoxDecoration(
                       color: card,
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
+                            color: Colors.black
+                                .withOpacity(isDark ? 0.3 : 0.05),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8)),
                       ],
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        // Left dB labels
                         Padding(
                           padding: const EdgeInsets.only(bottom: 30),
                           child: Column(
@@ -404,10 +584,11 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: List.generate(_numBands, (i) {
-                              final freq =
-                                  i < _centerFreqs.length ? _centerFreqs[i] : 0;
-                              return _buildBand(i, _formatFreq(freq), activeColor,
-                                  isDark, card);
+                              final freq = i < _centerFreqs.length
+                                  ? _centerFreqs[i]
+                                  : 0;
+                              return _buildBand(i, _formatFreq(freq),
+                                  activeColor, isDark, card);
                             }),
                           ),
                         ),
@@ -415,29 +596,171 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                     ),
                   ),
 
+                  const SizedBox(height: 32),
+
+                  // ✅ NAYA: Reverb Section
+                  Row(
+                    children: [
+                      Text('REVERB',
+                          style: TextStyle(
+                              color: subText,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.8)),
+                      const Spacer(),
+                      if (_reverbEnabled)
+                        Text(_reverbPresets
+                            .firstWhere((r) => r['name'] == _selectedReverb,
+                                orElse: () => _reverbPresets[0])['label'] as String,
+                            style: TextStyle(
+                                color: widget.accentColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: card,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: SizedBox(
+                      height: 70,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _reverbPresets.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemBuilder: (context, i) {
+                          final r = _reverbPresets[i];
+                          final isActive = _selectedReverb == r['name'];
+                          return GestureDetector(
+                            onTap: () => _onReverbChanged(r['name'] as String),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: 70,
+                              decoration: BoxDecoration(
+                                gradient: isActive
+                                    ? LinearGradient(
+                                        colors: widget.gradientColors)
+                                    : null,
+                                color: isActive ? null : (isDark
+                                    ? Colors.grey.shade900
+                                    : Colors.grey.shade100),
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(r['emoji'] as String,
+                                      style: const TextStyle(fontSize: 18)),
+                                  const SizedBox(height: 4),
+                                  Text(r['label'] as String,
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      style: TextStyle(
+                                          color: isActive
+                                              ? Colors.white
+                                              : textColor,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // ✅ NAYA: Loudness Enhancer
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: card,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.volume_up,
+                                color: _loudnessEnabled
+                                    ? widget.accentColor
+                                    : subText,
+                                size: 22),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Loudness Enhancer',
+                                      style: TextStyle(
+                                          color: textColor,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold)),
+                                  Text('Boost quiet audio',
+                                      style:
+                                          TextStyle(color: subText, fontSize: 11)),
+                                ],
+                              ),
+                            ),
+                            Switch(
+                              value: _loudnessEnabled,
+                              onChanged: _onLoudnessToggle,
+                              activeColor: widget.accentColor,
+                            ),
+                          ],
+                        ),
+                        if (_loudnessEnabled) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Text('+${(_loudnessGain / 100).toStringAsFixed(0)} dB',
+                                  style: TextStyle(
+                                      color: widget.accentColor,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold)),
+                              Expanded(
+                                child: Slider(
+                                  value: _loudnessGain.toDouble(),
+                                  min: 0,
+                                  max: 1500,
+                                  divisions: 15,
+                                  activeColor: widget.accentColor,
+                                  onChanged: (v) =>
+                                      _onLoudnessGainChanged(v.round()),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+
                   const SizedBox(height: 28),
 
-                  // ✅ Reset button
+                  // Reset Button
                   Center(
                     child: GestureDetector(
                       onTap: _resetToFlat,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
+                      child: Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 32,
-                          vertical: 14,
-                        ),
+                            horizontal: 32, vertical: 14),
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: widget.gradientColors,
-                          ),
+                          gradient:
+                              LinearGradient(colors: widget.gradientColors),
                           borderRadius: BorderRadius.circular(26),
                           boxShadow: [
                             BoxShadow(
-                              color: widget.gradientColors[0].withOpacity(0.4),
-                              blurRadius: 16,
-                              offset: const Offset(0, 6),
-                            ),
+                                color: widget.gradientColors[0]
+                                    .withOpacity(0.4),
+                                blurRadius: 16,
+                                offset: const Offset(0, 6)),
                           ],
                         ),
                         child: const Row(
@@ -445,14 +768,11 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                           children: [
                             Icon(Icons.restore, color: Colors.white, size: 18),
                             SizedBox(width: 8),
-                            Text(
-                              'Reset to Flat',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
+                            Text('Reset to Flat',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14)),
                           ],
                         ),
                       ),
@@ -464,21 +784,33 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
     );
   }
 
+  bool _isCustomSelected() {
+    return _customPresets.any((p) => p['name'] == _selectedPreset);
+  }
+
+  int _getActivePresetColor() {
+    final builtin = _builtinPresets.firstWhere(
+        (p) => p['name'] == _selectedPreset,
+        orElse: () => _builtinPresets[0]);
+    return builtin['color'] as int;
+  }
+
+  String _getActivePresetEmoji() {
+    final builtin = _builtinPresets.firstWhere(
+        (p) => p['name'] == _selectedPreset,
+        orElse: () => {'emoji': '⭐'});
+    if (builtin['name'] == _selectedPreset) return builtin['emoji'] as String;
+    return '⭐';
+  }
+
   Widget _buildBand(
-    int index,
-    String label,
-    Color activeColor,
-    bool isDark,
-    Color card,
-  ) {
+      int index, String label, Color activeColor, bool isDark, Color card) {
     final level = _bandLevels[index];
-    final double normalized = level / _maxLevel;
 
     return Expanded(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Level chip
           AnimatedContainer(
             duration: const Duration(milliseconds: 150),
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -489,7 +821,9 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              level == 0 ? '0' : '${level > 0 ? '+' : ''}${(level / 100).toStringAsFixed(0)}',
+              level == 0
+                  ? '0'
+                  : '${level > 0 ? '+' : ''}${(level / 100).toStringAsFixed(0)}',
               style: TextStyle(
                 color: level != 0 ? activeColor : Colors.grey.shade500,
                 fontSize: 10,
@@ -498,7 +832,6 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
             ),
           ),
           const SizedBox(height: 10),
-          // Vertical slider
           SizedBox(
             height: 180,
             child: RotatedBox(
@@ -507,17 +840,13 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
                 data: SliderTheme.of(context).copyWith(
                   trackHeight: 6,
                   activeTrackColor: activeColor,
-                  inactiveTrackColor: isDark
-                      ? Colors.grey.shade800
-                      : Colors.grey.shade200,
+                  inactiveTrackColor:
+                      isDark ? Colors.grey.shade800 : Colors.grey.shade200,
                   thumbColor: activeColor,
                   thumbShape: const RoundSliderThumbShape(
-                    enabledThumbRadius: 9,
-                    elevation: 4,
-                  ),
+                      enabledThumbRadius: 9, elevation: 4),
                   overlayColor: activeColor.withOpacity(0.2),
-                  overlayShape:
-                      const RoundSliderOverlayShape(overlayRadius: 18),
+                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 18),
                 ),
                 child: Slider(
                   value: level.toDouble().clamp(
@@ -532,13 +861,10 @@ class _EqualizerScreenState extends State<EqualizerScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          // Freq label
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.grey.shade900
-                  : Colors.grey.shade100,
+              color: isDark ? Colors.grey.shade900 : Colors.grey.shade100,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -576,48 +902,32 @@ class _FrequencyCurvePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Draw horizontal grid lines (0 dB baseline, top, bottom)
     final gridPaint = Paint()
       ..color = gridColor
       ..strokeWidth = 1;
 
-    // Top line (+15 dB)
-    canvas.drawLine(
-      Offset(0, size.height * 0.1),
-      Offset(size.width, size.height * 0.1),
-      gridPaint,
-    );
-    // Middle line (0 dB) — dashed look
+    canvas.drawLine(Offset(0, size.height * 0.1),
+        Offset(size.width, size.height * 0.1), gridPaint);
     final dashPaint = Paint()
       ..color = gridColor.withOpacity(0.5)
       ..strokeWidth = 1;
     for (double x = 0; x < size.width; x += 8) {
-      canvas.drawLine(
-        Offset(x, size.height * 0.5),
-        Offset(x + 4, size.height * 0.5),
-        dashPaint,
-      );
+      canvas.drawLine(Offset(x, size.height * 0.5),
+          Offset(x + 4, size.height * 0.5), dashPaint);
     }
-    // Bottom line (-15 dB)
-    canvas.drawLine(
-      Offset(0, size.height * 0.9),
-      Offset(size.width, size.height * 0.9),
-      gridPaint,
-    );
+    canvas.drawLine(Offset(0, size.height * 0.9),
+        Offset(size.width, size.height * 0.9), gridPaint);
 
     if (bandLevels.isEmpty) return;
 
-    // Compute points for curve
     final points = <Offset>[];
     for (int i = 0; i < bandLevels.length; i++) {
       final x = (i / (bandLevels.length - 1)) * size.width;
-      // Map level from min-max to bottom-top
-      final levelNorm = bandLevels[i] / maxLevel; // -1 to +1
+      final levelNorm = bandLevels[i] / maxLevel;
       final y = size.height * (0.5 - levelNorm * 0.4);
       points.add(Offset(x, y));
     }
 
-    // Draw smooth curve using quadratic bezier
     final curvePaint = Paint()
       ..color = activeColor
       ..strokeWidth = 2.5
@@ -637,7 +947,6 @@ class _FrequencyCurvePainter extends CustomPainter {
       path.lineTo(points.last.dx, points.last.dy);
       canvas.drawPath(path, curvePaint);
 
-      // Fill area below curve
       final fillPath = Path.from(path);
       fillPath.lineTo(size.width, size.height * 0.5);
       fillPath.lineTo(0, size.height * 0.5);
@@ -648,24 +957,15 @@ class _FrequencyCurvePainter extends CustomPainter {
           end: Alignment.bottomCenter,
           colors: [
             activeColor.withOpacity(0.35),
-            activeColor.withOpacity(0.05),
+            activeColor.withOpacity(0.05)
           ],
         ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
       canvas.drawPath(fillPath, fillPaint);
     }
 
-    // Draw dots at each band
     for (final p in points) {
-      canvas.drawCircle(
-        p,
-        4.5,
-        Paint()..color = activeColor,
-      );
-      canvas.drawCircle(
-        p,
-        2.5,
-        Paint()..color = Colors.white,
-      );
+      canvas.drawCircle(p, 4.5, Paint()..color = activeColor);
+      canvas.drawCircle(p, 2.5, Paint()..color = Colors.white);
     }
   }
 
