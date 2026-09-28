@@ -9,18 +9,41 @@
 - **compileSdk:** 36
 
 ## 🎯 Features
-1. **Music Player** — Local songs play, notification + lock screen controls
-2. **Video Player** — Chewie-based, pinch-to-zoom, brightness/volume swipe, playback speed, aspect ratio, loop, auto-play next
-3. **4 Premium Themes** — Emerald, Gold, Indigo, Purple
-4. **Folder-Wise View** — Songs folder ke hisaab se
-5. **Videos Tab** — Saare videos, auto-play next
-6. **3D Audio / Bass Boost** — Volume 60%
-7. **Notification + Lock Screen** — audio_service
-8. **Animated Playing Indicator** — 3 bars
-9. **Favorites, Recent, Playlists** — Local storage
-10. **Clean Song Names** — (MP3 320K) hataata hai
+
+### 🎵 Music Player
+1. Local songs play, notification + lock screen controls
+2. Folder-wise view — songs folder ke hisaab se
+3. Favorites, Recent, Playlists — local storage
+4. Clean Song Names — (MP3 320K) hataata hai
+5. Animated Playing Indicator — 3 bars
+
+### 🎛️ Audio Enhancements (Advanced)
+1. **Bass Boost** — Custom intensity (0-100%)
+2. **Immersive Audio** — 3D surround (0-100%)
+3. **5-Band Equalizer** — 60Hz, 230Hz, 910Hz, 3.6kHz, 14kHz
+4. **8 Built-in Presets** — Flat, Rock, Pop, Jazz, Classical, BassBoost, TrebleBoost, Vocal
+5. **Custom Preset Save** — User apna EQ save kar sakta hai
+6. **Live Frequency Curve** — Real-time graph jo slider ghumane pe badalta hai
+7. **Reverb Effect** — 7 presets (Off, Small/Medium/Large Room, Medium/Large Hall, Plate) ⚠️ kuch phones pe kaam nahi karta
+8. **Loudness Enhancer** — Quiet audio boost (0-15 dB)
+9. **3D Audio Quick Toggle** — Drawer + AppBar mein
+
+### 🎬 Video Player
+1. Chewie-based video player
+2. Pinch-to-zoom
+3. Brightness/volume swipe
+4. Playback speed control
+5. Aspect ratio adjustment
+6. Loop + Auto-play next
+7. Share functionality
+
+### 🎨 Themes & UI
+1. **2 Premium Themes** — Emerald (Green), Indigo (Blue)
+2. **Light/Dark Mode** — Toggle from drawer + AppBar
+3. **Unified Audio Settings Screen** — Sab audio features ek page pe
 
 ## 📦 Dependencies (pubspec.yaml)
+
 ```yaml
 dependencies:
   flutter:
@@ -37,55 +60,4 @@ dependencies:
   package_info_plus: ^8.1.0
   screen_brightness: ^2.1.2
   volume_controller: ^3.3.3
-
-
-// kuch or baate jo bhai aap ne batay thi
-lib/
-├── main.dart                    # Music player + UI + themes
-├── video_player_screen.dart      # Video player with all features
-├── album_art_service.dart        # Album art widget
-├── enhance_sound_screen.dart     # Bass/immersive UI
-└── services/
-    └── audio_handler.dart        # audio_service setup
-
-🔧 Build Setup
-
-· build.yml — GitHub Actions se APK build (split-per-abi)
-· MainActivity.kt — AudioServiceActivity extend karta hai
-· AndroidManifest.xml — audio_service declarations, permissions
-
-🚨 Important Config
-
-· AudioServiceActivity — MainActivity ko extend karna zaroori
-· androidStopForegroundOnPause: true — audio_service config
-· compileSdk = 36 — screen_brightness ke liye
-· Kotlin 2.0.21 — package_info_plus ke liye
-
-📊 Build Output
-
-· app-arm64-v8a-release.apk — ~10 MB (99% phones)
-· app-armeabi-v7a-release.apk — ~9 MB
-· app-x86_64-release.apk — ~10 MB
-
-🏪 Publishing
-
-· Indus Appstore — Uploaded, verification pending
-· Privacy Policy — Google Docs link
-· Auto-Publish — ON (review ke baad)
-
-🐛 Known Issues Fixed
-
-· ✅ Gradle 8.7 + AGP 8.3.0 + Kotlin 2.0.21
-· ✅ AudioServiceActivity for notification
-· ✅ Folder-wise songs sahi bajte hain
-· ✅ Video player fullscreen black bars fix
-· ✅ AppBar icons auto-hide + tap to show
-· ✅ Duplicate fullscreen button hataya
-· ✅ 12 Indian languages auto-translate
-
-📝 Notes
-
-· Music + Video dono ek app mein
-· Local files only (no download)
-· No copyrighted content hosted
-· Made with ❤️ by Bhai Bhai
+  share_plus: ^10.0.0  # (optional, video share ke liye)
