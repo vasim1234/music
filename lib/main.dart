@@ -4,13 +4,11 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'album_art_service.dart';
-import 'enhance_sound_screen.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:flutter/foundation.dart';
 import 'services/audio_handler.dart';
 import 'package:audio_service/audio_service.dart';
 import 'video_player_screen.dart';
-import 'equalizer_screen.dart';
 import 'audio_settings_screen.dart';
 
 // ✅ 2 PREMIUM THEMES (Dark + Light)
@@ -308,7 +306,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
     int theme = prefs.getInt('themeIndex') ?? 0;
-    // ✅ Safety: agar purana theme (1 ya 3) save hai toh 0 pe reset karo
     if (theme != 0 && theme != 2) {
       theme = 0;
       await prefs.setInt('themeIndex', 0);
@@ -322,7 +319,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       AppTheme.isLightMode = light;
     });
 
-    // ✅ App start hone par 3D Audio restore karo
     if (is3D && audioHandler != null) {
       await audioHandler!.setBassBoost(true, 600);
       await audioHandler!.setImmersive(true, 800);
@@ -366,21 +362,18 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _showSnackBar('🎨 ${names[index] ?? 'Emerald'} applied', AppTheme.accent);
   }
 
-  // ✅ UPDATED: Actual bass boost + immersive audio
   Future<void> _toggle3D() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() => is3DOn = !is3DOn);
     await prefs.setBool('is3DOn', is3DOn);
     if (is3DOn) {
-      // Actual bass boost + immersive audio ON
       if (audioHandler != null) {
-        await audioHandler!.setBassBoost(true, 600);   // 60% bass
-        await audioHandler!.setImmersive(true, 800);   // 80% immersive
+        await audioHandler!.setBassBoost(true, 600);
+        await audioHandler!.setImmersive(true, 800);
       }
       await _fallbackPlayer.setVolume(0.6);
       _showSnackBar('🎧 Bass Boost ON', AppTheme.accent);
     } else {
-      // Band karo
       if (audioHandler != null) {
         await audioHandler!.setBassBoost(false, 0);
         await audioHandler!.setImmersive(false, 0);
@@ -1809,35 +1802,14 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       },
                     ),
                     _drawerItem(
-                      icon: Icons.graphic_eq, iconColor: Colors.deepPurpleAccent,
-                      title: 'Enhance Sound', subtitle: 'Bass & Immersive',
+                      icon: Icons.tune, iconColor: Colors.deepPurpleAccent,
+                      title: 'Audio Settings', subtitle: 'Bass, EQ, Reverb & more',
                       onTap: () {
                         Navigator.pop(context);
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => EnhanceSoundScreen(
-                              isDarkTheme: !AppTheme.isLightMode,
-                              onEffectsChanged: (bass, immersive) {
-                                if (audioHandler != null) {
-                                  audioHandler!.setBassBoost(bass > 0, (bass * 1000).round());
-                                  audioHandler!.setImmersive(immersive > 0, (immersive * 1000).round());
-                                }
-                              },
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    _drawerItem(
-                      icon: Icons.tune, iconColor: Colors.teal,
-                      title: 'Equalizer', subtitle: 'Presets & Band control',
-                      onTap: () {
-                        Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => EqualizerScreen(
+                            builder: (context) => AudioSettingsScreen(
                               isDarkTheme: !AppTheme.isLightMode,
                               accentColor: AppTheme.accent,
                               gradientColors: AppTheme.primaryGradient,
