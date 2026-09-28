@@ -1508,6 +1508,7 @@ void _showFullScreenPlayer() {
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
+    barrierColor: Colors.black.withOpacity(0.3),   // 👈 YE ADD KARO
     builder: (context) => StatefulBuilder(
       builder: (context, setModalState) {
         return StreamBuilder<MediaItem?>(
@@ -1536,7 +1537,11 @@ void _showFullScreenPlayer() {
 
             return Container(
               height: MediaQuery.of(context).size.height,
-              decoration: BoxDecoration(
+  decoration: BoxDecoration(
+  // ✅ NAYA: Solid base color — gradient ke peeche
+  color: AppTheme.isLightMode
+      ? Colors.white
+      : const Color(0xFF0A0A0A),
   gradient: LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
@@ -1546,7 +1551,6 @@ void _showFullScreenPlayer() {
             (_dynamicAccent ?? AppTheme.accent).withOpacity(0.15),
           ]
         : [
-            // ✅ FIX: Solid color, transparent nahi
             _dynamicGradient?[0] ?? const Color(0xFF1A1A1A),
             const Color(0xFF0A0A0A),
           ],
