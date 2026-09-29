@@ -15,6 +15,17 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    // ✅ NAYA: Release signing config
+    signingConfigs {
+        create("release") {
+            val keystorePath = System.getenv("KEYSTORE_PATH") ?: "bhaibhai-key.jks"
+            storeFile = file(keystorePath)
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "BhaiBhai2026"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "bhaibhai"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "BhaiBhai2026"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.example.music_player"
         minSdk = flutter.minSdkVersion
@@ -25,7 +36,10 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            // ✅ BADLA: debug se release
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }
