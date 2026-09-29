@@ -374,6 +374,27 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
+  // NAYA METHOD: Audio Settings Sheet kholne ke liye taaki video pause na ho
+  void _showAudioSettingsSheet() {
+    _startTitleTimer();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent, // Background transparent rakha hai
+      builder: (context) => SizedBox(
+        height: MediaQuery.of(context).size.height * 0.75, // Screen ka 75% hissa lega
+        child: const ClipRRect(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          child: AudioSettingsScreen(
+            isDarkTheme: true,
+            accentColor: Color(0xFF34D399),
+            gradientColors: [Color(0xFF059669), Color(0xFF34D399)],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showVideoOptionsSheet() {
     _startTitleTimer();
     showModalBottomSheet(
@@ -460,21 +481,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 subtitle: const Text('Bass, EQ, Reverb & more',
                     style: TextStyle(color: Colors.white54, fontSize: 11)),
                 onTap: () {
-                  Navigator.pop(context);
-                  final wasPlaying = _videoController.value.isPlaying;
-                  if (wasPlaying) _videoController.pause();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AudioSettingsScreen(
-                        isDarkTheme: true,
-                        accentColor: Color(0xFF34D399),
-                        gradientColors: [Color(0xFF059669), Color(0xFF34D399)],
-                      ),
-                    ),
-                  ).then((_) {
-                    if (mounted && wasPlaying) _videoController.play();
-                  });
+                  Navigator.pop(context); // Options sheet band hogi
+                  _showAudioSettingsSheet(); // Ab nayi bottom sheet khulegi bina video pause kiye
                 },
               ),
               ListTile(
@@ -891,21 +899,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                             icon: const Icon(Icons.tune, color: Colors.white),
                             tooltip: 'Audio Settings',
                             onPressed: () {
-                              _startTitleTimer();
-                              final wasPlaying = _videoController.value.isPlaying;
-                              if (wasPlaying) _videoController.pause();
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const AudioSettingsScreen(
-                                    isDarkTheme: true,
-                                    accentColor: Color(0xFF34D399),
-                                    gradientColors: [Color(0xFF059669), Color(0xFF34D399)],
-                                  ),
-                                ),
-                              ).then((_) {
-                                if (mounted && wasPlaying) _videoController.play();
-                              });
+                              // Yahan bhi fix lagaya hai
+                              _showAudioSettingsSheet();
                             },
                           ),
                           IconButton(
@@ -1205,3 +1200,4 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 }
+
