@@ -23,6 +23,7 @@ dependencies:
   volume_controller: ^3.3.3      # ✅ Ye add karo
   share_plus: ^10.0.0  # <--- Yeh line yahan add karni hai
   palette_generator: ^0.3.3+6
+    url_launcher: ^6.3.0    # 👈 YE NAYA
 
 dev_dependencies:
   flutter_test:
