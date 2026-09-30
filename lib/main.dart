@@ -2472,10 +2472,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
   }
 
-// ✅ NAYA: Share App — Standard Share Sheet
+// ✅ Updated Share Function
 Future<void> _shareTelegramLink() async {
   const String channelId = 'bhaibhaimusic';
-  const String telegramUrl = 'https://t.me/$channelId';
+  const String webUrl = 'https://t.me/$channelId';
+  const String appUrl = 'tg://resolve?domain=$channelId';
 
   final String shareText = 
       '🎵 Bhai Bhai Music\n\n'
@@ -2484,8 +2485,10 @@ Future<void> _shareTelegramLink() async {
       '• Dynamic album art theme\n'
       '• Premium video player\n'
       '• 2 Themes + Light/Dark mode\n\n'
-      '📥 Download now:\n'
-      '📢 Telegram: $telegramUrl\n\n'
+      '📥 Download app from Telegram:\n'
+      '1️⃣ Direct App Link: $appUrl\n'
+      '2️⃣ Web Link: $webUrl\n'
+      '3️⃣ Or Search in Telegram: @$channelId\n\n'
       'Made with love by Bhai Bhai ❤️';
 
   try {
@@ -2497,6 +2500,7 @@ Future<void> _shareTelegramLink() async {
     _showSnackBar('Error sharing: $e', Colors.red);
   }
 }
+
 
   void _confirmDeleteVideo(File video) {
     showDialog(
