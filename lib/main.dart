@@ -12,7 +12,6 @@ import 'video_player_screen.dart';
 import 'audio_settings_screen.dart';
 import 'package:palette_generator/palette_generator.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 // ✅ 2 PREMIUM THEMES (Dark + Light)
 class AppColors {
@@ -2473,13 +2472,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
   }
 
-// Naya method jo share option mein use hoga
+// ✅ NAYA: Share App — Standard Share Sheet
 Future<void> _shareTelegramLink() async {
-  const String channelId = 'bhaibhaimusic'; 
-  const String telegramUrl = 'https://t.me/$channelId'; // Web browser ke liye
-  const String tgUrl = 'tg://resolve?domain=$channelId'; // App ke liye
+  const String channelId = 'bhaibhaimusic';
+  const String telegramUrl = 'https://t.me/$channelId';
 
-  // Ye share message user ko dikhega
   final String shareText = 
       '🎵 Bhai Bhai Music\n\n'
       'High quality local music & video player with:\n'
@@ -2488,22 +2485,16 @@ Future<void> _shareTelegramLink() async {
       '• Premium video player\n'
       '• 2 Themes + Light/Dark mode\n\n'
       '📥 Download now:\n'
-      '📢 Telegram: $telegramUrl\n\n' // Text mein regular link dikhao, taki woh copy kar sakein
+      '📢 Telegram: $telegramUrl\n\n'
       'Made with love by Bhai Bhai ❤️';
 
   try {
-    // Pehle Telegram app kholne ki koshish karo deep link se
-    final Uri tgUri = Uri.parse(tgUrl);
-    if (await canLaunchUrl(tgUri)) {
-      await launchUrl(tgUri); // Agar app hai, direct channel khulega
-    } else {
-      // Agar app nahi hai, toh browser mein web link kholo
-      final Uri webUri = Uri.parse(telegramUrl);
-      await launchUrl(webUri, mode: LaunchMode.externalApplication);
-    }
+    await Share.share(
+      shareText,
+      subject: 'Bhai Bhai Music - Download Now!',
+    );
   } catch (e) {
-    // Agar deep link fail ho jaye, toh simple share sheet dikhao
-    await Share.share(shareText, subject: 'Bhai Bhai Music - Download Now!');
+    _showSnackBar('Error sharing: $e', Colors.red);
   }
 }
 
