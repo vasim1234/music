@@ -2472,7 +2472,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
   }
 
-  // ✅ NAYA: Share App
+ // ✅ NAYA: Share App
 Future<void> _shareApp() async {
   final String shareText = 
       '🎵 Bhai Bhai Music\n\n'
@@ -2482,7 +2482,7 @@ Future<void> _shareApp() async {
       '• Premium video player\n'
       '• 2 Themes + Light/Dark mode\n\n'
       '📥 Download now:\n'
-      'https://play.google.com/store/apps/details?id=com.example.music_player\n\n'
+      '📢 Telegram: https://t.me/bhaibhaimusic\n\n'
       'Made with love by Bhai Bhai ❤️';
 
   try {
