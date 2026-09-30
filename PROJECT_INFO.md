@@ -184,3 +184,11 @@ android/app/src/main/kotlin/com/example/music_player/
 - Permanent keystore — app updates same signature
 - Telegram channel — direct APK distribution
 - Made with love by Bhai Bhai
+
+
+## 🔗 Important Links
+
+- **Privacy Policy:** https://graph.org/Bhai-Bhai-Music---Privacy-Policy-09-30
+- **Telegram Channel:** https://t.me/bhaibhaimusic
+- **GitHub Repo:** https://github.com/vasim1234/music
+- **Indus Appstore:** (pending verification)
