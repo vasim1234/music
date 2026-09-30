@@ -1907,7 +1907,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                     _drawerItem(icon: Icons.history, iconColor: Colors.orangeAccent, title: 'Recent', subtitle: '${_recentSongs.length} songs', onTap: () { Navigator.pop(context); setState(() { _selectedTab = 2; }); _applyFilter(); }),
                     _drawerItem(icon: Icons.visibility_off, iconColor: Colors.orange, title: 'Hidden Folders', subtitle: '${_hiddenFolders.length} folder(s)', onTap: () { Navigator.pop(context); _showHiddenFolders(); }),
                   _drawerItem(
-  _drawerItem(
   icon: Icons.share,
   iconColor: Colors.blue,
   title: 'Share App',
