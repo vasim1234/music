@@ -1905,6 +1905,16 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                     _drawerItem(icon: Icons.favorite, iconColor: Colors.pinkAccent, title: 'Favorites', subtitle: '${_favorites.length} songs', onTap: () { Navigator.pop(context); setState(() { _selectedTab = 1; }); _applyFilter(); }),
                     _drawerItem(icon: Icons.history, iconColor: Colors.orangeAccent, title: 'Recent', subtitle: '${_recentSongs.length} songs', onTap: () { Navigator.pop(context); setState(() { _selectedTab = 2; }); _applyFilter(); }),
                     _drawerItem(icon: Icons.visibility_off, iconColor: Colors.orange, title: 'Hidden Folders', subtitle: '${_hiddenFolders.length} folder(s)', onTap: () { Navigator.pop(context); _showHiddenFolders(); }),
+                  _drawerItem(
+  icon: Icons.share,
+  iconColor: Colors.blue,
+  title: 'Share App',
+  subtitle: 'Send to friends',
+  onTap: () {
+    Navigator.pop(context);
+    _shareApp();
+  },
+),
                     _drawerItem(
                       icon: Icons.tune, iconColor: Colors.deepPurpleAccent,
                       title: 'Audio Settings', subtitle: 'Bass, EQ, Reverb & more',
@@ -2461,6 +2471,29 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       _showSnackBar('Error sharing: $e', Colors.red);
     }
   }
+
+  // ✅ NAYA: Share App
+Future<void> _shareApp() async {
+  final String shareText = 
+      '🎵 Bhai Bhai Music\n\n'
+      'High quality local music & video player with:\n'
+      '• Bass Boost & 5-Band Equalizer\n'
+      '• Dynamic album art theme\n'
+      '• Premium video player\n'
+      '• 2 Themes + Light/Dark mode\n\n'
+      '📥 Download now:\n'
+      'https://play.google.com/store/apps/details?id=com.example.music_player\n\n'
+      'Made with love by Bhai Bhai ❤️';
+
+  try {
+    await Share.share(
+      shareText,
+      subject: 'Bhai Bhai Music - Download Now!',
+    );
+  } catch (e) {
+    _showSnackBar('Error sharing: $e', Colors.red);
+  }
+}
 
   void _confirmDeleteVideo(File video) {
     showDialog(
