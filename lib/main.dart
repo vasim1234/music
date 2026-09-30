@@ -2536,18 +2536,119 @@ Future<void> _shareTelegramLink() async {
   }
 
   Widget _buildEmptyState() {
-    return Center(
+  return Center(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 30),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.music_off, size: 80, color: AppTheme.subText),
+          // Icon — gradient circle
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: AppTheme.primaryGradient),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primaryGradient[0].withOpacity(0.3),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.music_note, size: 60, color: Colors.white),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Title
+          Text(
+            'No Songs Found',
+            style: TextStyle(
+              color: AppTheme.text,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // Subtitle
+          Text(
+            'Tap "Scan Music" below to automatically discover songs on your device',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppTheme.subText,
+              fontSize: 14,
+              height: 1.5,
+            ),
+          ),
+
+          const SizedBox(height: 30),
+
+          // ✅ SIRF SCAN MUSIC BUTTON
+          GestureDetector(
+            onTap: _scanDefaultFolder,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: AppTheme.primaryGradient),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryGradient[0].withOpacity(0.4),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.folder_open, color: Colors.white, size: 24),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Scan Music',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Auto discover songs',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.85),
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
           const SizedBox(height: 20),
-          Text('No songs found!', style: TextStyle(color: AppTheme.text, fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Text('Open menu - Pick Songs or Scan', style: TextStyle(color: AppTheme.subText, fontSize: 14)),
+
+          // Tip
+          Text(
+            'Tip: Allow storage permission for best results',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppTheme.subText.withOpacity(0.7),
+              fontSize: 11,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
         ],
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildSongTile(File song, int index, {bool isFromPlaylist = false}) {
