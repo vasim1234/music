@@ -12,6 +12,8 @@ import 'video_player_screen.dart';
 import 'audio_settings_screen.dart';
 import 'package:palette_generator/palette_generator.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 // ✅ 2 PREMIUM THEMES (Dark + Light)
 class AppColors {
@@ -247,6 +249,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _loadTheme();
     _loadHiddenFolders();
     _loadSortMode();
+    _checkAppUpdate();
   }
 
   Future<void> _requestNotificationPermission() async {
@@ -1525,6 +1528,179 @@ Future<void> _shareSong(File song) async {
       ),
     );
   }
+
+  // ✅ App update check karo
+Future<void> _checkAppUpdate() async {
+  try {
+    final packageInfo = await PackageInfo.fromPlatform();
+    final currentVersion = packageInfo.version;
+
+    final response = await http.get(
+      Uri.parse(
+          'https://raw.githubusercontent.com/vasim1234/music/main/version.json'),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final latestVersion = data['latestVersion'] as String;
+      final apkUrl = data['apkUrl'] as String;
+      final releaseNotes = data['releaseNotes'] as String;
+      final forceUpdate = data['forceUpdate'] as bool? ?? false;
+
+      if (latestVersion != currentVersion) {
+        final prefs = await SharedPreferences.getInstance();
+        final lastLaterTime = prefs.getInt('update_later_time') ?? 0;
+        final lastLaterVersion = prefs.getString('update_later_version') ?? '';
+
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final hoursSinceLater = (now - lastLaterTime) / (1000 * 60 * 60);
+
+        if (!forceUpdate &&
+            hoursSinceLater < 24 &&
+            lastLaterVersion == latestVersion) {
+          debugPrint('Update popup skipped (24h not passed)');
+          return;
+        }
+
+        if (mounted) {
+          _showUpdateDialog(
+            latestVersion,
+            currentVersion,
+            releaseNotes,
+            apkUrl,
+            forceUpdate,
+          );
+        }
+      }
+    }
+  } catch (e) {
+    debugPrint('Update check error: $e');
+  }
+}
+
+// ✅ Update dialog dikhao
+void _showUpdateDialog(
+  String latestVersion,
+  String currentVersion,
+  String releaseNotes,
+  String apkUrl,
+  bool forceUpdate,
+) {
+  showDialog(
+    context: context,
+    barrierDismissible: !forceUpdate,
+    builder: (context) => AlertDialog(
+      backgroundColor: AppTheme.card,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      title: Row(
+        children: [
+          Icon(Icons.system_update, color: AppTheme.accent, size: 28),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Update Available',
+              style: TextStyle(
+                color: AppTheme.text,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppTheme.accent.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              'Version $latestVersion',
+              style: TextStyle(
+                color: AppTheme.accent,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Current: v$currentVersion',
+            style: TextStyle(color: AppTheme.subText, fontSize: 12),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            "What's New:",
+            style: TextStyle(
+              color: AppTheme.text,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            releaseNotes,
+            style: TextStyle(
+              color: AppTheme.subText,
+              fontSize: 13,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        if (!forceUpdate)
+          TextButton(
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setInt(
+                'update_later_time',
+                DateTime.now().millisecondsSinceEpoch,
+              );
+              await prefs.setString('update_later_version', latestVersion);
+
+              if (mounted) Navigator.pop(context);
+              debugPrint('User clicked Later — 24h wait');
+            },
+            child: Text('Later', style: TextStyle(color: AppTheme.subText)),
+          ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.accent,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          ),
+          onPressed: () async {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove('update_later_time');
+            await prefs.remove('update_later_version');
+
+            if (mounted) Navigator.pop(context);
+
+            final uri = Uri.parse(apkUrl);
+            if (await canLaunchUrl(uri)) {
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+            } else {
+              _showSnackBar('Cannot open link', Colors.red);
+            }
+          },
+          child: const Text(
+            'Update Now',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
   String formatTime(Duration d) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
