@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:flutter/foundation.dart';
@@ -53,9 +54,10 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       ));
     });
 
+    // ✅ NAYA: Track completion — Repeat + Shuffle handle karega
     _player.processingStateStream.listen((state) {
       if (state == ProcessingState.completed) {
-        skipToNext();
+        _handleTrackCompletion();
       }
     });
 
@@ -67,7 +69,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       }
     });
 
-    // ✅ NAYA: Playback event listener — har track change pe saved settings apply
+    // ✅ Playback event listener — har track change pe saved settings apply
     _player.playbackEventStream.listen((event) {
       if (event.processingState == ProcessingState.ready) {
         _applySavedAudioSettings();
@@ -77,57 +79,110 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     });
   }
 
-  // ✅ NAYA: Saved settings auto-apply karo
+  // ✅ NAYA: Track completion handling — Repeat + Shuffle
+  Future<void> _handleTrackCompletion() async {
+    final loopMode = _player.loopMode;
+    final shuffleOn = _player.shuffleModeEnabled;
+
+    debugPrint('🎵 Track completed — LoopMode: $loopMode, Shuffle: $shuffleOn');
+
+    // 🔂 Repeat One — same track dobara
+    if (loopMode == LoopMode.one) {
+      await _player.seek(Duration.zero);
+      await _player.play();
+      debugPrint('🔂 Repeat One — replaying same track');
+      return;
+    }
+
+    // 🔀 Shuffle — random track
+    if (shuffleOn && _queue.length > 1) {
+      final random = math.Random();
+      int nextIndex = random.nextInt(_queue.length);
+      if (nextIndex == _currentIndex) {
+        nextIndex = (nextIndex + 1) % _queue.length;
+      }
+      _currentIndex = nextIndex;
+      await _playCurrent();
+      debugPrint('🔀 Shuffle — random track index: $nextIndex');
+      return;
+    }
+
+    // 🔁 Repeat All — sequence wise next
+    if (loopMode == LoopMode.all) {
+      _currentIndex = (_currentIndex + 1) % _queue.length;
+      await _playCurrent();
+      debugPrint('🔁 Repeat All — next track');
+      return;
+    }
+
+    // ➡️ Loop Off — last track pe stop, warna next
+    if (_currentIndex >= _queue.length - 1) {
+      debugPrint('⏹️ Queue end — no repeat');
+      await _player.pause();
+      await _player.seek(Duration.zero);
+    } else {
+      _currentIndex++;
+      await _playCurrent();
+    }
+  }
+
+  // ✅ NAYA: Shuffle mode set karo
+  Future<void> setShuffleMode(bool enabled) async {
+    await _player.setShuffleModeEnabled(enabled);
+    debugPrint('🔀 Shuffle mode: $enabled');
+  }
+
+  // ✅ NAYA: Repeat mode set karo
+  Future<void> setRepeatMode(String mode) async {
+    switch (mode) {
+      case 'one':
+        await _player.setLoopMode(LoopMode.one);
+        debugPrint('🔂 LoopMode: one');
+        break;
+      case 'all':
+        await _player.setLoopMode(LoopMode.all);
+        debugPrint('🔁 LoopMode: all');
+        break;
+      default:
+        await _player.setLoopMode(LoopMode.off);
+        debugPrint('➡️ LoopMode: off');
+    }
+  }
+
+  // ✅ Saved settings auto-apply karo
   Future<void> _applySavedAudioSettings() async {
     try {
-      // Thoda delay — AudioSession ko initialize hone do
       await Future.delayed(const Duration(milliseconds: 300));
 
       final prefs = await SharedPreferences.getInstance();
 
-      // Bass Boost
       final bassLevel = prefs.getDouble('bass_level') ?? 0.3;
       final immersiveLevel = prefs.getDouble('immersive_level') ?? 0.3;
-
-      // Equalizer
       final eqPreset = prefs.getString('eq_preset') ?? 'Flat';
       final eqBands = prefs.getStringList('eq_bands');
-
-      // Reverb
       final reverbEnabled = prefs.getBool('reverb_enabled') ?? false;
       final reverbPreset = prefs.getString('reverb_preset') ?? 'None';
-
-      // Loudness
       final loudnessEnabled = prefs.getBool('loudness_enabled') ?? false;
       final loudnessGain = prefs.getInt('loudness_gain') ?? 500;
 
-      // Apply Bass + Immersive
       if (bassLevel > 0) {
         await setBassBoost(true, (bassLevel * 1000).round());
       }
       if (immersiveLevel > 0) {
         await setImmersive(true, (immersiveLevel * 1000).round());
       }
-
-      // Apply EQ preset
       if (eqPreset != 'Flat' && eqPreset != 'Custom') {
         await setEqualizerPreset(eqPreset);
       }
-
-      // Apply EQ bands
       if (eqBands != null && eqBands.isNotEmpty) {
         for (int i = 0; i < eqBands.length; i++) {
           final level = int.tryParse(eqBands[i]) ?? 0;
           await setEqualizerBand(i, level);
         }
       }
-
-      // Apply Reverb
       if (reverbEnabled && reverbPreset != 'None') {
         await setReverb(true, reverbPreset);
       }
-
-      // Apply Loudness
       if (loudnessEnabled) {
         await setLoudness(true, loudnessGain);
       }
@@ -182,7 +237,18 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   Future<void> skipToNext() async {
     debugPrint('⏭️ skipToNext() called');
     if (_queue.isEmpty) return;
-    _currentIndex = (_currentIndex + 1) % _queue.length;
+    
+    // ✅ Shuffle active — random
+    if (_player.shuffleModeEnabled && _queue.length > 1) {
+      final random = math.Random();
+      int nextIndex = random.nextInt(_queue.length);
+      if (nextIndex == _currentIndex) {
+        nextIndex = (nextIndex + 1) % _queue.length;
+      }
+      _currentIndex = nextIndex;
+    } else {
+      _currentIndex = (_currentIndex + 1) % _queue.length;
+    }
     await _playCurrent();
   }
 
