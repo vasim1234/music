@@ -1367,21 +1367,68 @@ void _showToast(String message, Color color) {
   }
 
   void _showMainSongOptions(File song) {
-    bool isFav = _favorites.contains(song.path);
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _buildOptionsSheet(
-        title: getSongName(song.path),
-        songPath: song.path,
-        options: [
-          _optionItem(icon: isFav ? Icons.favorite : Icons.favorite_border, color: Colors.pinkAccent, title: isFav ? 'Remove from Favorites' : 'Add to Favorites', onTap: () { Navigator.pop(context); _toggleFavorite(song); }),
-          _optionItem(icon: Icons.playlist_add, color: AppTheme.accent, title: 'Add to Playlist', onTap: () { Navigator.pop(context); _showAddToPlaylist(song); }),
-          _optionItem(icon: Icons.delete_forever, color: Colors.redAccent, title: 'Delete Permanently', onTap: () { Navigator.pop(context); _confirmDelete(song); }),
-        ],
-      ),
+  bool isFav = _favorites.contains(song.path);
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (context) => _buildOptionsSheet(
+      title: getSongName(song.path),
+      songPath: song.path,
+      options: [
+        _optionItem(
+          icon: isFav ? Icons.favorite : Icons.favorite_border,
+          color: Colors.pinkAccent,
+          title: isFav ? 'Remove from Favorites' : 'Add to Favorites',
+          onTap: () {
+            Navigator.pop(context);
+            _toggleFavorite(song);
+          },
+        ),
+        _optionItem(
+          icon: Icons.playlist_add,
+          color: AppTheme.accent,
+          title: 'Add to Playlist',
+          onTap: () {
+            Navigator.pop(context);
+            _showAddToPlaylist(song);
+          },
+        ),
+        // ✅ NAYA: Share Song
+        _optionItem(
+          icon: Icons.share,
+          color: Colors.blue,
+          title: 'Share Song',
+          onTap: () {
+            Navigator.pop(context);
+            _shareSong(song);
+          },
+        ),
+        _optionItem(
+          icon: Icons.delete_forever,
+          color: Colors.redAccent,
+          title: 'Delete Permanently',
+          onTap: () {
+            Navigator.pop(context);
+            _confirmDelete(song);
+          },
+        ),
+      ],
+    ),
+  );
+}
+
+// ✅ NAYA: Song share karo
+Future<void> _shareSong(File song) async {
+  try {
+    await Share.shareXFiles(
+      [XFile(song.path)],
+      text: 'Check out this song: ${getSongName(song.path)}',
+      subject: getSongName(song.path),
     );
+  } catch (e) {
+    _showSnackBar('Error sharing: $e', Colors.red);
   }
+}
 
   void _showPlaylistSongOptions(File song) {
     bool isFav = _favorites.contains(song.path);
@@ -1857,75 +1904,101 @@ void _showToast(String message, Color color) {
   }
 
   void _showPlayerMenu(Function setModalState) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: AppTheme.card,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 15),
-              Container(
-                width: 50, height: 5,
-                decoration: BoxDecoration(color: AppTheme.subText, borderRadius: BorderRadius.circular(10)),
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (context) => Container(
+      decoration: BoxDecoration(
+        color: AppTheme.card,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 15),
+            Container(
+              width: 50,
+              height: 5,
+              decoration: BoxDecoration(
+                color: AppTheme.subText,
+                borderRadius: BorderRadius.circular(10),
               ),
-              const SizedBox(height: 10),
-              ListTile(
-                leading: Icon(Icons.tune, color: AppTheme.accent),
-                title: Text('Audio Settings', style: TextStyle(color: AppTheme.text)),
-                subtitle: Text('Bass, EQ, Reverb & more', style: TextStyle(color: AppTheme.subText, fontSize: 11)),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AudioSettingsScreen(
-                        isDarkTheme: !AppTheme.isLightMode,
-                        accentColor: AppTheme.accent,
-                        gradientColors: AppTheme.primaryGradient,
-                      ),
+            ),
+            const SizedBox(height: 10),
+            ListTile(
+              leading: Icon(Icons.tune, color: AppTheme.accent),
+              title: Text('Audio Settings',
+                  style: TextStyle(color: AppTheme.text)),
+              subtitle: Text('Bass, EQ, Reverb & more',
+                  style: TextStyle(color: AppTheme.subText, fontSize: 11)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AudioSettingsScreen(
+                      isDarkTheme: !AppTheme.isLightMode,
+                      accentColor: AppTheme.accent,
+                      gradientColors: AppTheme.primaryGradient,
                     ),
-                  );
-                },
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.queue_music, color: AppTheme.accent),
+              title: Text('Queue', style: TextStyle(color: AppTheme.text)),
+              subtitle: Text('${_filteredSongs.length} songs',
+                  style: TextStyle(color: AppTheme.subText, fontSize: 11)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pop(context);
+                _showQueueSheet();
+              },
+            ),
+            // ✅ NAYA: Share Song in full player menu
+            ListTile(
+              leading: const Icon(Icons.share, color: Colors.blue),
+              title: Text('Share Song',
+                  style: TextStyle(color: AppTheme.text)),
+              subtitle: Text('Send to friends',
+                  style: TextStyle(color: AppTheme.subText, fontSize: 11)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pop(context);
+                if (_currentSong != null) {
+                  _shareSong(_currentSong!);
+                }
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                _favorites.contains(_currentSong!.path)
+                    ? Icons.favorite
+                    : Icons.favorite_border,
+                color: Colors.pinkAccent,
               ),
-              ListTile(
-                leading: Icon(Icons.queue_music, color: AppTheme.accent),
-                title: Text('Queue', style: TextStyle(color: AppTheme.text)),
-                subtitle: Text('${_filteredSongs.length} songs', style: TextStyle(color: AppTheme.subText, fontSize: 11)),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pop(context);
-                  _showQueueSheet();
-                },
+              title: Text(
+                _favorites.contains(_currentSong!.path)
+                    ? 'Remove from Favorites'
+                    : 'Add to Favorites',
+                style: TextStyle(color: AppTheme.text),
               ),
-              ListTile(
-                leading: Icon(
-                  _favorites.contains(_currentSong!.path) ? Icons.favorite : Icons.favorite_border,
-                  color: Colors.pinkAccent,
-                ),
-                title: Text(
-                  _favorites.contains(_currentSong!.path) ? 'Remove from Favorites' : 'Add to Favorites',
-                  style: TextStyle(color: AppTheme.text),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _toggleFavorite(_currentSong!);
-                  setModalState(() {});
-                  setState(() {});
-                },
-              ),
-              const SizedBox(height: 20),
-            ],
-          ),
+              onTap: () {
+                Navigator.pop(context);
+                _toggleFavorite(_currentSong!);
+                setModalState(() {});
+                setState(() {});
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildThemeCard(int index, String name, String emoji, List<Color> gradient) {
