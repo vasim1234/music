@@ -2132,68 +2132,325 @@ void _showToast(String message, Color color) {
   }
 
   Widget _buildPlaylistsView() {
-    if (_openedPlaylist != null) {
-      var playlist = _playlists.firstWhere((p) => p['name'] == _openedPlaylist, orElse: () => {'name': '', 'songs': <String>[]});
-      int count = (playlist['songs'] as List<String>).length;
-      return Column(
-        children: [
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-            padding: const EdgeInsets.all(15),
-            decoration: BoxDecoration(gradient: LinearGradient(colors: AppTheme.primaryGradient), borderRadius: BorderRadius.circular(20)),
-            child: Row(
+  if (_openedPlaylist != null) {
+    var playlist = _playlists.firstWhere(
+      (p) => p['name'] == _openedPlaylist,
+      orElse: () => {'name': '', 'songs': <String>[]},
+    );
+    int count = (playlist['songs'] as List<String>).length;
+
+    return Column(
+      children: [
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: AppTheme.primaryGradient),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            children: [
+              GestureDetector(
+                onTap: () => setState(() => _openedPlaylist = null),
+                child: const Icon(Icons.arrow_back, color: Colors.white),
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _openedPlaylist!,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      '$count songs',
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _filteredSongs.isEmpty
+              ? _buildEmptyState()
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 15),
+                  itemCount: _filteredSongs.length,
+                  itemBuilder: (context, index) => _buildSongTile(
+                    _filteredSongs[index],
+                    index,
+                    isFromPlaylist: true,
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
+
+  if (_playlists.isEmpty) return _buildEmptyState();
+
+  return GridView.builder(
+    padding: const EdgeInsets.all(15),
+    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      crossAxisCount: 2,
+      childAspectRatio: 1.1,
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+    ),
+    itemCount: _playlists.length,
+    itemBuilder: (context, index) {
+      var playlist = _playlists[index];
+      final playlistName = playlist['name'] as String;
+      final songs = (playlist['songs'] as List<String>);
+
+      return GestureDetector(
+        onTap: () {
+          setState(() {
+            _openedPlaylist = playlistName;
+          });
+          _applyFilter();
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                GestureDetector(onTap: () => setState(() => _openedPlaylist = null), child: const Icon(Icons.arrow_back, color: Colors.white)),
-                const SizedBox(width: 15),
-                Expanded(
+                // ✅ Background — playlist content ke hisaab se
+                _buildPlaylistBackground(songs),
+
+                // ✅ Dark gradient overlay — text readable
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.75),
+                      ],
+                      stops: const [0.4, 1.0],
+                    ),
+                  ),
+                ),
+
+                // ✅ Text + song count
+                Positioned(
+                  left: 12,
+                  right: 12,
+                  bottom: 12,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(_openedPlaylist!, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                      Text('$count songs', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.playlist_play,
+                            color: Colors.white.withOpacity(0.9),
+                            size: 18,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${songs.length}',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        playlistName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
           ),
-          Expanded(
-            child: _filteredSongs.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 15),
-                    itemCount: _filteredSongs.length,
-                    itemBuilder: (context, index) => _buildSongTile(_filteredSongs[index], index, isFromPlaylist: true),
-                  ),
-          ),
-        ],
+        ),
       );
-    }
-    if (_playlists.isEmpty) return _buildEmptyState();
-    return GridView.builder(
-      padding: const EdgeInsets.all(15),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 1.1, crossAxisSpacing: 12, mainAxisSpacing: 12),
-      itemCount: _playlists.length,
-      itemBuilder: (context, index) {
-        var playlist = _playlists[index];
-        return GestureDetector(
-          onTap: () { setState(() { _openedPlaylist = playlist['name']; }); _applyFilter(); },
-          child: Container(
-            padding: const EdgeInsets.all(15),
-            decoration: BoxDecoration(gradient: LinearGradient(colors: AppTheme.primaryGradient.map((c) => c.withOpacity(0.3)).toList()), borderRadius: BorderRadius.circular(20)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Icon(Icons.playlist_play, color: Colors.white, size: 28),
-                Text(playlist['name'], maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-              ],
-            ),
-          ),
-        );
-      },
+    },
+  );
+}
+
+// ✅ NAYA: Playlist background — songs ke hisaab se
+Widget _buildPlaylistBackground(List<String> songs) {
+  // Empty playlist — default gradient + icon
+  if (songs.isEmpty) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: AppTheme.primaryGradient.map((c) => c.withOpacity(0.3)).toList(),
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.playlist_play,
+          color: Colors.white.withOpacity(0.7),
+          size: 50,
+        ),
+      ),
     );
   }
+
+  // 1 song — full artwork
+  if (songs.length == 1) {
+    return AlbumArtWidget(
+      audioPath: songs[0],
+      size: double.infinity,
+      isPlaying: false,
+      isCircle: false,
+    );
+  }
+
+  // 2 songs — split
+  if (songs.length == 2) {
+    return Row(
+      children: [
+        Expanded(
+          child: AlbumArtWidget(
+            audioPath: songs[0],
+            size: double.infinity,
+            isPlaying: false,
+            isCircle: false,
+          ),
+        ),
+        const SizedBox(width: 2),
+        Expanded(
+          child: AlbumArtWidget(
+            audioPath: songs[1],
+            size: double.infinity,
+            isPlaying: false,
+            isCircle: false,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 3 songs — 1 big + 2 small
+  if (songs.length == 3) {
+    return Row(
+      children: [
+        Expanded(
+          flex: 2,
+          child: AlbumArtWidget(
+            audioPath: songs[0],
+            size: double.infinity,
+            isPlaying: false,
+            isCircle: false,
+          ),
+        ),
+        const SizedBox(width: 2),
+        Expanded(
+          flex: 1,
+          child: Column(
+            children: [
+              Expanded(
+                child: AlbumArtWidget(
+                  audioPath: songs[1],
+                  size: double.infinity,
+                  isPlaying: false,
+                  isCircle: false,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Expanded(
+                child: AlbumArtWidget(
+                  audioPath: songs[2],
+                  size: double.infinity,
+                  isPlaying: false,
+                  isCircle: false,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // 4+ songs — 2x2 grid
+  return Column(
+    children: [
+      Expanded(
+        child: Row(
+          children: [
+            Expanded(
+              child: AlbumArtWidget(
+                audioPath: songs[0],
+                size: double.infinity,
+                isPlaying: false,
+                isCircle: false,
+              ),
+            ),
+            const SizedBox(width: 2),
+            Expanded(
+              child: AlbumArtWidget(
+                audioPath: songs[1],
+                size: double.infinity,
+                isPlaying: false,
+                isCircle: false,
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 2),
+      Expanded(
+        child: Row(
+          children: [
+            Expanded(
+              child: AlbumArtWidget(
+                audioPath: songs[2],
+                size: double.infinity,
+                isPlaying: false,
+                isCircle: false,
+              ),
+            ),
+            const SizedBox(width: 2),
+            Expanded(
+              child: AlbumArtWidget(
+                audioPath: songs[3],
+                size: double.infinity,
+                isPlaying: false,
+                isCircle: false,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
 
   Widget _buildFoldersView() {
     Map<String, List<File>> visibleFolders = Map.fromEntries(_songsByFolder.entries.where((e) => !_hiddenFolders.contains(e.key)));
