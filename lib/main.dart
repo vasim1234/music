@@ -2536,6 +2536,60 @@ Future<void> _shareTelegramLink() async {
   }
 
   Widget _buildEmptyState() {
+  // Tab-wise custom empty state
+  String title;
+  String subtitle;
+  IconData icon;
+  bool showScanButton = false;
+  VoidCallback? actionButton;
+
+  switch (_selectedTab) {
+    case 1: // Favorites
+      title = 'No Favorites Yet';
+      subtitle = 'Tap the heart icon on any song to add it to your favorites';
+      icon = Icons.favorite_border;
+      showScanButton = false;
+      break;
+
+    case 2: // Recent
+      title = 'No Recent Songs';
+      subtitle = 'Songs you play will appear here automatically';
+      icon = Icons.history;
+      showScanButton = false;
+      break;
+
+    case 3: // Playlists
+      title = 'No Playlists Found';
+      subtitle = 'Create a new playlist to organize your music';
+      icon = Icons.playlist_add;
+      showScanButton = false;
+      break;
+
+    case 5: // Videos
+      title = 'No Videos Found';
+      subtitle = 'Scan your device to discover videos';
+      icon = Icons.video_library;
+      showScanButton = true;
+      actionButton = _scanDefaultFolder;
+      break;
+
+    case 4: // Folders
+      title = 'No Folders Found';
+      subtitle = 'Scan Music to discover songs in your folders';
+      icon = Icons.folder_open;
+      showScanButton = true;
+      actionButton = _scanDefaultFolder;
+      break;
+
+    default: // All (0)
+      title = 'No Songs Found';
+      subtitle = 'Tap "Scan Music" below to automatically discover songs on your device';
+      icon = Icons.music_note;
+      showScanButton = true;
+      actionButton = _scanDefaultFolder;
+      break;
+  }
+
   return Center(
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 30),
@@ -2556,14 +2610,15 @@ Future<void> _shareTelegramLink() async {
                 ),
               ],
             ),
-            child: const Icon(Icons.music_note, size: 60, color: Colors.white),
+            child: Icon(icon, size: 60, color: Colors.white),
           ),
 
           const SizedBox(height: 24),
 
           // Title
           Text(
-            'No Songs Found',
+            title,
+            textAlign: TextAlign.center,
             style: TextStyle(
               color: AppTheme.text,
               fontSize: 22,
@@ -2575,7 +2630,7 @@ Future<void> _shareTelegramLink() async {
 
           // Subtitle
           Text(
-            'Tap "Scan Music" below to automatically discover songs on your device',
+            subtitle,
             textAlign: TextAlign.center,
             style: TextStyle(
               color: AppTheme.subText,
@@ -2584,67 +2639,65 @@ Future<void> _shareTelegramLink() async {
             ),
           ),
 
-          const SizedBox(height: 30),
-
-          // ✅ SIRF SCAN MUSIC BUTTON
-          GestureDetector(
-            onTap: _scanDefaultFolder,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: AppTheme.primaryGradient),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppTheme.primaryGradient[0].withOpacity(0.4),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.folder_open, color: Colors.white, size: 24),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Scan Music',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+          // Scan Music Button — sirf All / Folders / Videos tabs pe
+          if (showScanButton) ...[
+            const SizedBox(height: 30),
+            GestureDetector(
+              onTap: actionButton,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: AppTheme.primaryGradient),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primaryGradient[0].withOpacity(0.4),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.folder_open, color: Colors.white, size: 24),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Scan Music',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      Text(
-                        'Auto discover songs',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.85),
-                          fontSize: 11,
+                        Text(
+                          'Auto discover songs',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.85),
+                            fontSize: 11,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Tip
-          Text(
-            'Tip: Allow storage permission for best results',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppTheme.subText.withOpacity(0.7),
-              fontSize: 11,
-              fontStyle: FontStyle.italic,
+            const SizedBox(height: 20),
+            Text(
+              'Tip: Allow storage permission for best results',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppTheme.subText.withOpacity(0.7),
+                fontSize: 11,
+                fontStyle: FontStyle.italic,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     ),
