@@ -295,32 +295,44 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   }
 
   Future<void> _loadTheme() async {
-    final prefs = await SharedPreferences.getInstance();
-    int theme = prefs.getInt('themeIndex') ?? 0;
-    if (theme != 0 && theme != 2) {
-      theme = 0;
-      await prefs.setInt('themeIndex', 0);
-    }
-    bool is3D = prefs.getBool('is3DOn') ?? false;
-    bool light = prefs.getBool('isLightMode') ?? false;
-    bool shuffle = prefs.getBool('isShuffle') ?? false;
-    bool repeat = prefs.getBool('isRepeat') ?? false;
-    bool repeatOne = prefs.getBool('isRepeatOne') ?? false;
-    setState(() {
-      _themeIndex = theme;
-      AppTheme.themeIndex = theme;
-      is3DOn = is3D;
-      AppTheme.isLightMode = light;
-      isShuffle = shuffle;
-      isRepeat = repeat;
-      isRepeatOne = repeatOne;
-    });
+  final prefs = await SharedPreferences.getInstance();
+  int theme = prefs.getInt('themeIndex') ?? 0;
+  if (theme != 0 && theme != 2) {
+    theme = 0;
+    await prefs.setInt('themeIndex', 0);
+  }
+  bool is3D = prefs.getBool('is3DOn') ?? false;
+  bool light = prefs.getBool('isLightMode') ?? false;
+  bool shuffle = prefs.getBool('isShuffle') ?? false;
+  bool repeat = prefs.getBool('isRepeat') ?? false;
+  bool repeatOne = prefs.getBool('isRepeatOne') ?? false;
+  setState(() {
+    _themeIndex = theme;
+    AppTheme.themeIndex = theme;
+    is3DOn = is3D;
+    AppTheme.isLightMode = light;
+    isShuffle = shuffle;
+    isRepeat = repeat;
+    isRepeatOne = repeatOne;
+  });
 
-    if (is3D && audioHandler != null) {
-      await audioHandler!.setBassBoost(true, 600);
-      await audioHandler!.setImmersive(true, 800);
-      debugPrint('3D Audio restored on app start');
+  // ✅ NAYA: App start pe modes apply karo    ← YE NAYA BLOCK HAI
+  if (audioHandler != null) {
+    audioHandler!.setShuffleMode(shuffle);
+    if (repeatOne) {
+      audioHandler!.setRepeatMode('one');
+    } else if (repeat) {
+      audioHandler!.setRepeatMode('all');
+    } else {
+      audioHandler!.setRepeatMode('off');
     }
+  }
+
+  if (is3D && audioHandler != null) {
+    await audioHandler!.setBassBoost(true, 600);
+    await audioHandler!.setImmersive(true, 800);
+    debugPrint('3D Audio restored on app start');
+  }
   }
 
   Future<void> _extractColorsFromArt(String audioPath) async {
@@ -467,35 +479,55 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   }
 
   void _toggleShuffleOnly() {
-    setState(() {
-      isShuffle = !isShuffle;
-      if (isShuffle) {
-        isRepeat = false;
-        isRepeatOne = false;
-      }
-    });
-    _savePlaybackMode();
-    _showSnackBar(isShuffle ? 'Shuffle ON' : 'Shuffle OFF', AppTheme.accent);
+  setState(() {
+    isShuffle = !isShuffle;
+    if (isShuffle) {
+      isRepeat = false;
+      isRepeatOne = false;
+    }
+  });
+  _savePlaybackMode();
+  
+  // ✅ Player ko batao
+  if (audioHandler != null) {
+    audioHandler!.setShuffleMode(isShuffle);
+    if (isShuffle) audioHandler!.setRepeatMode('off');
+  }
+  
+  _showSnackBar(isShuffle ? 'Shuffle ON' : 'Shuffle OFF', AppTheme.accent);
   }
 
   void _toggleRepeatOnly() {
-    setState(() {
-      if (!isRepeat && !isRepeatOne) {
-        isRepeat = true;
-        isRepeatOne = false;
-      } else if (isRepeat) {
-        isRepeat = false;
-        isRepeatOne = true;
-      } else {
-        isRepeatOne = false;
-      }
-      if (isRepeat || isRepeatOne) isShuffle = false;
-    });
-    _savePlaybackMode();
-    _showSnackBar(
-      isRepeat ? 'Repeat All' : (isRepeatOne ? 'Repeat One' : 'Repeat OFF'),
-      AppTheme.accent,
-    );
+  setState(() {
+    if (!isRepeat && !isRepeatOne) {
+      isRepeat = true;
+      isRepeatOne = false;
+    } else if (isRepeat) {
+      isRepeat = false;
+      isRepeatOne = true;
+    } else {
+      isRepeatOne = false;
+    }
+    if (isRepeat || isRepeatOne) isShuffle = false;
+  });
+  _savePlaybackMode();
+  
+  // ✅ Player ko batao
+  if (audioHandler != null) {
+    if (isRepeatOne) {
+      audioHandler!.setRepeatMode('one');
+    } else if (isRepeat) {
+      audioHandler!.setRepeatMode('all');
+    } else {
+      audioHandler!.setRepeatMode('off');
+    }
+    if (isRepeat || isRepeatOne) audioHandler!.setShuffleMode(false);
+  }
+  
+  _showSnackBar(
+    isRepeat ? 'Repeat All' : (isRepeatOne ? 'Repeat One' : 'Repeat OFF'),
+    AppTheme.accent,
+  );
   }
 
   Future<void> _checkPermission() async {
@@ -999,13 +1031,23 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       paths = _filteredSongs.map((f) => f.path).toList();
     }
     await audioHandler!.setQueue(paths, index);
-    await audioHandler!.play();
+await audioHandler!.play();
 
-    if (is3DOn) {
-      await audioHandler!.setVolume(0.6);
-    } else {
-      await audioHandler!.setVolume(1.0);
-    }
+// ✅ NAYA: Playback modes apply karo
+audioHandler!.setShuffleMode(isShuffle);
+if (isRepeatOne) {
+  audioHandler!.setRepeatMode('one');
+} else if (isRepeat) {
+  audioHandler!.setRepeatMode('all');
+} else {
+  audioHandler!.setRepeatMode('off');
+}
+
+if (is3DOn) {
+  await audioHandler!.setVolume(0.6);
+} else {
+  await audioHandler!.setVolume(1.0);
+}
 
     if (mounted) {
       setState(() => isPlaying = true);
