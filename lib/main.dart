@@ -14,6 +14,8 @@ import 'package:palette_generator/palette_generator.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // ✅ 2 PREMIUM THEMES (Dark + Light)
 class AppColors {
