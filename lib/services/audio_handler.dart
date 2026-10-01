@@ -54,7 +54,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       ));
     });
 
-    // ✅ NAYA: Track completion — Repeat + Shuffle handle karega
+    // ✅ Track completion — Repeat + Shuffle handle karega
     _player.processingStateStream.listen((state) {
       if (state == ProcessingState.completed) {
         _handleTrackCompletion();
@@ -79,7 +79,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     });
   }
 
-  // ✅ NAYA: Track completion handling — Repeat + Shuffle
+  // ✅ Track completion handling — Repeat + Shuffle
   Future<void> _handleTrackCompletion() async {
     final loopMode = _player.loopMode;
     final shuffleOn = _player.shuffleModeEnabled;
@@ -126,14 +126,14 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     }
   }
 
-  // ✅ NAYA: Shuffle mode set karo
-  Future<void> setShuffleMode(bool enabled) async {
+  // ✅ Shuffle mode apply karo (renamed — conflict avoid)
+  Future<void> applyShuffleMode(bool enabled) async {
     await _player.setShuffleModeEnabled(enabled);
     debugPrint('🔀 Shuffle mode: $enabled');
   }
 
-  // ✅ NAYA: Repeat mode set karo
-  Future<void> setRepeatMode(String mode) async {
+  // ✅ Repeat mode apply karo (renamed — conflict avoid)
+  Future<void> applyRepeatMode(String mode) async {
     switch (mode) {
       case 'one':
         await _player.setLoopMode(LoopMode.one);
@@ -237,8 +237,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   Future<void> skipToNext() async {
     debugPrint('⏭️ skipToNext() called');
     if (_queue.isEmpty) return;
-    
-    // ✅ Shuffle active — random
+
     if (_player.shuffleModeEnabled && _queue.length > 1) {
       final random = math.Random();
       int nextIndex = random.nextInt(_queue.length);
