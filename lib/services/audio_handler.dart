@@ -3,6 +3,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   final AudioPlayer _player = AudioPlayer();
@@ -58,12 +59,83 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       }
     });
 
+    // ✅ AudioSession ID — native pe bhejo
     _player.androidAudioSessionIdStream.listen((sessionId) {
       if (sessionId != null) {
         _bassChannel.invokeMethod('setAudioSessionId', {'sessionId': sessionId});
         debugPrint('🎵 AudioSession ID sent to native: $sessionId');
       }
     });
+
+    // ✅ NAYA: Playback event listener — har track change pe saved settings apply
+    _player.playbackEventStream.listen((event) {
+      if (event.processingState == ProcessingState.ready) {
+        _applySavedAudioSettings();
+      }
+    }, onError: (Object e, StackTrace st) {
+      debugPrint('Playback event error: $e');
+    });
+  }
+
+  // ✅ NAYA: Saved settings auto-apply karo
+  Future<void> _applySavedAudioSettings() async {
+    try {
+      // Thoda delay — AudioSession ko initialize hone do
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      final prefs = await SharedPreferences.getInstance();
+
+      // Bass Boost
+      final bassLevel = prefs.getDouble('bass_level') ?? 0.3;
+      final immersiveLevel = prefs.getDouble('immersive_level') ?? 0.3;
+
+      // Equalizer
+      final eqPreset = prefs.getString('eq_preset') ?? 'Flat';
+      final eqBands = prefs.getStringList('eq_bands');
+
+      // Reverb
+      final reverbEnabled = prefs.getBool('reverb_enabled') ?? false;
+      final reverbPreset = prefs.getString('reverb_preset') ?? 'None';
+
+      // Loudness
+      final loudnessEnabled = prefs.getBool('loudness_enabled') ?? false;
+      final loudnessGain = prefs.getInt('loudness_gain') ?? 500;
+
+      // Apply Bass + Immersive
+      if (bassLevel > 0) {
+        await setBassBoost(true, (bassLevel * 1000).round());
+      }
+      if (immersiveLevel > 0) {
+        await setImmersive(true, (immersiveLevel * 1000).round());
+      }
+
+      // Apply EQ preset
+      if (eqPreset != 'Flat' && eqPreset != 'Custom') {
+        await setEqualizerPreset(eqPreset);
+      }
+
+      // Apply EQ bands
+      if (eqBands != null && eqBands.isNotEmpty) {
+        for (int i = 0; i < eqBands.length; i++) {
+          final level = int.tryParse(eqBands[i]) ?? 0;
+          await setEqualizerBand(i, level);
+        }
+      }
+
+      // Apply Reverb
+      if (reverbEnabled && reverbPreset != 'None') {
+        await setReverb(true, reverbPreset);
+      }
+
+      // Apply Loudness
+      if (loudnessEnabled) {
+        await setLoudness(true, loudnessGain);
+      }
+
+      debugPrint('✅ Saved audio settings applied on new track');
+    } catch (e) {
+      debugPrint('❌ Apply saved settings error: $e');
+    }
   }
 
   AudioProcessingState _getProcessingState(ProcessingState state) {
@@ -130,13 +202,11 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     await _playCurrent();
   }
 
-  // ✅ Volume control method (3D Audio / Bass Boost ke liye)
   Future<void> setVolume(double volume) async {
     await _player.setVolume(volume);
     debugPrint('🔊 Volume set to: $volume');
   }
 
-  // ✅ Bass Boost control
   Future<void> setBassBoost(bool enabled, int strength) async {
     try {
       await _bassChannel.invokeMethod('setBassBoost', {
@@ -149,7 +219,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     }
   }
 
-  // ✅ Immersive Audio control
   Future<void> setImmersive(bool enabled, int strength) async {
     try {
       await _bassChannel.invokeMethod('setImmersive', {
@@ -162,7 +231,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     }
   }
 
-  // ✅ Equalizer preset apply karo
   Future<void> setEqualizerPreset(String presetName) async {
     try {
       await _bassChannel.invokeMethod('setEqualizerPreset', {
@@ -174,7 +242,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     }
   }
 
-  // ✅ Ek band set karo
   Future<void> setEqualizerBand(int bandIndex, int levelMb) async {
     try {
       await _bassChannel.invokeMethod('setEqualizerBand', {
@@ -187,7 +254,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     }
   }
 
-  // ✅ Equalizer on/off
   Future<void> setEqualizerEnabled(bool enabled) async {
     try {
       await _bassChannel.invokeMethod('setEqualizerEnabled', {
@@ -199,7 +265,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     }
   }
 
-  // ✅ EQ info (bands + range)
   Future<Map<String, dynamic>> getEqualizerInfo() async {
     try {
       final result = await _bassChannel.invokeMethod('getEqualizerInfo');
@@ -215,7 +280,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     }
   }
 
-  // ✅ NAYA: Reverb apply karo
   Future<void> setReverb(bool enabled, String presetName) async {
     try {
       await _bassChannel.invokeMethod('setReverb', {
@@ -228,7 +292,6 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
     }
   }
 
-  // ✅ NAYA: Loudness Enhancer
   Future<void> setLoudness(bool enabled, int gainMb) async {
     try {
       await _bassChannel.invokeMethod('setLoudness', {
