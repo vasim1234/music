@@ -1183,16 +1183,130 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     _applyFilter();
   }
 
-  // ✅ NAYA: Floating toast notification
+void _showAddToPlaylist(File song) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (context) => Container(
+      decoration: BoxDecoration(
+        color: AppTheme.card,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+      ),
+      child: SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 50,
+              height: 5,
+              margin: const EdgeInsets.only(top: 12),
+              decoration: BoxDecoration(
+                color: AppTheme.subText,
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                'Add to Playlist',
+                style: TextStyle(
+                  color: AppTheme.text,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            if (_playlists.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Text(
+                  'No playlists yet!',
+                  style: TextStyle(color: AppTheme.subText),
+                ),
+              )
+            else
+              ..._playlists.map((playlist) {
+                bool isIn = (playlist['songs'] as List<String>).contains(song.path);
+
+                return ListTile(
+                  leading: Icon(
+                    isIn ? Icons.check_circle : Icons.playlist_play,
+                    color: isIn ? Colors.green : AppTheme.accent,
+                    size: 24,
+                  ),
+                  title: Text(
+                    playlist['name'],
+                    style: TextStyle(
+                      color: AppTheme.text,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${(playlist['songs'] as List<String>).length} songs',
+                    style: TextStyle(color: AppTheme.subText, fontSize: 11),
+                  ),
+                  trailing: isIn
+                      ? const Icon(Icons.check, color: Colors.green, size: 20)
+                      : null,
+                  onTap: () {
+                    setState(() {
+                      if (isIn) {
+                        (playlist['songs'] as List<String>).remove(song.path);
+                      } else {
+                        (playlist['songs'] as List<String>).add(song.path);
+                      }
+                    });
+                    _savePlaylists();
+                    Navigator.pop(context);
+                    _showToast(
+                      isIn
+                          ? 'Removed from ${playlist['name']}'
+                          : 'Added to ${playlist['name']}',
+                      isIn ? Colors.orange : Colors.green,
+                    );
+                  },
+                );
+              }).toList(),
+            Padding(
+              padding: const EdgeInsets.all(15),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.pop(context);
+                  _createNewPlaylist(song);
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: AppTheme.primaryGradient),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Create New Playlist',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+// ✅ NAYA: Toast helper
 void _showToast(String message, Color color) {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Row(
         children: [
           Icon(
-            color == Colors.green
-                ? Icons.check_circle
-                : Icons.info_outline,
+            color == Colors.green ? Icons.check_circle : Icons.info_outline,
             color: Colors.white,
             size: 20,
           ),
@@ -1211,9 +1325,7 @@ void _showToast(String message, Color color) {
       ),
       backgroundColor: color,
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       duration: const Duration(seconds: 2),
       margin: const EdgeInsets.all(16),
     ),
