@@ -16,7 +16,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'audio_visualizer.dart';
 
 // ✅ 2 PREMIUM THEMES (Dark + Light)
 class AppColors {
@@ -1969,22 +1968,7 @@ void _showUpdateDialog(
 
                     const SizedBox(height: 16),
 
-                    // ✅ NAYA: Audio Visualizer
-Padding(
-  padding: const EdgeInsets.symmetric(horizontal: 24),
-  child: AudioVisualizer(
-    isPlaying: isPlaying,
-    accentColor: dynamicAccent,
-    barCount: 32,
-    height: 50,
-  ),
-),
-
-const SizedBox(height: 16),
-
-// PROGRESS BAR
-
-                    // PROGRESS BAR
+                   // PROGRESS BAR
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: StreamBuilder<Duration>(
