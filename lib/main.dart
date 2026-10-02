@@ -1035,13 +1035,13 @@ if (audioHandler != null) {
 await audioHandler!.play();
 
 // ✅ NAYA: Playback modes apply karo
-audioHandler!.setShuffleMode(isShuffle);
+audioHandler!.applyShuffleMode(isShuffle);
 if (isRepeatOne) {
-  audioHandler!.setRepeatMode('one');
+  audioHandler!.applyRepeatMode('one');
 } else if (isRepeat) {
-  audioHandler!.setRepeatMode('all');
+  audioHandler!.applyRepeatMode('all');
 } else {
-  audioHandler!.setRepeatMode('off');
+  audioHandler!.applyRepeatMode('off');
 }
 
 if (is3DOn) {
