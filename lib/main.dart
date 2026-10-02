@@ -316,17 +316,17 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     isRepeatOne = repeatOne;
   });
 
-  // ✅ NAYA: App start pe modes apply karo    ← YE NAYA BLOCK HAI
-  if (audioHandler != null) {
-    audioHandler!.setShuffleMode(shuffle);
-    if (repeatOne) {
-      audioHandler!.setRepeatMode('one');
-    } else if (repeat) {
-      audioHandler!.setRepeatMode('all');
-    } else {
-      audioHandler!.setRepeatMode('off');
-    }
+  // ✅ NAYA: App start pe modes apply karo
+if (audioHandler != null) {
+  audioHandler!.applyShuffleMode(shuffle);
+  if (repeatOne) {
+    audioHandler!.applyRepeatMode('one');
+  } else if (repeat) {
+    audioHandler!.applyRepeatMode('all');
+  } else {
+    audioHandler!.applyRepeatMode('off');
   }
+}
 
   if (is3D && audioHandler != null) {
     await audioHandler!.setBassBoost(true, 600);
@@ -490,8 +490,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   
   // ✅ Player ko batao
   if (audioHandler != null) {
-    audioHandler!.setShuffleMode(isShuffle);
-    if (isShuffle) audioHandler!.setRepeatMode('off');
+    // ✅ Naya
+audioHandler!.applyShuffleMode(isShuffle);
+if (isShuffle) audioHandler!.applyRepeatMode('off');
   }
   
   _showSnackBar(isShuffle ? 'Shuffle ON' : 'Shuffle OFF', AppTheme.accent);
@@ -513,16 +514,16 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   _savePlaybackMode();
   
   // ✅ Player ko batao
-  if (audioHandler != null) {
-    if (isRepeatOne) {
-      audioHandler!.setRepeatMode('one');
-    } else if (isRepeat) {
-      audioHandler!.setRepeatMode('all');
-    } else {
-      audioHandler!.setRepeatMode('off');
-    }
-    if (isRepeat || isRepeatOne) audioHandler!.setShuffleMode(false);
+if (audioHandler != null) {
+  if (isRepeatOne) {
+    audioHandler!.applyRepeatMode('one');
+  } else if (isRepeat) {
+    audioHandler!.applyRepeatMode('all');
+  } else {
+    audioHandler!.applyRepeatMode('off');
   }
+  if (isRepeat || isRepeatOne) audioHandler!.applyShuffleMode(false);
+}
   
   _showSnackBar(
     isRepeat ? 'Repeat All' : (isRepeatOne ? 'Repeat One' : 'Repeat OFF'),
