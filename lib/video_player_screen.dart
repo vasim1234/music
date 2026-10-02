@@ -7,7 +7,6 @@ import 'package:chewie/chewie.dart';
 import 'package:screen_brightness/screen_brightness.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
-import 'audio_settings_screen.dart';
 
 class VideoPlayerScreen extends StatefulWidget {
   final File videoFile;
@@ -374,27 +373,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
-  // NAYA METHOD: Audio Settings Sheet kholne ke liye taaki video pause na ho
-  void _showAudioSettingsSheet() {
-    _startTitleTimer();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent, // Background transparent rakha hai
-      builder: (context) => SizedBox(
-        height: MediaQuery.of(context).size.height * 0.75, // Screen ka 75% hissa lega
-        child: const ClipRRect(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          child: AudioSettingsScreen(
-            isDarkTheme: true,
-            accentColor: Color(0xFF34D399),
-            gradientColors: [Color(0xFF059669), Color(0xFF34D399)],
-          ),
-        ),
-      ),
-    );
-  }
-
   void _showVideoOptionsSheet() {
     _startTitleTimer();
     showModalBottomSheet(
@@ -473,16 +451,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 onTap: () {
                   Navigator.pop(context);
                   _showVolumeSheet();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.tune, color: Colors.white),
-                title: const Text('Audio Settings', style: TextStyle(color: Colors.white)),
-                subtitle: const Text('Bass, EQ, Reverb & more',
-                    style: TextStyle(color: Colors.white54, fontSize: 11)),
-                onTap: () {
-                  Navigator.pop(context); // Options sheet band hogi
-                  _showAudioSettingsSheet(); // Ab nayi bottom sheet khulegi bina video pause kiye
                 },
               ),
               ListTile(
@@ -896,15 +864,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                         actions: [
                           IconButton(
                             iconSize: 24,
-                            icon: const Icon(Icons.tune, color: Colors.white),
-                            tooltip: 'Audio Settings',
-                            onPressed: () {
-                              // Yahan bhi fix lagaya hai
-                              _showAudioSettingsSheet();
-                            },
-                          ),
-                          IconButton(
-                            iconSize: 24,
                             icon: const Icon(Icons.more_vert, color: Colors.white),
                             onPressed: _showVideoOptionsSheet,
                           ),
@@ -1200,4 +1159,3 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 }
-
