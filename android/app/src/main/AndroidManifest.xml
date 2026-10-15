@@ -4,7 +4,11 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
+    
+    <!-- ✅ Android 13+ Media Permissions -->
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
 
     <!-- ✅ Internet -->
     <uses-permission android:name="android.permission.INTERNET"/>
@@ -19,7 +23,6 @@
         android:label="Bhai Bhai Music"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:requestLegacyExternalStorage="true"
         android:allowBackup="true"
         android:usesCleartextTraffic="true">
 
@@ -72,7 +75,7 @@
             android:value="2" />
     </application>
 
-    <!-- ✅ Queries ab application ke BAHAR hai -->
+    <!-- ✅ Queries -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
