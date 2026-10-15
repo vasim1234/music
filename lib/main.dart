@@ -950,78 +950,143 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
   }
 
-  // ✅ UPDATED: Multiple paths try karo — Android 13+ fix
-  Future<void> _scanDefaultFolder() async {
-    try {
-      setState(() {
-        _songs.clear();
-        _videos.clear();
-        _songsByFolder.clear();
-        _videosByFolder.clear();
-      });
+Future<void> _scanDefaultFolder() async {
+  try {
+    setState(() {
+      _songs.clear();
+      _videos.clear();
+      _songsByFolder.clear();
+      _videosByFolder.clear();
+    });
 
-      List<File> allSongs = [];
-      List<File> allVideos = [];
+    List<File> allSongs = [];
+    List<File> allVideos = [];
 
-      // ✅ NAYA: Multiple paths try karo
-      List<String> possiblePaths = [
-        '/storage/emulated/0/',
-        '/sdcard/',
-        '/mnt/sdcard/',
-        '/storage/self/primary/',
-      ];
+    // ✅ Multiple paths try karo
+    List<String> possiblePaths = [
+      '/storage/emulated/0/',
+      '/sdcard/',
+      '/mnt/sdcard/',
+      '/storage/self/primary/',
+    ];
 
-      Directory? rootDir;
-      for (String path in possiblePaths) {
-        final dir = Directory(path);
-        if (dir.existsSync()) {
-          rootDir = dir;
-          debugPrint('✅ Using path: $path');
-          break;
-        }
+    Directory? rootDir;
+    for (String path in possiblePaths) {
+      final dir = Directory(path);
+      if (dir.existsSync()) {
+        rootDir = dir;
+        debugPrint('✅ Using path: $path');
+        break;
       }
-
-      if (rootDir != null && rootDir.existsSync()) {
-        try {
-          for (var entity in rootDir.listSync(recursive: true)) {
-            String path = entity.path.toLowerCase();
-            if (path.contains('/android/data/') || path.contains('/android/obb/') || path.contains('/android/media/')) continue;
-            if (path.contains('/call_rec/') || path.contains('/callrec/') || path.contains('/call recording/') || path.contains('/callrecordings/') || path.contains('/sound_recorder/') || path.contains('/voicerecorder/') || path.contains('/voice_recorder/') || path.contains('/recordings/') || path.contains('/voice notes/') || path.contains('/whatsapp audio/')) continue;
-
-            if (entity is File) {
-              String p = entity.path.toLowerCase();
-              bool isAudio = p.endsWith('.mp3') || p.endsWith('.m4a') || p.endsWith('.wav') || p.endsWith('.aac') || p.endsWith('.flac') || p.endsWith('.wma') || p.endsWith('.mp4a');
-              if (isAudio && !_isVoiceNoteFile(entity)) allSongs.add(entity);
-              if (p.endsWith('.mp4') || p.endsWith('.mkv') || p.endsWith('.avi') || p.endsWith('.mov') || p.endsWith('.wmv') || p.endsWith('.flv') || p.endsWith('.webm') || p.endsWith('.m4v') || p.endsWith('.ts') || p.endsWith('.mpg') || p.endsWith('.mpeg')) allVideos.add(entity);
-            }
-          }
-        } catch (e) {
-          debugPrint('❌ Scan error: $e');
-          if (mounted) _showSnackBar('Scan error: $e', Colors.red);
-        }
-      } else {
-        if (mounted) _showSnackBar('Storage path not found', Colors.red);
-      }
-
-      setState(() {
-        for (var song in allSongs) {
-          if (!_songs.any((f) => f.path == song.path)) _songs.add(song);
-        }
-        for (var video in allVideos) {
-          if (!_videos.any((f) => f.path == video.path)) _videos.add(video);
-        }
-        _buildFolderMap();
-        _buildVideoFolderMap();
-      });
-
-      await _saveSongs();
-      await _saveVideos();
-      await _applyFilter();
-      _showSnackBar('${allSongs.length} songs + ${allVideos.length} videos found!', Colors.green);
-    } catch (e) {
-      _showSnackBar('Error: $e', Colors.red);
     }
+
+    if (rootDir == null || !rootDir.existsSync()) {
+      if (mounted) _showSnackBar('Storage path not found', Colors.red);
+      return;
+    }
+
+    // ✅ NAYA: Har folder ko individually scan karo — exception-safe
+    void scanDirectory(Directory dir, int depth) {
+      if (depth > 8) return; // recursion limit
+
+      try {
+        final entities = dir.listSync(followLinks: false);
+        for (var entity in entities) {
+          try {
+            if (entity is Directory) {
+              final dirPath = entity.path.toLowerCase();
+
+              // ❌ In folders ko skip karo — permission issue
+              if (dirPath.contains('/android/data/') ||
+                  dirPath.contains('/android/obb/') ||
+                  dirPath.contains('/android/media/') ||
+                  dirPath.contains('/.thumbnails/') ||
+                  dirPath.contains('/.cache/') ||
+                  dirPath.endsWith('/android')) {
+                continue;
+              }
+
+              scanDirectory(entity, depth + 1);
+            } else if (entity is File) {
+              final p = entity.path.toLowerCase();
+
+              // ❌ Call recordings / voice notes skip karo
+              if (p.contains('/call_rec/') ||
+                  p.contains('/callrec/') ||
+                  p.contains('/call recording/') ||
+                  p.contains('/callrecordings/') ||
+                  p.contains('/sound_recorder/') ||
+                  p.contains('/voicerecorder/') ||
+                  p.contains('/voice_recorder/') ||
+                  p.contains('/recordings/') ||
+                  p.contains('/voice notes/') ||
+                  p.contains('/whatsapp audio/')) {
+                continue;
+              }
+
+              // ✅ Audio files
+              bool isAudio = p.endsWith('.mp3') ||
+                  p.endsWith('.m4a') ||
+                  p.endsWith('.wav') ||
+                  p.endsWith('.aac') ||
+                  p.endsWith('.flac') ||
+                  p.endsWith('.wma') ||
+                  p.endsWith('.mp4a');
+
+              if (isAudio && !_isVoiceNoteFile(entity)) {
+                allSongs.add(entity);
+              }
+
+              // ✅ Video files
+              if (p.endsWith('.mp4') ||
+                  p.endsWith('.mkv') ||
+                  p.endsWith('.avi') ||
+                  p.endsWith('.mov') ||
+                  p.endsWith('.wmv') ||
+                  p.endsWith('.flv') ||
+                  p.endsWith('.webm') ||
+                  p.endsWith('.m4v') ||
+                  p.endsWith('.ts') ||
+                  p.endsWith('.mpg') ||
+                  p.endsWith('.mpeg')) {
+                allVideos.add(entity);
+              }
+            }
+          } catch (e) {
+            // ❌ Individual file/folder fail — skip karo, continue
+            debugPrint('Skip item: ${entity.path} — $e');
+          }
+        }
+      } catch (e) {
+        // ❌ Directory access fail — skip karo
+        debugPrint('Skip dir: ${dir.path} — $e');
+      }
+    }
+
+    scanDirectory(rootDir, 0);
+
+    setState(() {
+      for (var song in allSongs) {
+        if (!_songs.any((f) => f.path == song.path)) _songs.add(song);
+      }
+      for (var video in allVideos) {
+        if (!_videos.any((f) => f.path == video.path)) _videos.add(video);
+      }
+      _buildFolderMap();
+      _buildVideoFolderMap();
+    });
+
+    await _saveSongs();
+    await _saveVideos();
+    await _applyFilter();
+    _showSnackBar(
+        '${allSongs.length} songs + ${allVideos.length} videos found!',
+        Colors.green);
+  } catch (e) {
+    debugPrint('❌ Scan error: $e');
+    _showSnackBar('Error: $e', Colors.red);
   }
+}
 
   Future<void> _playSong(File song, int index) async {
     if (_currentSong == song) {
