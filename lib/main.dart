@@ -295,44 +295,44 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   }
 
   Future<void> _loadTheme() async {
-  final prefs = await SharedPreferences.getInstance();
-  int theme = prefs.getInt('themeIndex') ?? 0;
-  if (theme != 0 && theme != 2) {
-    theme = 0;
-    await prefs.setInt('themeIndex', 0);
-  }
-  bool is3D = prefs.getBool('is3DOn') ?? false;
-  bool light = prefs.getBool('isLightMode') ?? false;
-  bool shuffle = prefs.getBool('isShuffle') ?? false;
-  bool repeat = prefs.getBool('isRepeat') ?? false;
-  bool repeatOne = prefs.getBool('isRepeatOne') ?? false;
-  setState(() {
-    _themeIndex = theme;
-    AppTheme.themeIndex = theme;
-    is3DOn = is3D;
-    AppTheme.isLightMode = light;
-    isShuffle = shuffle;
-    isRepeat = repeat;
-    isRepeatOne = repeatOne;
-  });
+    final prefs = await SharedPreferences.getInstance();
+    int theme = prefs.getInt('themeIndex') ?? 0;
+    if (theme != 0 && theme != 2) {
+      theme = 0;
+      await prefs.setInt('themeIndex', 0);
+    }
+    bool is3D = prefs.getBool('is3DOn') ?? false;
+    bool light = prefs.getBool('isLightMode') ?? false;
+    bool shuffle = prefs.getBool('isShuffle') ?? false;
+    bool repeat = prefs.getBool('isRepeat') ?? false;
+    bool repeatOne = prefs.getBool('isRepeatOne') ?? false;
+    setState(() {
+      _themeIndex = theme;
+      AppTheme.themeIndex = theme;
+      is3DOn = is3D;
+      AppTheme.isLightMode = light;
+      isShuffle = shuffle;
+      isRepeat = repeat;
+      isRepeatOne = repeatOne;
+    });
 
-  // ✅ NAYA: App start pe modes apply karo
-if (audioHandler != null) {
-  audioHandler!.applyShuffleMode(shuffle);
-  if (repeatOne) {
-    audioHandler!.applyRepeatMode('one');
-  } else if (repeat) {
-    audioHandler!.applyRepeatMode('all');
-  } else {
-    audioHandler!.applyRepeatMode('off');
-  }
-}
+    // ✅ NAYA: App start pe modes apply karo
+    if (audioHandler != null) {
+      audioHandler!.applyShuffleMode(shuffle);
+      if (repeatOne) {
+        audioHandler!.applyRepeatMode('one');
+      } else if (repeat) {
+        audioHandler!.applyRepeatMode('all');
+      } else {
+        audioHandler!.applyRepeatMode('off');
+      }
+    }
 
-  if (is3D && audioHandler != null) {
-    await audioHandler!.setBassBoost(true, 600);
-    await audioHandler!.setImmersive(true, 800);
-    debugPrint('3D Audio restored on app start');
-  }
+    if (is3D && audioHandler != null) {
+      await audioHandler!.setBassBoost(true, 600);
+      await audioHandler!.setImmersive(true, 800);
+      debugPrint('3D Audio restored on app start');
+    }
   }
 
   Future<void> _extractColorsFromArt(String audioPath) async {
@@ -479,63 +479,71 @@ if (audioHandler != null) {
   }
 
   void _toggleShuffleOnly() {
-  setState(() {
-    isShuffle = !isShuffle;
-    if (isShuffle) {
-      isRepeat = false;
-      isRepeatOne = false;
+    setState(() {
+      isShuffle = !isShuffle;
+      if (isShuffle) {
+        isRepeat = false;
+        isRepeatOne = false;
+      }
+    });
+    _savePlaybackMode();
+
+    if (audioHandler != null) {
+      audioHandler!.applyShuffleMode(isShuffle);
+      if (isShuffle) audioHandler!.applyRepeatMode('off');
     }
-  });
-  _savePlaybackMode();
-  
-  // ✅ Player ko batao
-  if (audioHandler != null) {
-    // ✅ Naya
-audioHandler!.applyShuffleMode(isShuffle);
-if (isShuffle) audioHandler!.applyRepeatMode('off');
-  }
-  
-  _showSnackBar(isShuffle ? 'Shuffle ON' : 'Shuffle OFF', AppTheme.accent);
+
+    _showSnackBar(isShuffle ? 'Shuffle ON' : 'Shuffle OFF', AppTheme.accent);
   }
 
   void _toggleRepeatOnly() {
-  setState(() {
-    if (!isRepeat && !isRepeatOne) {
-      isRepeat = true;
-      isRepeatOne = false;
-    } else if (isRepeat) {
-      isRepeat = false;
-      isRepeatOne = true;
-    } else {
-      isRepeatOne = false;
+    setState(() {
+      if (!isRepeat && !isRepeatOne) {
+        isRepeat = true;
+        isRepeatOne = false;
+      } else if (isRepeat) {
+        isRepeat = false;
+        isRepeatOne = true;
+      } else {
+        isRepeatOne = false;
+      }
+      if (isRepeat || isRepeatOne) isShuffle = false;
+    });
+    _savePlaybackMode();
+
+    if (audioHandler != null) {
+      if (isRepeatOne) {
+        audioHandler!.applyRepeatMode('one');
+      } else if (isRepeat) {
+        audioHandler!.applyRepeatMode('all');
+      } else {
+        audioHandler!.applyRepeatMode('off');
+      }
+      if (isRepeat || isRepeatOne) audioHandler!.applyShuffleMode(false);
     }
-    if (isRepeat || isRepeatOne) isShuffle = false;
-  });
-  _savePlaybackMode();
-  
-  // ✅ Player ko batao
-if (audioHandler != null) {
-  if (isRepeatOne) {
-    audioHandler!.applyRepeatMode('one');
-  } else if (isRepeat) {
-    audioHandler!.applyRepeatMode('all');
-  } else {
-    audioHandler!.applyRepeatMode('off');
-  }
-  if (isRepeat || isRepeatOne) audioHandler!.applyShuffleMode(false);
-}
-  
-  _showSnackBar(
-    isRepeat ? 'Repeat All' : (isRepeatOne ? 'Repeat One' : 'Repeat OFF'),
-    AppTheme.accent,
-  );
+
+    _showSnackBar(
+      isRepeat ? 'Repeat All' : (isRepeatOne ? 'Repeat One' : 'Repeat OFF'),
+      AppTheme.accent,
+    );
   }
 
+  // ✅ UPDATED: Android 13+ fix
   Future<void> _checkPermission() async {
     if (Platform.isAndroid) {
-      if (await Permission.audio.isDenied) await Permission.audio.request();
-      if (await Permission.storage.isDenied) await Permission.storage.request();
-      if (await Permission.manageExternalStorage.isDenied) {
+      // Android 13+ media permissions
+      if (await Permission.audio.isDenied) {
+        await Permission.audio.request();
+      }
+      if (await Permission.videos.isDenied) {
+        await Permission.videos.request();
+      }
+      // Storage (sab versions)
+      if (await Permission.storage.isDenied) {
+        await Permission.storage.request();
+      }
+      // ✅ MOST IMPORTANT — Android 11+ ke liye
+      if (!await Permission.manageExternalStorage.isGranted) {
         await Permission.manageExternalStorage.request();
       }
     }
@@ -942,6 +950,7 @@ if (audioHandler != null) {
     }
   }
 
+  // ✅ UPDATED: Multiple paths try karo — Android 13+ fix
   Future<void> _scanDefaultFolder() async {
     try {
       setState(() {
@@ -953,9 +962,26 @@ if (audioHandler != null) {
 
       List<File> allSongs = [];
       List<File> allVideos = [];
-      Directory rootDir = Directory('/storage/emulated/0/');
 
-      if (rootDir.existsSync()) {
+      // ✅ NAYA: Multiple paths try karo
+      List<String> possiblePaths = [
+        '/storage/emulated/0/',
+        '/sdcard/',
+        '/mnt/sdcard/',
+        '/storage/self/primary/',
+      ];
+
+      Directory? rootDir;
+      for (String path in possiblePaths) {
+        final dir = Directory(path);
+        if (dir.existsSync()) {
+          rootDir = dir;
+          debugPrint('✅ Using path: $path');
+          break;
+        }
+      }
+
+      if (rootDir != null && rootDir.existsSync()) {
         try {
           for (var entity in rootDir.listSync(recursive: true)) {
             String path = entity.path.toLowerCase();
@@ -970,8 +996,11 @@ if (audioHandler != null) {
             }
           }
         } catch (e) {
-          debugPrint('Scan error: $e');
+          debugPrint('❌ Scan error: $e');
+          if (mounted) _showSnackBar('Scan error: $e', Colors.red);
         }
+      } else {
+        if (mounted) _showSnackBar('Storage path not found', Colors.red);
       }
 
       setState(() {
@@ -1032,23 +1061,23 @@ if (audioHandler != null) {
       paths = _filteredSongs.map((f) => f.path).toList();
     }
     await audioHandler!.setQueue(paths, index);
-await audioHandler!.play();
+    await audioHandler!.play();
 
-// ✅ NAYA: Playback modes apply karo
-audioHandler!.applyShuffleMode(isShuffle);
-if (isRepeatOne) {
-  audioHandler!.applyRepeatMode('one');
-} else if (isRepeat) {
-  audioHandler!.applyRepeatMode('all');
-} else {
-  audioHandler!.applyRepeatMode('off');
-}
+    // ✅ Playback modes apply karo
+    audioHandler!.applyShuffleMode(isShuffle);
+    if (isRepeatOne) {
+      audioHandler!.applyRepeatMode('one');
+    } else if (isRepeat) {
+      audioHandler!.applyRepeatMode('all');
+    } else {
+      audioHandler!.applyRepeatMode('off');
+    }
 
-if (is3DOn) {
-  await audioHandler!.setVolume(0.6);
-} else {
-  await audioHandler!.setVolume(1.0);
-}
+    if (is3DOn) {
+      await audioHandler!.setVolume(0.6);
+    } else {
+      await audioHandler!.setVolume(1.0);
+    }
 
     if (mounted) {
       setState(() => isPlaying = true);
@@ -1231,154 +1260,153 @@ if (is3DOn) {
     _applyFilter();
   }
 
-void _showAddToPlaylist(File song) {
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: Colors.transparent,
-    builder: (context) => Container(
-      decoration: BoxDecoration(
-        color: AppTheme.card,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-      ),
-      child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 50,
-              height: 5,
-              margin: const EdgeInsets.only(top: 12),
-              decoration: BoxDecoration(
-                color: AppTheme.subText,
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Text(
-                'Add to Playlist',
-                style: TextStyle(
-                  color: AppTheme.text,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+  void _showAddToPlaylist(File song) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: AppTheme.card,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 50,
+                height: 5,
+                margin: const EdgeInsets.only(top: 12),
+                decoration: BoxDecoration(
+                  color: AppTheme.subText,
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
-            ),
-            if (_playlists.isEmpty)
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: Text(
-                  'No playlists yet!',
-                  style: TextStyle(color: AppTheme.subText),
+                  'Add to Playlist',
+                  style: TextStyle(
+                    color: AppTheme.text,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              )
-            else
-              ..._playlists.map((playlist) {
-                bool isIn = (playlist['songs'] as List<String>).contains(song.path);
+              ),
+              if (_playlists.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Text(
+                    'No playlists yet!',
+                    style: TextStyle(color: AppTheme.subText),
+                  ),
+                )
+              else
+                ..._playlists.map((playlist) {
+                  bool isIn = (playlist['songs'] as List<String>).contains(song.path);
 
-                return ListTile(
-                  leading: Icon(
-                    isIn ? Icons.check_circle : Icons.playlist_play,
-                    color: isIn ? Colors.green : AppTheme.accent,
-                    size: 24,
-                  ),
-                  title: Text(
-                    playlist['name'],
-                    style: TextStyle(
-                      color: AppTheme.text,
-                      fontWeight: FontWeight.w600,
+                  return ListTile(
+                    leading: Icon(
+                      isIn ? Icons.check_circle : Icons.playlist_play,
+                      color: isIn ? Colors.green : AppTheme.accent,
+                      size: 24,
                     ),
-                  ),
-                  subtitle: Text(
-                    '${(playlist['songs'] as List<String>).length} songs',
-                    style: TextStyle(color: AppTheme.subText, fontSize: 11),
-                  ),
-                  trailing: isIn
-                      ? const Icon(Icons.check, color: Colors.green, size: 20)
-                      : null,
-                  onTap: () {
-                    setState(() {
-                      if (isIn) {
-                        (playlist['songs'] as List<String>).remove(song.path);
-                      } else {
-                        (playlist['songs'] as List<String>).add(song.path);
-                      }
-                    });
-                    _savePlaylists();
-                    Navigator.pop(context);
-                    _showToast(
-                      isIn
-                          ? 'Removed from ${playlist['name']}'
-                          : 'Added to ${playlist['name']}',
-                      isIn ? Colors.orange : Colors.green,
-                    );
-                  },
-                );
-              }).toList(),
-            Padding(
-              padding: const EdgeInsets.all(15),
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.pop(context);
-                  _createNewPlaylist(song);
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(15),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: AppTheme.primaryGradient),
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'Create New Playlist',
+                    title: Text(
+                      playlist['name'],
                       style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
+                        color: AppTheme.text,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: Text(
+                      '${(playlist['songs'] as List<String>).length} songs',
+                      style: TextStyle(color: AppTheme.subText, fontSize: 11),
+                    ),
+                    trailing: isIn
+                        ? const Icon(Icons.check, color: Colors.green, size: 20)
+                        : null,
+                    onTap: () {
+                      setState(() {
+                        if (isIn) {
+                          (playlist['songs'] as List<String>).remove(song.path);
+                        } else {
+                          (playlist['songs'] as List<String>).add(song.path);
+                        }
+                      });
+                      _savePlaylists();
+                      Navigator.pop(context);
+                      _showToast(
+                        isIn
+                            ? 'Removed from ${playlist['name']}'
+                            : 'Added to ${playlist['name']}',
+                        isIn ? Colors.orange : Colors.green,
+                      );
+                    },
+                  );
+                }).toList(),
+              Padding(
+                padding: const EdgeInsets.all(15),
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                    _createNewPlaylist(song);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(15),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: AppTheme.primaryGradient),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: const Center(
+                      child: Text(
+                        'Create New Playlist',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showToast(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              color == Colors.green ? Icons.check_circle : Icons.info_outline,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
           ],
         ),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
+        margin: const EdgeInsets.all(16),
       ),
-    ),
-  );
-}
-
-// ✅ NAYA: Toast helper
-void _showToast(String message, Color color) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Row(
-        children: [
-          Icon(
-            color == Colors.green ? Icons.check_circle : Icons.info_outline,
-            color: Colors.white,
-            size: 20,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
-      backgroundColor: color,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      duration: const Duration(seconds: 2),
-      margin: const EdgeInsets.all(16),
-    ),
-  );
-}
+    );
+  }
 
   void _createNewPlaylist(File song) {
     TextEditingController nameCtrl = TextEditingController();
@@ -1415,68 +1443,66 @@ void _showToast(String message, Color color) {
   }
 
   void _showMainSongOptions(File song) {
-  bool isFav = _favorites.contains(song.path);
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: Colors.transparent,
-    builder: (context) => _buildOptionsSheet(
-      title: getSongName(song.path),
-      songPath: song.path,
-      options: [
-        _optionItem(
-          icon: isFav ? Icons.favorite : Icons.favorite_border,
-          color: Colors.pinkAccent,
-          title: isFav ? 'Remove from Favorites' : 'Add to Favorites',
-          onTap: () {
-            Navigator.pop(context);
-            _toggleFavorite(song);
-          },
-        ),
-        _optionItem(
-          icon: Icons.playlist_add,
-          color: AppTheme.accent,
-          title: 'Add to Playlist',
-          onTap: () {
-            Navigator.pop(context);
-            _showAddToPlaylist(song);
-          },
-        ),
-        // ✅ NAYA: Share Song
-        _optionItem(
-          icon: Icons.share,
-          color: Colors.blue,
-          title: 'Share Song',
-          onTap: () {
-            Navigator.pop(context);
-            _shareSong(song);
-          },
-        ),
-        _optionItem(
-          icon: Icons.delete_forever,
-          color: Colors.redAccent,
-          title: 'Delete Permanently',
-          onTap: () {
-            Navigator.pop(context);
-            _confirmDelete(song);
-          },
-        ),
-      ],
-    ),
-  );
-}
-
-// ✅ NAYA: Song share karo
-Future<void> _shareSong(File song) async {
-  try {
-    await Share.shareXFiles(
-      [XFile(song.path)],
-      text: 'Check out this song: ${getSongName(song.path)}',
-      subject: getSongName(song.path),
+    bool isFav = _favorites.contains(song.path);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _buildOptionsSheet(
+        title: getSongName(song.path),
+        songPath: song.path,
+        options: [
+          _optionItem(
+            icon: isFav ? Icons.favorite : Icons.favorite_border,
+            color: Colors.pinkAccent,
+            title: isFav ? 'Remove from Favorites' : 'Add to Favorites',
+            onTap: () {
+              Navigator.pop(context);
+              _toggleFavorite(song);
+            },
+          ),
+          _optionItem(
+            icon: Icons.playlist_add,
+            color: AppTheme.accent,
+            title: 'Add to Playlist',
+            onTap: () {
+              Navigator.pop(context);
+              _showAddToPlaylist(song);
+            },
+          ),
+          _optionItem(
+            icon: Icons.share,
+            color: Colors.blue,
+            title: 'Share Song',
+            onTap: () {
+              Navigator.pop(context);
+              _shareSong(song);
+            },
+          ),
+          _optionItem(
+            icon: Icons.delete_forever,
+            color: Colors.redAccent,
+            title: 'Delete Permanently',
+            onTap: () {
+              Navigator.pop(context);
+              _confirmDelete(song);
+            },
+          ),
+        ],
+      ),
     );
-  } catch (e) {
-    _showSnackBar('Error sharing: $e', Colors.red);
   }
-}
+
+  Future<void> _shareSong(File song) async {
+    try {
+      await Share.shareXFiles(
+        [XFile(song.path)],
+        text: 'Check out this song: ${getSongName(song.path)}',
+        subject: getSongName(song.path),
+      );
+    } catch (e) {
+      _showSnackBar('Error sharing: $e', Colors.red);
+    }
+  }
 
   void _showPlaylistSongOptions(File song) {
     bool isFav = _favorites.contains(song.path);
@@ -1574,178 +1600,176 @@ Future<void> _shareSong(File song) async {
     );
   }
 
-  // ✅ App update check karo
-Future<void> _checkAppUpdate() async {
-  try {
-    final packageInfo = await PackageInfo.fromPlatform();
-    final currentVersion = packageInfo.version;
+  Future<void> _checkAppUpdate() async {
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      final currentVersion = packageInfo.version;
 
-    final response = await http.get(
-      Uri.parse(
-          'https://raw.githubusercontent.com/vasim1234/music/main/version.json'),
-    );
+      final response = await http.get(
+        Uri.parse(
+            'https://raw.githubusercontent.com/vasim1234/music/main/version.json'),
+      );
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      final latestVersion = data['latestVersion'] as String;
-      final apkUrl = data['apkUrl'] as String;
-      final releaseNotes = data['releaseNotes'] as String;
-      final forceUpdate = data['forceUpdate'] as bool? ?? false;
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final latestVersion = data['latestVersion'] as String;
+        final apkUrl = data['apkUrl'] as String;
+        final releaseNotes = data['releaseNotes'] as String;
+        final forceUpdate = data['forceUpdate'] as bool? ?? false;
 
-      if (latestVersion != currentVersion) {
-        final prefs = await SharedPreferences.getInstance();
-        final lastLaterTime = prefs.getInt('update_later_time') ?? 0;
-        final lastLaterVersion = prefs.getString('update_later_version') ?? '';
+        if (latestVersion != currentVersion) {
+          final prefs = await SharedPreferences.getInstance();
+          final lastLaterTime = prefs.getInt('update_later_time') ?? 0;
+          final lastLaterVersion = prefs.getString('update_later_version') ?? '';
 
-        final now = DateTime.now().millisecondsSinceEpoch;
-        final hoursSinceLater = (now - lastLaterTime) / (1000 * 60 * 60);
+          final now = DateTime.now().millisecondsSinceEpoch;
+          final hoursSinceLater = (now - lastLaterTime) / (1000 * 60 * 60);
 
-        if (!forceUpdate &&
-            hoursSinceLater < 24 &&
-            lastLaterVersion == latestVersion) {
-          debugPrint('Update popup skipped (24h not passed)');
-          return;
-        }
+          if (!forceUpdate &&
+              hoursSinceLater < 24 &&
+              lastLaterVersion == latestVersion) {
+            debugPrint('Update popup skipped (24h not passed)');
+            return;
+          }
 
-        if (mounted) {
-          _showUpdateDialog(
-            latestVersion,
-            currentVersion,
-            releaseNotes,
-            apkUrl,
-            forceUpdate,
-          );
+          if (mounted) {
+            _showUpdateDialog(
+              latestVersion,
+              currentVersion,
+              releaseNotes,
+              apkUrl,
+              forceUpdate,
+            );
+          }
         }
       }
+    } catch (e) {
+      debugPrint('Update check error: $e');
     }
-  } catch (e) {
-    debugPrint('Update check error: $e');
   }
-}
 
-// ✅ Update dialog dikhao
-void _showUpdateDialog(
-  String latestVersion,
-  String currentVersion,
-  String releaseNotes,
-  String apkUrl,
-  bool forceUpdate,
-) {
-  showDialog(
-    context: context,
-    barrierDismissible: !forceUpdate,
-    builder: (context) => AlertDialog(
-      backgroundColor: AppTheme.card,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
-      title: Row(
-        children: [
-          Icon(Icons.system_update, color: AppTheme.accent, size: 28),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Update Available',
+  void _showUpdateDialog(
+    String latestVersion,
+    String currentVersion,
+    String releaseNotes,
+    String apkUrl,
+    bool forceUpdate,
+  ) {
+    showDialog(
+      context: context,
+      barrierDismissible: !forceUpdate,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.card,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.system_update, color: AppTheme.accent, size: 28),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Update Available',
+                style: TextStyle(
+                  color: AppTheme.text,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.accent.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Version $latestVersion',
+                style: TextStyle(
+                  color: AppTheme.accent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Current: v$currentVersion',
+              style: TextStyle(color: AppTheme.subText, fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              "What's New:",
               style: TextStyle(
                 color: AppTheme.text,
+                fontSize: 13,
                 fontWeight: FontWeight.bold,
-                fontSize: 18,
               ),
             ),
-          ),
-        ],
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppTheme.accent.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              'Version $latestVersion',
+            const SizedBox(height: 6),
+            Text(
+              releaseNotes,
               style: TextStyle(
-                color: AppTheme.accent,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
+                color: AppTheme.subText,
+                fontSize: 13,
+                height: 1.5,
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Current: v$currentVersion',
-            style: TextStyle(color: AppTheme.subText, fontSize: 12),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            "What's New:",
-            style: TextStyle(
-              color: AppTheme.text,
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
+          ],
+        ),
+        actions: [
+          if (!forceUpdate)
+            TextButton(
+              onPressed: () async {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setInt(
+                  'update_later_time',
+                  DateTime.now().millisecondsSinceEpoch,
+                );
+                await prefs.setString('update_later_version', latestVersion);
+
+                if (mounted) Navigator.pop(context);
+                debugPrint('User clicked Later — 24h wait');
+              },
+              child: Text('Later', style: TextStyle(color: AppTheme.subText)),
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            releaseNotes,
-            style: TextStyle(
-              color: AppTheme.subText,
-              fontSize: 13,
-              height: 1.5,
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.accent,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             ),
-          ),
-        ],
-      ),
-      actions: [
-        if (!forceUpdate)
-          TextButton(
             onPressed: () async {
               final prefs = await SharedPreferences.getInstance();
-              await prefs.setInt(
-                'update_later_time',
-                DateTime.now().millisecondsSinceEpoch,
-              );
-              await prefs.setString('update_later_version', latestVersion);
+              await prefs.remove('update_later_time');
+              await prefs.remove('update_later_version');
 
               if (mounted) Navigator.pop(context);
-              debugPrint('User clicked Later — 24h wait');
+
+              final uri = Uri.parse(apkUrl);
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              } else {
+                _showSnackBar('Cannot open link', Colors.red);
+              }
             },
-            child: Text('Later', style: TextStyle(color: AppTheme.subText)),
-          ),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.accent,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          ),
-          onPressed: () async {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.remove('update_later_time');
-            await prefs.remove('update_later_version');
-
-            if (mounted) Navigator.pop(context);
-
-            final uri = Uri.parse(apkUrl);
-            if (await canLaunchUrl(uri)) {
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            } else {
-              _showSnackBar('Cannot open link', Colors.red);
-            }
-          },
-          child: const Text(
-            'Update Now',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
+            child: const Text(
+              'Update Now',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
   String formatTime(Duration d) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
@@ -1838,388 +1862,387 @@ void _showUpdateDialog(
   }
 
   void _showFullScreenPlayer() {
-  if (_currentSong == null) return;
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    backgroundColor: const Color(0xFF0A0A0A),
-    barrierColor: Colors.black.withOpacity(0.9),
-    builder: (context) => StatefulBuilder(
-      builder: (context, setModalState) {
-        return StreamBuilder<MediaItem?>(
-          stream: audioHandler?.mediaItem,
-          builder: (context, mediaSnapshot) {
-            if (mediaSnapshot.hasData && mediaSnapshot.data != null) {
-              final newSong = File(mediaSnapshot.data!.id);
-              if (_currentSong?.path != newSong.path) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) {
-                    final newIndex = _filteredSongs.indexWhere((f) => f.path == newSong.path);
-                    setState(() {
-                      _currentSong = newSong;
-                      if (newIndex != -1) _currentIndex = newIndex;
-                    });
-                    setModalState(() {});
-                  }
-                });
+    if (_currentSong == null) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: const Color(0xFF0A0A0A),
+      barrierColor: Colors.black.withOpacity(0.9),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return StreamBuilder<MediaItem?>(
+            stream: audioHandler?.mediaItem,
+            builder: (context, mediaSnapshot) {
+              if (mediaSnapshot.hasData && mediaSnapshot.data != null) {
+                final newSong = File(mediaSnapshot.data!.id);
+                if (_currentSong?.path != newSong.path) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      final newIndex = _filteredSongs.indexWhere((f) => f.path == newSong.path);
+                      setState(() {
+                        _currentSong = newSong;
+                        if (newIndex != -1) _currentIndex = newIndex;
+                      });
+                      setModalState(() {});
+                    }
+                  });
+                }
               }
-            }
 
-            final dynamicAccent = AppTheme.accent;
+              final dynamicAccent = AppTheme.accent;
 
-            return Container(
-              height: MediaQuery.of(context).size.height,
-              decoration: BoxDecoration(
-                color: const Color(0xFF0A0A0A),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    _dynamicGradient?[0] ?? const Color(0xFF1A1A1A),
-                    const Color(0xFF0A0A0A),
-                  ],
+              return Container(
+                height: MediaQuery.of(context).size.height,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0A0A0A),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      _dynamicGradient?[0] ?? const Color(0xFF1A1A1A),
+                      const Color(0xFF0A0A0A),
+                    ],
+                  ),
                 ),
-              ),
-              child: SafeArea(
-                child: Column(
-                  children: [
-                    // TOP BAR
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 30),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                          const Text(
-                            'Now Playing',
-                            style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
-                          ),
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.tune, color: Colors.white, size: 22),
-                                tooltip: 'Audio Settings',
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => AudioSettingsScreen(
-                                        isDarkTheme: !AppTheme.isLightMode,
-                                        accentColor: AppTheme.accent,
-                                        gradientColors: AppTheme.primaryGradient,
+                child: SafeArea(
+                  child: Column(
+                    children: [
+                      // TOP BAR
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 30),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                            const Text(
+                              'Now Playing',
+                              style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+                            ),
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.tune, color: Colors.white, size: 22),
+                                  tooltip: 'Audio Settings',
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => AudioSettingsScreen(
+                                          isDarkTheme: !AppTheme.isLightMode,
+                                          accentColor: AppTheme.accent,
+                                          gradientColors: AppTheme.primaryGradient,
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                },
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.more_vert, color: Colors.white, size: 22),
-                                onPressed: () => _showPlayerMenu(setModalState),
-                              ),
-                            ],
-                          ),
-                        ],
+                                    );
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.more_vert, color: Colors.white, size: 22),
+                                  onPressed: () => _showPlayerMenu(setModalState),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
 
-                    const SizedBox(height: 8),
+                      const SizedBox(height: 8),
 
-                    // ALBUM ART
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: AspectRatio(
-                        aspectRatio: 1,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(24),
-                          child: AlbumArtWidget(
-                            audioPath: _currentSong!.path,
-                            size: MediaQuery.of(context).size.width - 40,
-                            isPlaying: isPlaying,
-                            isCircle: false,
+                      // ALBUM ART
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: AspectRatio(
+                          aspectRatio: 1,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(24),
+                            child: AlbumArtWidget(
+                              audioPath: _currentSong!.path,
+                              size: MediaQuery.of(context).size.width - 40,
+                              isPlaying: isPlaying,
+                              isCircle: false,
+                            ),
                           ),
                         ),
                       ),
-                    ),
 
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-                    // TITLE
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            getSongName(_currentSong!.path),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 6),
-                          Text('Local Audio', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
-                        ],
+                      // TITLE
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              getSongName(_currentSong!.path),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 6),
+                            Text('Local Audio', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+                          ],
+                        ),
                       ),
-                    ),
 
-                    const SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
-                   // PROGRESS BAR
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: StreamBuilder<Duration>(
-                        stream: audioHandler != null ? audioHandler!.positionStream : _fallbackPlayer.positionStream,
-                        builder: (context, snapshot) {
-                          final pos = snapshot.data ?? Duration.zero;
-                          final maxDur = _duration.inSeconds.toDouble() > 0 ? _duration.inSeconds.toDouble() : 1.0;
-                          final val = pos.inSeconds.toDouble().clamp(0.0, maxDur);
-                          return Column(
-                            children: [
-                              SliderTheme(
-                                data: SliderTheme.of(context).copyWith(
-                                  trackHeight: 3,
-                                  activeTrackColor: dynamicAccent,
-                                  inactiveTrackColor: Colors.white.withOpacity(0.3),
-                                  thumbColor: dynamicAccent,
-                                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-                                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+                      // PROGRESS BAR
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: StreamBuilder<Duration>(
+                          stream: audioHandler != null ? audioHandler!.positionStream : _fallbackPlayer.positionStream,
+                          builder: (context, snapshot) {
+                            final pos = snapshot.data ?? Duration.zero;
+                            final maxDur = _duration.inSeconds.toDouble() > 0 ? _duration.inSeconds.toDouble() : 1.0;
+                            final val = pos.inSeconds.toDouble().clamp(0.0, maxDur);
+                            return Column(
+                              children: [
+                                SliderTheme(
+                                  data: SliderTheme.of(context).copyWith(
+                                    trackHeight: 3,
+                                    activeTrackColor: dynamicAccent,
+                                    inactiveTrackColor: Colors.white.withOpacity(0.3),
+                                    thumbColor: dynamicAccent,
+                                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+                                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+                                  ),
+                                  child: Slider(
+                                    value: val,
+                                    max: maxDur,
+                                    onChanged: (value) async {
+                                      final target = Duration(seconds: value.toInt());
+                                      if (audioHandler != null) {
+                                        await audioHandler!.seek(target);
+                                      } else {
+                                        await _fallbackPlayer.seek(target);
+                                      }
+                                      setModalState(() {});
+                                    },
+                                  ),
                                 ),
-                                child: Slider(
-                                  value: val,
-                                  max: maxDur,
-                                  onChanged: (value) async {
-                                    final target = Duration(seconds: value.toInt());
-                                    if (audioHandler != null) {
-                                      await audioHandler!.seek(target);
-                                    } else {
-                                      await _fallbackPlayer.seek(target);
-                                    }
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(formatTime(pos), style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
+                                      Text(formatTime(_duration), style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // PLAYBACK CONTROLS
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                Icons.shuffle,
+                                color: isShuffle ? dynamicAccent : Colors.white.withOpacity(0.6),
+                                size: 24,
+                              ),
+                              onPressed: () {
+                                _toggleShuffleOnly();
+                                setModalState(() {});
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.skip_previous, color: Colors.white, size: 40),
+                              onPressed: () {
+                                _playPrevious();
+                                setModalState(() {});
+                              },
+                            ),
+                            ValueListenableBuilder<bool>(
+                              valueListenable: _isPlayingNotifier,
+                              builder: (context, playing, child) => Container(
+                                height: 70,
+                                width: 70,
+                                decoration: BoxDecoration(shape: BoxShape.circle, color: dynamicAccent),
+                                child: IconButton(
+                                  iconSize: 38,
+                                  color: Colors.white,
+                                  icon: Icon(playing ? Icons.pause : Icons.play_arrow),
+                                  onPressed: () {
+                                    _togglePlay();
                                     setModalState(() {});
                                   },
                                 ),
                               ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(formatTime(pos), style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
-                                    Text(formatTime(_duration), style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
-                                  ],
-                                ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.skip_next, color: Colors.white, size: 40),
+                              onPressed: () {
+                                _playNext();
+                                setModalState(() {});
+                              },
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                isRepeatOne ? Icons.repeat_one : Icons.repeat,
+                                color: (isRepeat || isRepeatOne) ? dynamicAccent : Colors.white.withOpacity(0.6),
+                                size: 24,
                               ),
-                            ],
-                          );
-                        },
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // PLAYBACK CONTROLS
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          IconButton(
-                            icon: Icon(
-                              Icons.shuffle,
-                              color: isShuffle ? dynamicAccent : Colors.white.withOpacity(0.6),
-                              size: 24,
+                              onPressed: () {
+                                _toggleRepeatOnly();
+                                setModalState(() {});
+                              },
                             ),
-                            onPressed: () {
-                              _toggleShuffleOnly();
-                              setModalState(() {});
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.skip_previous, color: Colors.white, size: 40),
-                            onPressed: () {
-                              _playPrevious();
-                              setModalState(() {});
-                            },
-                          ),
-                          ValueListenableBuilder<bool>(
-                            valueListenable: _isPlayingNotifier,
-                            builder: (context, playing, child) => Container(
-                              height: 70,
-                              width: 70,
-                              decoration: BoxDecoration(shape: BoxShape.circle, color: dynamicAccent),
-                              child: IconButton(
-                                iconSize: 38,
-                                color: Colors.white,
-                                icon: Icon(playing ? Icons.pause : Icons.play_arrow),
-                                onPressed: () {
-                                  _togglePlay();
-                                  setModalState(() {});
-                                },
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // BOTTOM ROW
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                _favorites.contains(_currentSong!.path) ? Icons.favorite : Icons.favorite_border,
+                                color: _favorites.contains(_currentSong!.path) ? Colors.pinkAccent : Colors.white.withOpacity(0.7),
+                                size: 24,
                               ),
+                              onPressed: () {
+                                _toggleFavorite(_currentSong!);
+                                setModalState(() {});
+                                setState(() {});
+                              },
                             ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.skip_next, color: Colors.white, size: 40),
-                            onPressed: () {
-                              _playNext();
-                              setModalState(() {});
-                            },
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              isRepeatOne ? Icons.repeat_one : Icons.repeat,
-                              color: (isRepeat || isRepeatOne) ? dynamicAccent : Colors.white.withOpacity(0.6),
-                              size: 24,
+                            IconButton(
+                              icon: Icon(Icons.queue_music, color: Colors.white.withOpacity(0.7), size: 24),
+                              onPressed: () {
+                                Navigator.pop(context);
+                                _showQueueSheet();
+                              },
                             ),
-                            onPressed: () {
-                              _toggleRepeatOnly();
-                              setModalState(() {});
-                            },
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // BOTTOM ROW
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          IconButton(
-                            icon: Icon(
-                              _favorites.contains(_currentSong!.path) ? Icons.favorite : Icons.favorite_border,
-                              color: _favorites.contains(_currentSong!.path) ? Colors.pinkAccent : Colors.white.withOpacity(0.7),
-                              size: 24,
-                            ),
-                            onPressed: () {
-                              _toggleFavorite(_currentSong!);
-                              setModalState(() {});
-                              setState(() {});
-                            },
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.queue_music, color: Colors.white.withOpacity(0.7), size: 24),
-                            onPressed: () {
-                              Navigator.pop(context);
-                              _showQueueSheet();
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
-        );
-      },
-    ),
-  );
+              );
+            },
+          );
+        },
+      ),
+    );
   }
 
   void _showPlayerMenu(Function setModalState) {
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: Colors.transparent,
-    builder: (context) => Container(
-      decoration: BoxDecoration(
-        color: AppTheme.card,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-      ),
-      child: SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 15),
-            Container(
-              width: 50,
-              height: 5,
-              decoration: BoxDecoration(
-                color: AppTheme.subText,
-                borderRadius: BorderRadius.circular(10),
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: AppTheme.card,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 15),
+              Container(
+                width: 50,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: AppTheme.subText,
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            ListTile(
-              leading: Icon(Icons.tune, color: AppTheme.accent),
-              title: Text('Audio Settings',
-                  style: TextStyle(color: AppTheme.text)),
-              subtitle: Text('Bass, EQ, Reverb & more',
-                  style: TextStyle(color: AppTheme.subText, fontSize: 11)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AudioSettingsScreen(
-                      isDarkTheme: !AppTheme.isLightMode,
-                      accentColor: AppTheme.accent,
-                      gradientColors: AppTheme.primaryGradient,
+              const SizedBox(height: 10),
+              ListTile(
+                leading: Icon(Icons.tune, color: AppTheme.accent),
+                title: Text('Audio Settings',
+                    style: TextStyle(color: AppTheme.text)),
+                subtitle: Text('Bass, EQ, Reverb & more',
+                    style: TextStyle(color: AppTheme.subText, fontSize: 11)),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AudioSettingsScreen(
+                        isDarkTheme: !AppTheme.isLightMode,
+                        accentColor: AppTheme.accent,
+                        gradientColors: AppTheme.primaryGradient,
+                      ),
                     ),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.queue_music, color: AppTheme.accent),
-              title: Text('Queue', style: TextStyle(color: AppTheme.text)),
-              subtitle: Text('${_filteredSongs.length} songs',
-                  style: TextStyle(color: AppTheme.subText, fontSize: 11)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pop(context);
-                _showQueueSheet();
-              },
-            ),
-            // ✅ NAYA: Share Song in full player menu
-            ListTile(
-              leading: const Icon(Icons.share, color: Colors.blue),
-              title: Text('Share Song',
-                  style: TextStyle(color: AppTheme.text)),
-              subtitle: Text('Send to friends',
-                  style: TextStyle(color: AppTheme.subText, fontSize: 11)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.pop(context);
-                if (_currentSong != null) {
-                  _shareSong(_currentSong!);
-                }
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                _favorites.contains(_currentSong!.path)
-                    ? Icons.favorite
-                    : Icons.favorite_border,
-                color: Colors.pinkAccent,
+                  );
+                },
               ),
-              title: Text(
-                _favorites.contains(_currentSong!.path)
-                    ? 'Remove from Favorites'
-                    : 'Add to Favorites',
-                style: TextStyle(color: AppTheme.text),
+              ListTile(
+                leading: Icon(Icons.queue_music, color: AppTheme.accent),
+                title: Text('Queue', style: TextStyle(color: AppTheme.text)),
+                subtitle: Text('${_filteredSongs.length} songs',
+                    style: TextStyle(color: AppTheme.subText, fontSize: 11)),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                  _showQueueSheet();
+                },
               ),
-              onTap: () {
-                Navigator.pop(context);
-                _toggleFavorite(_currentSong!);
-                setModalState(() {});
-                setState(() {});
-              },
-            ),
-            const SizedBox(height: 20),
-          ],
+              ListTile(
+                leading: const Icon(Icons.share, color: Colors.blue),
+                title: Text('Share Song',
+                    style: TextStyle(color: AppTheme.text)),
+                subtitle: Text('Send to friends',
+                    style: TextStyle(color: AppTheme.subText, fontSize: 11)),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                  if (_currentSong != null) {
+                    _shareSong(_currentSong!);
+                  }
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  _favorites.contains(_currentSong!.path)
+                      ? Icons.favorite
+                      : Icons.favorite_border,
+                  color: Colors.pinkAccent,
+                ),
+                title: Text(
+                  _favorites.contains(_currentSong!.path)
+                      ? 'Remove from Favorites'
+                      : 'Add to Favorites',
+                  style: TextStyle(color: AppTheme.text),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _toggleFavorite(_currentSong!);
+                  setModalState(() {});
+                  setState(() {});
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
   }
 
   Widget _buildThemeCard(int index, String name, String emoji, List<Color> gradient) {
@@ -2273,16 +2296,16 @@ void _showUpdateDialog(
                     _drawerItem(icon: Icons.favorite, iconColor: Colors.pinkAccent, title: 'Favorites', subtitle: '${_favorites.length} songs', onTap: () { Navigator.pop(context); setState(() { _selectedTab = 1; }); _applyFilter(); }),
                     _drawerItem(icon: Icons.history, iconColor: Colors.orangeAccent, title: 'Recent', subtitle: '${_recentSongs.length} songs', onTap: () { Navigator.pop(context); setState(() { _selectedTab = 2; }); _applyFilter(); }),
                     _drawerItem(icon: Icons.visibility_off, iconColor: Colors.orange, title: 'Hidden Folders', subtitle: '${_hiddenFolders.length} folder(s)', onTap: () { Navigator.pop(context); _showHiddenFolders(); }),
-                  _drawerItem(
-  icon: Icons.share,
-  iconColor: Colors.blue,
-  title: 'Share App',
-  subtitle: 'Send to friends',
-  onTap: () {
-    Navigator.pop(context);
-    _shareTelegramLink();    // 👈 YE NAYA
-  },
-),
+                    _drawerItem(
+                      icon: Icons.share,
+                      iconColor: Colors.blue,
+                      title: 'Share App',
+                      subtitle: 'Send to friends',
+                      onTap: () {
+                        Navigator.pop(context);
+                        _shareTelegramLink();
+                      },
+                    ),
                     _drawerItem(
                       icon: Icons.tune, iconColor: Colors.deepPurpleAccent,
                       title: 'Audio Settings', subtitle: 'Bass, EQ, Reverb & more',
@@ -2426,162 +2449,44 @@ void _showUpdateDialog(
   }
 
   Widget _buildPlaylistsView() {
-  if (_openedPlaylist != null) {
-    var playlist = _playlists.firstWhere(
-      (p) => p['name'] == _openedPlaylist,
-      orElse: () => {'name': '', 'songs': <String>[]},
-    );
-    int count = (playlist['songs'] as List<String>).length;
+    if (_openedPlaylist != null) {
+      var playlist = _playlists.firstWhere(
+        (p) => p['name'] == _openedPlaylist,
+        orElse: () => {'name': '', 'songs': <String>[]},
+      );
+      int count = (playlist['songs'] as List<String>).length;
 
-    return Column(
-      children: [
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-          padding: const EdgeInsets.all(15),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(colors: AppTheme.primaryGradient),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            children: [
-              GestureDetector(
-                onTap: () => setState(() => _openedPlaylist = null),
-                child: const Icon(Icons.arrow_back, color: Colors.white),
-              ),
-              const SizedBox(width: 15),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _openedPlaylist!,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      '$count songs',
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: _filteredSongs.isEmpty
-              ? _buildEmptyState()
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 15),
-                  itemCount: _filteredSongs.length,
-                  itemBuilder: (context, index) => _buildSongTile(
-                    _filteredSongs[index],
-                    index,
-                    isFromPlaylist: true,
-                  ),
-                ),
-        ),
-      ],
-    );
-  }
-
-  if (_playlists.isEmpty) return _buildEmptyState();
-
-  return GridView.builder(
-    padding: const EdgeInsets.all(15),
-    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-      crossAxisCount: 2,
-      childAspectRatio: 1.1,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-    ),
-    itemCount: _playlists.length,
-    itemBuilder: (context, index) {
-      var playlist = _playlists[index];
-      final playlistName = playlist['name'] as String;
-      final songs = (playlist['songs'] as List<String>);
-
-      return GestureDetector(
-        onTap: () {
-          setState(() {
-            _openedPlaylist = playlistName;
-          });
-          _applyFilter();
-        },
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: Stack(
-              fit: StackFit.expand,
+      return Column(
+        children: [
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: AppTheme.primaryGradient),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
               children: [
-                // ✅ Background — playlist content ke hisaab se
-                _buildPlaylistBackground(songs),
-
-                // ✅ Dark gradient overlay — text readable
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.75),
-                      ],
-                      stops: const [0.4, 1.0],
-                    ),
-                  ),
+                GestureDetector(
+                  onTap: () => setState(() => _openedPlaylist = null),
+                  child: const Icon(Icons.arrow_back, color: Colors.white),
                 ),
-
-                // ✅ Text + song count
-                Positioned(
-                  left: 12,
-                  right: 12,
-                  bottom: 12,
+                const SizedBox(width: 15),
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.playlist_play,
-                            color: Colors.white.withOpacity(0.9),
-                            size: 18,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${songs.length}',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
                       Text(
-                        playlistName,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                        _openedPlaylist!,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 16,
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
+                      ),
+                      Text(
+                        '$count songs',
+                        style: const TextStyle(color: Colors.white70, fontSize: 12),
                       ),
                     ],
                   ),
@@ -2589,85 +2494,233 @@ void _showUpdateDialog(
               ],
             ),
           ),
+          Expanded(
+            child: _filteredSongs.isEmpty
+                ? _buildEmptyState()
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 15),
+                    itemCount: _filteredSongs.length,
+                    itemBuilder: (context, index) => _buildSongTile(
+                      _filteredSongs[index],
+                      index,
+                      isFromPlaylist: true,
+                    ),
+                  ),
+          ),
+        ],
+      );
+    }
+
+    if (_playlists.isEmpty) return _buildEmptyState();
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(15),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 1.1,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemCount: _playlists.length,
+      itemBuilder: (context, index) {
+        var playlist = _playlists[index];
+        final playlistName = playlist['name'] as String;
+        final songs = (playlist['songs'] as List<String>);
+
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              _openedPlaylist = playlistName;
+            });
+            _applyFilter();
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _buildPlaylistBackground(songs),
+
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.75),
+                        ],
+                        stops: const [0.4, 1.0],
+                      ),
+                    ),
+                  ),
+
+                  Positioned(
+                    left: 12,
+                    right: 12,
+                    bottom: 12,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.playlist_play,
+                              color: Colors.white.withOpacity(0.9),
+                              size: 18,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${songs.length}',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.9),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          playlistName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPlaylistBackground(List<String> songs) {
+    if (songs.isEmpty) {
+      return Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: AppTheme.primaryGradient.map((c) => c.withOpacity(0.3)).toList(),
+          ),
+        ),
+        child: Center(
+          child: Icon(
+            Icons.playlist_play,
+            color: Colors.white.withOpacity(0.7),
+            size: 50,
+          ),
         ),
       );
-    },
-  );
-}
+    }
 
-// ✅ NAYA: Playlist background — songs ke hisaab se
-Widget _buildPlaylistBackground(List<String> songs) {
-  // Empty playlist — default gradient + icon
-  if (songs.isEmpty) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: AppTheme.primaryGradient.map((c) => c.withOpacity(0.3)).toList(),
-        ),
-      ),
-      child: Center(
-        child: Icon(
-          Icons.playlist_play,
-          color: Colors.white.withOpacity(0.7),
-          size: 50,
-        ),
-      ),
-    );
-  }
+    if (songs.length == 1) {
+      return AlbumArtWidget(
+        audioPath: songs[0],
+        size: double.infinity,
+        isPlaying: false,
+        isCircle: false,
+      );
+    }
 
-  // 1 song — full artwork
-  if (songs.length == 1) {
-    return AlbumArtWidget(
-      audioPath: songs[0],
-      size: double.infinity,
-      isPlaying: false,
-      isCircle: false,
-    );
-  }
+    if (songs.length == 2) {
+      return Row(
+        children: [
+          Expanded(
+            child: AlbumArtWidget(
+              audioPath: songs[0],
+              size: double.infinity,
+              isPlaying: false,
+              isCircle: false,
+            ),
+          ),
+          const SizedBox(width: 2),
+          Expanded(
+            child: AlbumArtWidget(
+              audioPath: songs[1],
+              size: double.infinity,
+              isPlaying: false,
+              isCircle: false,
+            ),
+          ),
+        ],
+      );
+    }
 
-  // 2 songs — split
-  if (songs.length == 2) {
-    return Row(
+    if (songs.length == 3) {
+      return Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: AlbumArtWidget(
+              audioPath: songs[0],
+              size: double.infinity,
+              isPlaying: false,
+              isCircle: false,
+            ),
+          ),
+          const SizedBox(width: 2),
+          Expanded(
+            flex: 1,
+            child: Column(
+              children: [
+                Expanded(
+                  child: AlbumArtWidget(
+                    audioPath: songs[1],
+                    size: double.infinity,
+                    isPlaying: false,
+                    isCircle: false,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Expanded(
+                  child: AlbumArtWidget(
+                    audioPath: songs[2],
+                    size: double.infinity,
+                    isPlaying: false,
+                    isCircle: false,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
       children: [
         Expanded(
-          child: AlbumArtWidget(
-            audioPath: songs[0],
-            size: double.infinity,
-            isPlaying: false,
-            isCircle: false,
-          ),
-        ),
-        const SizedBox(width: 2),
-        Expanded(
-          child: AlbumArtWidget(
-            audioPath: songs[1],
-            size: double.infinity,
-            isPlaying: false,
-            isCircle: false,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // 3 songs — 1 big + 2 small
-  if (songs.length == 3) {
-    return Row(
-      children: [
-        Expanded(
-          flex: 2,
-          child: AlbumArtWidget(
-            audioPath: songs[0],
-            size: double.infinity,
-            isPlaying: false,
-            isCircle: false,
-          ),
-        ),
-        const SizedBox(width: 2),
-        Expanded(
-          flex: 1,
-          child: Column(
+          child: Row(
             children: [
+              Expanded(
+                child: AlbumArtWidget(
+                  audioPath: songs[0],
+                  size: double.infinity,
+                  isPlaying: false,
+                  isCircle: false,
+                ),
+              ),
+              const SizedBox(width: 2),
               Expanded(
                 child: AlbumArtWidget(
                   audioPath: songs[1],
@@ -2676,10 +2729,25 @@ Widget _buildPlaylistBackground(List<String> songs) {
                   isCircle: false,
                 ),
               ),
-              const SizedBox(height: 2),
+            ],
+          ),
+        ),
+        const SizedBox(height: 2),
+        Expanded(
+          child: Row(
+            children: [
               Expanded(
                 child: AlbumArtWidget(
                   audioPath: songs[2],
+                  size: double.infinity,
+                  isPlaying: false,
+                  isCircle: false,
+                ),
+              ),
+              const SizedBox(width: 2),
+              Expanded(
+                child: AlbumArtWidget(
+                  audioPath: songs[3],
                   size: double.infinity,
                   isPlaying: false,
                   isCircle: false,
@@ -2691,60 +2759,6 @@ Widget _buildPlaylistBackground(List<String> songs) {
       ],
     );
   }
-
-  // 4+ songs — 2x2 grid
-  return Column(
-    children: [
-      Expanded(
-        child: Row(
-          children: [
-            Expanded(
-              child: AlbumArtWidget(
-                audioPath: songs[0],
-                size: double.infinity,
-                isPlaying: false,
-                isCircle: false,
-              ),
-            ),
-            const SizedBox(width: 2),
-            Expanded(
-              child: AlbumArtWidget(
-                audioPath: songs[1],
-                size: double.infinity,
-                isPlaying: false,
-                isCircle: false,
-              ),
-            ),
-          ],
-        ),
-      ),
-      const SizedBox(height: 2),
-      Expanded(
-        child: Row(
-          children: [
-            Expanded(
-              child: AlbumArtWidget(
-                audioPath: songs[2],
-                size: double.infinity,
-                isPlaying: false,
-                isCircle: false,
-              ),
-            ),
-            const SizedBox(width: 2),
-            Expanded(
-              child: AlbumArtWidget(
-                audioPath: songs[3],
-                size: double.infinity,
-                isPlaying: false,
-                isCircle: false,
-              ),
-            ),
-          ],
-        ),
-      ),
-    ],
-  );
-}
 
   Widget _buildFoldersView() {
     Map<String, List<File>> visibleFolders = Map.fromEntries(_songsByFolder.entries.where((e) => !_hiddenFolders.contains(e.key)));
@@ -3097,31 +3111,30 @@ Widget _buildPlaylistBackground(List<String> songs) {
     }
   }
 
-// ✅ NAYA: Share App — Standard Share Sheet
-Future<void> _shareTelegramLink() async {
-  const String channelId = 'bhaibhaimusic';
-  const String telegramUrl = 'https://t.me/$channelId';
+  Future<void> _shareTelegramLink() async {
+    const String channelId = 'bhaibhaimusic';
+    const String telegramUrl = 'https://t.me/$channelId';
 
-  final String shareText = 
-      '🎵 Bhai Bhai Music\n\n'
-      'High quality local music & video player with:\n'
-      '• Bass Boost & 5-Band Equalizer\n'
-      '• Dynamic album art theme\n'
-      '• Premium video player\n'
-      '• 2 Themes + Light/Dark mode\n\n'
-      '📥 Download now:\n'
-      '📢 Telegram: $telegramUrl\n\n'
-      'Made with love by Bhai Bhai ❤️';
+    final String shareText =
+        '🎵 Bhai Bhai Music\n\n'
+        'High quality local music & video player with:\n'
+        '• Bass Boost & 5-Band Equalizer\n'
+        '• Dynamic album art theme\n'
+        '• Premium video player\n'
+        '• 2 Themes + Light/Dark mode\n\n'
+        '📥 Download now:\n'
+        '📢 Telegram: $telegramUrl\n\n'
+        'Made with love by Bhai Bhai ❤️';
 
-  try {
-    await Share.share(
-      shareText,
-      subject: 'Bhai Bhai Music - Download Now!',
-    );
-  } catch (e) {
-    _showSnackBar('Error sharing: $e', Colors.red);
+    try {
+      await Share.share(
+        shareText,
+        subject: 'Bhai Bhai Music - Download Now!',
+      );
+    } catch (e) {
+      _showSnackBar('Error sharing: $e', Colors.red);
+    }
   }
-}
 
   void _confirmDeleteVideo(File video) {
     showDialog(
@@ -3161,172 +3174,154 @@ Future<void> _shareTelegramLink() async {
   }
 
   Widget _buildEmptyState() {
-  // Tab-wise custom empty state
-  String title;
-  String subtitle;
-  IconData icon;
-  bool showScanButton = false;
-  VoidCallback? actionButton;
+    String title;
+    String subtitle;
+    IconData icon;
+    bool showScanButton = false;
+    VoidCallback? actionButton;
 
-  switch (_selectedTab) {
-    case 1: // Favorites
-      title = 'No Favorites Yet';
-      subtitle = 'Tap the heart icon on any song to add it to your favorites';
-      icon = Icons.favorite_border;
-      showScanButton = false;
-      break;
+    switch (_selectedTab) {
+      case 1:
+        title = 'No Favorites Yet';
+        subtitle = 'Tap the heart icon on any song to add it to your favorites';
+        icon = Icons.favorite_border;
+        break;
+      case 2:
+        title = 'No Recent Songs';
+        subtitle = 'Songs you play will appear here automatically';
+        icon = Icons.history;
+        break;
+      case 3:
+        title = 'No Playlists Found';
+        subtitle = 'Create a new playlist to organize your music';
+        icon = Icons.playlist_add;
+        break;
+      case 5:
+        title = 'No Videos Found';
+        subtitle = 'Scan your device to discover videos';
+        icon = Icons.video_library;
+        showScanButton = true;
+        actionButton = _scanDefaultFolder;
+        break;
+      case 4:
+        title = 'No Folders Found';
+        subtitle = 'Scan Music to discover songs in your folders';
+        icon = Icons.folder_open;
+        showScanButton = true;
+        actionButton = _scanDefaultFolder;
+        break;
+      default:
+        title = 'No Songs Found';
+        subtitle = 'Tap "Scan Music" below to automatically discover songs on your device';
+        icon = Icons.music_note;
+        showScanButton = true;
+        actionButton = _scanDefaultFolder;
+        break;
+    }
 
-    case 2: // Recent
-      title = 'No Recent Songs';
-      subtitle = 'Songs you play will appear here automatically';
-      icon = Icons.history;
-      showScanButton = false;
-      break;
-
-    case 3: // Playlists
-      title = 'No Playlists Found';
-      subtitle = 'Create a new playlist to organize your music';
-      icon = Icons.playlist_add;
-      showScanButton = false;
-      break;
-
-    case 5: // Videos
-      title = 'No Videos Found';
-      subtitle = 'Scan your device to discover videos';
-      icon = Icons.video_library;
-      showScanButton = true;
-      actionButton = _scanDefaultFolder;
-      break;
-
-    case 4: // Folders
-      title = 'No Folders Found';
-      subtitle = 'Scan Music to discover songs in your folders';
-      icon = Icons.folder_open;
-      showScanButton = true;
-      actionButton = _scanDefaultFolder;
-      break;
-
-    default: // All (0)
-      title = 'No Songs Found';
-      subtitle = 'Tap "Scan Music" below to automatically discover songs on your device';
-      icon = Icons.music_note;
-      showScanButton = true;
-      actionButton = _scanDefaultFolder;
-      break;
-  }
-
-  return Center(
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 30),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Icon — gradient circle
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(colors: AppTheme.primaryGradient),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.primaryGradient[0].withOpacity(0.3),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Icon(icon, size: 60, color: Colors.white),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Title
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppTheme.text,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          // Subtitle
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppTheme.subText,
-              fontSize: 14,
-              height: 1.5,
-            ),
-          ),
-
-          // Scan Music Button — sirf All / Folders / Videos tabs pe
-          if (showScanButton) ...[
-            const SizedBox(height: 30),
-            GestureDetector(
-              onTap: actionButton,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: AppTheme.primaryGradient),
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.primaryGradient[0].withOpacity(0.4),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.folder_open, color: Colors.white, size: 24),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Scan Music',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          'Auto discover songs',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.85),
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 30),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: AppTheme.primaryGradient),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryGradient[0].withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
+              child: Icon(icon, size: 60, color: Colors.white),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             Text(
-              'Tip: Allow storage permission for best results',
+              title,
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: AppTheme.subText.withOpacity(0.7),
-                fontSize: 11,
-                fontStyle: FontStyle.italic,
+                color: AppTheme.text,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
               ),
             ),
+            const SizedBox(height: 10),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppTheme.subText,
+                fontSize: 14,
+                height: 1.5,
+              ),
+            ),
+            if (showScanButton) ...[
+              const SizedBox(height: 30),
+              GestureDetector(
+                onTap: actionButton,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: AppTheme.primaryGradient),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.primaryGradient[0].withOpacity(0.4),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.folder_open, color: Colors.white, size: 24),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Scan Music',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Auto discover songs',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.85),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Tip: Allow storage permission for best results',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppTheme.subText.withOpacity(0.7),
+                  fontSize: 11,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
-    ),
-  );
+    );
   }
 
   Widget _buildSongTile(File song, int index, {bool isFromPlaylist = false}) {
