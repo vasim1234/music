@@ -2357,6 +2357,23 @@ Future<void> _scanDefaultFolder() async {
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   children: [
                     _drawerItem(icon: Icons.library_music, iconColor: Colors.cyan, title: 'Pick Songs', subtitle: 'Select from storage', onTap: () { Navigator.pop(context); _pickSongs(); }),
+                    _drawerItem(
+  icon: Icons.bug_report,
+  iconColor: Colors.red,
+  title: 'Debug Permissions',
+  subtitle: 'Check permission status',
+  onTap: () async {
+    Navigator.pop(context);
+    final manage = await Permission.manageExternalStorage.isGranted;
+    final storage = await Permission.storage.isGranted;
+    final audio = await Permission.audio.isGranted;
+    final video = await Permission.videos.isGranted;
+    _showSnackBar(
+      'Manage: $manage | Storage: $storage | Audio: $audio | Video: $video',
+      manage ? Colors.green : Colors.red,
+    );
+  },
+),
                     _drawerItem(icon: Icons.folder_open, iconColor: AppTheme.accent, title: 'Scan Music', subtitle: 'Auto scan folders', onTap: () { Navigator.pop(context); _scanDefaultFolder(); }),
                     _drawerItem(icon: Icons.favorite, iconColor: Colors.pinkAccent, title: 'Favorites', subtitle: '${_favorites.length} songs', onTap: () { Navigator.pop(context); setState(() { _selectedTab = 1; }); _applyFilter(); }),
                     _drawerItem(icon: Icons.history, iconColor: Colors.orangeAccent, title: 'Recent', subtitle: '${_recentSongs.length} songs', onTap: () { Navigator.pop(context); setState(() { _selectedTab = 2; }); _applyFilter(); }),
