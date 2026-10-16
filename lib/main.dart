@@ -139,7 +139,8 @@ class MusicPlayerScreen extends StatefulWidget {
   State<MusicPlayerScreen> createState() => _MusicPlayerScreenState();
 }
 
-class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
+class _MusicPlayerScreenState extends State<MusicPlayerScreen>
+    with WidgetsBindingObserver {
   final ValueNotifier<bool> _isPlayingNotifier = ValueNotifier<bool>(false);
   List<File> _songs = [];
   List<File> _filteredSongs = [];
@@ -213,25 +214,29 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     return false;
   }
 
-  // ✅ UPDATED: Sequential init — permission first, phir load
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     AlbumArtService.init();
     _initializeApp();
   }
 
-  // ✅ NAYA: Sequential app initialization
+  // ✅ App lifecycle — resume hone pe auto-scan
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('📱 App resumed — checking for new songs');
+      _checkForNewSongs();
+    }
+  }
+
   Future<void> _initializeApp() async {
     debugPrint('🚀 _initializeApp START');
-
-    // Step 1: Notification permission
     await _requestNotificationPermission();
-
-    // Step 2: Storage/Media permissions — CRITICAL
     await _checkPermission();
 
-    // Step 3: Player setup
     if (audioHandler == null) {
       _setupFallbackPlayer();
     } else {
@@ -258,21 +263,17 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       });
     }
 
-    // Step 4: Baaki data load karo
     if (mounted) {
       await _loadSavedData();
       await _loadVideos();
       await _loadTheme();
       await _loadHiddenFolders();
       await _loadSortMode();
-
       _checkAppUpdate();
 
-      // ✅ Step 5: Agar permission mila hai aur songs nahi hain toh auto-scan
       if (_songs.isEmpty) {
         final hasManage = await Permission.manageExternalStorage.isGranted;
         final hasStorage = await Permission.storage.isGranted;
-
         if (hasManage || hasStorage) {
           debugPrint('🔐 Permission granted — auto-scan on first launch');
           await _scanDefaultFolder();
@@ -282,7 +283,73 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     debugPrint('✅ _initializeApp DONE');
   }
 
-  // ✅ UPDATED: Notification permission with try-catch
+  // ✅ NAYA: Naye songs check karo (background mein, silently)
+  Future<void> _checkForNewSongs() async {
+    try {
+      final hasManage = await Permission.manageExternalStorage.isGranted;
+      final hasStorage = await Permission.storage.isGranted;
+      final hasAudio = await Permission.audio.isGranted;
+
+      if (!hasManage && !hasStorage && !hasAudio) return;
+
+      final oldSongCount = _songs.length;
+      final oldVideoCount = _videos.length;
+
+      await _scanDefaultFolderSilent();
+
+      final newSongCount = _songs.length - oldSongCount;
+      final newVideoCount = _videos.length - oldVideoCount;
+
+      if (newSongCount > 0 || newVideoCount > 0) {
+        debugPrint('✅ Found $newSongCount new songs, $newVideoCount new videos');
+        if (mounted) {
+          _showSnackBar(
+            'Added $newSongCount songs + $newVideoCount videos',
+            Colors.green,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Auto-scan error: $e');
+    }
+  }
+
+  // ✅ Silent scan — bina snackbar ke
+  Future<void> _scanDefaultFolderSilent() async {
+    try {
+      final existingSongPaths = _songs.map((f) => f.path).toSet();
+      final existingVideoPaths = _videos.map((f) => f.path).toSet();
+
+      final result = await _performScan();
+
+      for (var song in result.songs) {
+        if (!existingSongPaths.contains(song.path)) {
+          _songs.add(song);
+          debugPrint('➕ New song: ${song.path.split('/').last}');
+        }
+      }
+
+      for (var video in result.videos) {
+        if (!existingVideoPaths.contains(video.path)) {
+          _videos.add(video);
+          debugPrint('➕ New video: ${video.path.split('/').last}');
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _buildFolderMap();
+          _buildVideoFolderMap();
+        });
+        await _saveSongs();
+        await _saveVideos();
+        await _applyFilter();
+      }
+    } catch (e) {
+      debugPrint('❌ Silent scan error: $e');
+    }
+  }
+
   Future<void> _requestNotificationPermission() async {
     if (Platform.isAndroid) {
       try {
@@ -363,14 +430,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     if (is3D && audioHandler != null) {
       await audioHandler!.setBassBoost(true, 600);
       await audioHandler!.setImmersive(true, 800);
-      debugPrint('3D Audio restored on app start');
     }
   }
 
   Future<void> _extractColorsFromArt(String audioPath) async {
     try {
       final artProvider = await AlbumArtService.getArtworkProvider(audioPath);
-
       if (artProvider == null) {
         if (mounted) {
           setState(() {
@@ -380,21 +445,16 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         }
         return;
       }
-
       final palette = await PaletteGenerator.fromImageProvider(
         artProvider,
         size: const Size(200, 200),
         maximumColorCount: 8,
       );
-
       if (palette.colors.isEmpty) return;
-
       final dominant = palette.dominantColor?.color ??
           palette.vibrantColor?.color ??
           palette.mutedColor?.color;
-
       if (dominant == null) return;
-
       final List<Color> gradient = [];
       if (palette.darkVibrantColor != null) {
         gradient.add(palette.darkVibrantColor!.color);
@@ -410,7 +470,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       } else {
         gradient.add(dominant);
       }
-
       if (mounted) {
         setState(() {
           _dynamicAccent = dominant;
@@ -519,12 +578,10 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       }
     });
     _savePlaybackMode();
-
     if (audioHandler != null) {
       audioHandler!.applyShuffleMode(isShuffle);
       if (isShuffle) audioHandler!.applyRepeatMode('off');
     }
-
     _showSnackBar(isShuffle ? 'Shuffle ON' : 'Shuffle OFF', AppTheme.accent);
   }
 
@@ -542,7 +599,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       if (isRepeat || isRepeatOne) isShuffle = false;
     });
     _savePlaybackMode();
-
     if (audioHandler != null) {
       if (isRepeatOne) {
         audioHandler!.applyRepeatMode('one');
@@ -553,58 +609,35 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       }
       if (isRepeat || isRepeatOne) audioHandler!.applyShuffleMode(false);
     }
-
     _showSnackBar(
       isRepeat ? 'Repeat All' : (isRepeatOne ? 'Repeat One' : 'Repeat OFF'),
       AppTheme.accent,
     );
   }
 
-  // ✅ UPDATED: Sequential permission — Android 13+ fix + retries
   Future<void> _checkPermission() async {
     if (!Platform.isAndroid) return;
     try {
-      debugPrint('🔐 Permission check START');
-
-      // Step 1: Basic storage
       if (await Permission.storage.isDenied) {
-        debugPrint('🔐 Requesting storage...');
         await Permission.storage.request();
       }
-
-      // Step 2: Android 13+ media
       if (await Permission.audio.isDenied) {
-        debugPrint('🔐 Requesting audio...');
         await Permission.audio.request();
       }
       if (await Permission.videos.isDenied) {
-        debugPrint('🔐 Requesting videos...');
         await Permission.videos.request();
       }
-
-      // Step 3: MANAGE_EXTERNAL_STORAGE — most important
       if (!await Permission.manageExternalStorage.isGranted) {
-        debugPrint('🔐 Requesting manageExternalStorage...');
-        final status = await Permission.manageExternalStorage.request();
-        debugPrint('🔐 manageExternalStorage status: $status');
-
-        // Wait for dialog dismiss
+        await Permission.manageExternalStorage.request();
         await Future.delayed(const Duration(milliseconds: 500));
       }
-
-      // Final check
       final hasManage = await Permission.manageExternalStorage.isGranted;
       final hasStorage = await Permission.storage.isGranted;
       final hasAudio = await Permission.audio.isGranted;
-
-      debugPrint('🔐 FINAL — Manage: $hasManage, Storage: $hasStorage, Audio: $hasAudio');
-
+      debugPrint('🔐 Manage: $hasManage, Storage: $hasStorage, Audio: $hasAudio');
       if (!hasManage && !hasStorage && !hasAudio) {
         if (mounted) {
-          _showSnackBar(
-            'Please allow storage permission to scan music',
-            Colors.orange,
-          );
+          _showSnackBar('Please allow storage permission to scan music', Colors.orange);
         }
       }
     } catch (e) {
@@ -1013,6 +1046,99 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
   }
 
+  // ✅ NAYA: Core scan logic — reusable
+  Future<({List<File> songs, List<File> videos})> _performScan() async {
+    List<File> allSongs = [];
+    List<File> allVideos = [];
+
+    List<String> possiblePaths = [
+      '/storage/emulated/0/',
+      '/sdcard/',
+      '/mnt/sdcard/',
+      '/storage/self/primary/',
+    ];
+
+    Directory? rootDir;
+    for (String path in possiblePaths) {
+      final dir = Directory(path);
+      if (dir.existsSync()) {
+        rootDir = dir;
+        break;
+      }
+    }
+
+    if (rootDir == null || !rootDir.existsSync()) {
+      return (songs: allSongs, videos: allVideos);
+    }
+
+    void scanDirectory(Directory dir, int depth) {
+      if (depth > 8) return;
+      try {
+        final entities = dir.listSync(followLinks: false);
+        for (var entity in entities) {
+          try {
+            if (entity is Directory) {
+              final dirPath = entity.path.toLowerCase();
+              if (dirPath.contains('/android/data/') ||
+                  dirPath.contains('/android/obb/') ||
+                  dirPath.contains('/android/media/') ||
+                  dirPath.contains('/.thumbnails/') ||
+                  dirPath.contains('/.cache/') ||
+                  dirPath.endsWith('/android')) {
+                continue;
+              }
+              scanDirectory(entity, depth + 1);
+            } else if (entity is File) {
+              final p = entity.path.toLowerCase();
+              if (p.contains('/call_rec/') ||
+                  p.contains('/callrec/') ||
+                  p.contains('/call recording/') ||
+                  p.contains('/callrecordings/') ||
+                  p.contains('/sound_recorder/') ||
+                  p.contains('/voicerecorder/') ||
+                  p.contains('/voice_recorder/') ||
+                  p.contains('/recordings/') ||
+                  p.contains('/voice notes/') ||
+                  p.contains('/whatsapp audio/')) {
+                continue;
+              }
+              bool isAudio = p.endsWith('.mp3') ||
+                  p.endsWith('.m4a') ||
+                  p.endsWith('.wav') ||
+                  p.endsWith('.aac') ||
+                  p.endsWith('.flac') ||
+                  p.endsWith('.wma') ||
+                  p.endsWith('.mp4a');
+              if (isAudio && !_isVoiceNoteFile(entity)) {
+                allSongs.add(entity);
+              }
+              if (p.endsWith('.mp4') ||
+                  p.endsWith('.mkv') ||
+                  p.endsWith('.avi') ||
+                  p.endsWith('.mov') ||
+                  p.endsWith('.wmv') ||
+                  p.endsWith('.flv') ||
+                  p.endsWith('.webm') ||
+                  p.endsWith('.m4v') ||
+                  p.endsWith('.ts') ||
+                  p.endsWith('.mpg') ||
+                  p.endsWith('.mpeg')) {
+                allVideos.add(entity);
+              }
+            }
+          } catch (e) {
+            debugPrint('Skip item: ${entity.path} — $e');
+          }
+        }
+      } catch (e) {
+        debugPrint('Skip dir: ${dir.path} — $e');
+      }
+    }
+
+    scanDirectory(rootDir, 0);
+    return (songs: allSongs, videos: allVideos);
+  }
+
   Future<void> _scanDefaultFolder() async {
     try {
       setState(() {
@@ -1022,109 +1148,13 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         _videosByFolder.clear();
       });
 
-      List<File> allSongs = [];
-      List<File> allVideos = [];
-
-      List<String> possiblePaths = [
-        '/storage/emulated/0/',
-        '/sdcard/',
-        '/mnt/sdcard/',
-        '/storage/self/primary/',
-      ];
-
-      Directory? rootDir;
-      for (String path in possiblePaths) {
-        final dir = Directory(path);
-        if (dir.existsSync()) {
-          rootDir = dir;
-          debugPrint('✅ Using path: $path');
-          break;
-        }
-      }
-
-      if (rootDir == null || !rootDir.existsSync()) {
-        if (mounted) _showSnackBar('Storage path not found', Colors.red);
-        return;
-      }
-
-      void scanDirectory(Directory dir, int depth) {
-        if (depth > 8) return;
-
-        try {
-          final entities = dir.listSync(followLinks: false);
-          for (var entity in entities) {
-            try {
-              if (entity is Directory) {
-                final dirPath = entity.path.toLowerCase();
-
-                if (dirPath.contains('/android/data/') ||
-                    dirPath.contains('/android/obb/') ||
-                    dirPath.contains('/android/media/') ||
-                    dirPath.contains('/.thumbnails/') ||
-                    dirPath.contains('/.cache/') ||
-                    dirPath.endsWith('/android')) {
-                  continue;
-                }
-
-                scanDirectory(entity, depth + 1);
-              } else if (entity is File) {
-                final p = entity.path.toLowerCase();
-
-                if (p.contains('/call_rec/') ||
-                    p.contains('/callrec/') ||
-                    p.contains('/call recording/') ||
-                    p.contains('/callrecordings/') ||
-                    p.contains('/sound_recorder/') ||
-                    p.contains('/voicerecorder/') ||
-                    p.contains('/voice_recorder/') ||
-                    p.contains('/recordings/') ||
-                    p.contains('/voice notes/') ||
-                    p.contains('/whatsapp audio/')) {
-                  continue;
-                }
-
-                bool isAudio = p.endsWith('.mp3') ||
-                    p.endsWith('.m4a') ||
-                    p.endsWith('.wav') ||
-                    p.endsWith('.aac') ||
-                    p.endsWith('.flac') ||
-                    p.endsWith('.wma') ||
-                    p.endsWith('.mp4a');
-
-                if (isAudio && !_isVoiceNoteFile(entity)) {
-                  allSongs.add(entity);
-                }
-
-                if (p.endsWith('.mp4') ||
-                    p.endsWith('.mkv') ||
-                    p.endsWith('.avi') ||
-                    p.endsWith('.mov') ||
-                    p.endsWith('.wmv') ||
-                    p.endsWith('.flv') ||
-                    p.endsWith('.webm') ||
-                    p.endsWith('.m4v') ||
-                    p.endsWith('.ts') ||
-                    p.endsWith('.mpg') ||
-                    p.endsWith('.mpeg')) {
-                  allVideos.add(entity);
-                }
-              }
-            } catch (e) {
-              debugPrint('Skip item: ${entity.path} — $e');
-            }
-          }
-        } catch (e) {
-          debugPrint('Skip dir: ${dir.path} — $e');
-        }
-      }
-
-      scanDirectory(rootDir, 0);
+      final result = await _performScan();
 
       setState(() {
-        for (var song in allSongs) {
+        for (var song in result.songs) {
           if (!_songs.any((f) => f.path == song.path)) _songs.add(song);
         }
-        for (var video in allVideos) {
+        for (var video in result.videos) {
           if (!_videos.any((f) => f.path == video.path)) _videos.add(video);
         }
         _buildFolderMap();
@@ -1135,7 +1165,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       await _saveVideos();
       await _applyFilter();
       _showSnackBar(
-          '${allSongs.length} songs + ${allVideos.length} videos found!',
+          '${result.songs.length} songs + ${result.videos.length} videos found!',
           Colors.green);
     } catch (e) {
       debugPrint('❌ Scan error: $e');
@@ -1222,7 +1252,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
   void _playNext() {
     if (_filteredSongs.isEmpty) return;
-
     if (isShuffle) {
       int next = DateTime.now().millisecondsSinceEpoch % _filteredSongs.length;
       if (next == _currentIndex && _filteredSongs.length > 1) {
@@ -1235,7 +1264,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       }
       return;
     }
-
     if (audioHandler == null) {
       _playNextFallback();
       return;
@@ -1423,7 +1451,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
               else
                 ..._playlists.map((playlist) {
                   bool isIn = (playlist['songs'] as List<String>).contains(song.path);
-
                   return ListTile(
                     leading: Icon(
                       isIn ? Icons.check_circle : Icons.playlist_play,
@@ -1723,42 +1750,26 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion = packageInfo.version;
-
       final response = await http.get(
-        Uri.parse(
-            'https://raw.githubusercontent.com/vasim1234/music/main/version.json'),
+        Uri.parse('https://raw.githubusercontent.com/vasim1234/music/main/version.json'),
       );
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final latestVersion = data['latestVersion'] as String;
         final apkUrl = data['apkUrl'] as String;
         final releaseNotes = data['releaseNotes'] as String;
         final forceUpdate = data['forceUpdate'] as bool? ?? false;
-
         if (latestVersion != currentVersion) {
           final prefs = await SharedPreferences.getInstance();
           final lastLaterTime = prefs.getInt('update_later_time') ?? 0;
           final lastLaterVersion = prefs.getString('update_later_version') ?? '';
-
           final now = DateTime.now().millisecondsSinceEpoch;
           final hoursSinceLater = (now - lastLaterTime) / (1000 * 60 * 60);
-
-          if (!forceUpdate &&
-              hoursSinceLater < 24 &&
-              lastLaterVersion == latestVersion) {
-            debugPrint('Update popup skipped (24h not passed)');
+          if (!forceUpdate && hoursSinceLater < 24 && lastLaterVersion == latestVersion) {
             return;
           }
-
           if (mounted) {
-            _showUpdateDialog(
-              latestVersion,
-              currentVersion,
-              releaseNotes,
-              apkUrl,
-              forceUpdate,
-            );
+            _showUpdateDialog(latestVersion, currentVersion, releaseNotes, apkUrl, forceUpdate);
           }
         }
       }
@@ -1767,34 +1778,20 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
   }
 
-  void _showUpdateDialog(
-    String latestVersion,
-    String currentVersion,
-    String releaseNotes,
-    String apkUrl,
-    bool forceUpdate,
-  ) {
+  void _showUpdateDialog(String latestVersion, String currentVersion, String releaseNotes, String apkUrl, bool forceUpdate) {
     showDialog(
       context: context,
       barrierDismissible: !forceUpdate,
       builder: (context) => AlertDialog(
         backgroundColor: AppTheme.card,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
             Icon(Icons.system_update, color: AppTheme.accent, size: 28),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                'Update Available',
-                style: TextStyle(
-                  color: AppTheme.text,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
+              child: Text('Update Available',
+                  style: TextStyle(color: AppTheme.text, fontWeight: FontWeight.bold, fontSize: 18)),
             ),
           ],
         ),
@@ -1808,38 +1805,16 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 color: AppTheme.accent.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(
-                'Version $latestVersion',
-                style: TextStyle(
-                  color: AppTheme.accent,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
+              child: Text('Version $latestVersion',
+                  style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold, fontSize: 14)),
             ),
             const SizedBox(height: 16),
-            Text(
-              'Current: v$currentVersion',
-              style: TextStyle(color: AppTheme.subText, fontSize: 12),
-            ),
+            Text('Current: v$currentVersion', style: TextStyle(color: AppTheme.subText, fontSize: 12)),
             const SizedBox(height: 16),
-            Text(
-              "What's New:",
-              style: TextStyle(
-                color: AppTheme.text,
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            Text("What's New:",
+                style: TextStyle(color: AppTheme.text, fontSize: 13, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
-            Text(
-              releaseNotes,
-              style: TextStyle(
-                color: AppTheme.subText,
-                fontSize: 13,
-                height: 1.5,
-              ),
-            ),
+            Text(releaseNotes, style: TextStyle(color: AppTheme.subText, fontSize: 13, height: 1.5)),
           ],
         ),
         actions: [
@@ -1847,14 +1822,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             TextButton(
               onPressed: () async {
                 final prefs = await SharedPreferences.getInstance();
-                await prefs.setInt(
-                  'update_later_time',
-                  DateTime.now().millisecondsSinceEpoch,
-                );
+                await prefs.setInt('update_later_time', DateTime.now().millisecondsSinceEpoch);
                 await prefs.setString('update_later_version', latestVersion);
-
                 if (mounted) Navigator.pop(context);
-                debugPrint('User clicked Later — 24h wait');
               },
               child: Text('Later', style: TextStyle(color: AppTheme.subText)),
             ),
@@ -1867,9 +1837,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
               final prefs = await SharedPreferences.getInstance();
               await prefs.remove('update_later_time');
               await prefs.remove('update_later_version');
-
               if (mounted) Navigator.pop(context);
-
               final uri = Uri.parse(apkUrl);
               if (await canLaunchUrl(uri)) {
                 await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -1877,13 +1845,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 _showSnackBar('Cannot open link', Colors.red);
               }
             },
-            child: const Text(
-              'Update Now',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            child: const Text('Update Now',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -1905,9 +1868,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     if (mp3Index == -1) mp3Index = name.toUpperCase().indexOf('(192K');
     if (mp3Index == -1) mp3Index = name.toUpperCase().indexOf('(256K');
     if (mp3Index == -1) mp3Index = name.toUpperCase().indexOf('[320K');
-    if (mp3Index != -1) {
-      name = name.substring(0, mp3Index);
-    }
+    if (mp3Index != -1) name = name.substring(0, mp3Index);
     name = name.replaceAll(RegExp(r'\s+'), ' ').trim();
     name = name.replaceAll('_', ' ').trim();
     return name;
@@ -1957,12 +1918,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                           final isCurrent = _currentSong == song;
                           return ListTile(
                             leading: AlbumArtWidget(audioPath: song.path, size: 45, isPlaying: isCurrent && isPlaying),
-                            title: Text(
-                              getSongName(song.path),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: isCurrent ? AppTheme.accent : AppTheme.text, fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500, fontSize: 14),
-                            ),
+                            title: Text(getSongName(song.path),
+                                maxLines: 1, overflow: TextOverflow.ellipsis,
+                                style: TextStyle(color: isCurrent ? AppTheme.accent : AppTheme.text, fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500, fontSize: 14)),
                             subtitle: Text(isCurrent ? 'Now Playing' : 'Local Audio', style: TextStyle(color: isCurrent ? AppTheme.accent : AppTheme.subText, fontSize: 11)),
                             trailing: isCurrent ? Icon(Icons.graphic_eq, color: AppTheme.accent, size: 20) : null,
                             onTap: () {
@@ -2008,9 +1966,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   });
                 }
               }
-
               final dynamicAccent = AppTheme.accent;
-
               return Container(
                 height: MediaQuery.of(context).size.height,
                 decoration: BoxDecoration(
@@ -2036,27 +1992,21 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                               icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 30),
                               onPressed: () => Navigator.pop(context),
                             ),
-                            const Text(
-                              'Now Playing',
-                              style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
-                            ),
+                            const Text('Now Playing',
+                                style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
                             Row(
                               children: [
                                 IconButton(
                                   icon: const Icon(Icons.tune, color: Colors.white, size: 22),
-                                  tooltip: 'Audio Settings',
                                   onPressed: () {
                                     Navigator.pop(context);
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => AudioSettingsScreen(
-                                          isDarkTheme: !AppTheme.isLightMode,
-                                          accentColor: AppTheme.accent,
-                                          gradientColors: AppTheme.primaryGradient,
-                                        ),
+                                    Navigator.push(context, MaterialPageRoute(
+                                      builder: (context) => AudioSettingsScreen(
+                                        isDarkTheme: !AppTheme.isLightMode,
+                                        accentColor: AppTheme.accent,
+                                        gradientColors: AppTheme.primaryGradient,
                                       ),
-                                    );
+                                    ));
                                   },
                                 ),
                                 IconButton(
@@ -2068,9 +2018,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 8),
-
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: AspectRatio(
@@ -2086,28 +2034,21 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 20),
-
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              getSongName(_currentSong!.path),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                            ),
+                            Text(getSongName(_currentSong!.path),
+                                maxLines: 1, overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                             const SizedBox(height: 6),
                             Text('Local Audio', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 16),
-
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: StreamBuilder<Duration>(
@@ -2156,20 +2097,16 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                           },
                         ),
                       ),
-
                       const SizedBox(height: 12),
-
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             IconButton(
-                              icon: Icon(
-                                Icons.shuffle,
-                                color: isShuffle ? dynamicAccent : Colors.white.withOpacity(0.6),
-                                size: 24,
-                              ),
+                              icon: Icon(Icons.shuffle,
+                                  color: isShuffle ? dynamicAccent : Colors.white.withOpacity(0.6),
+                                  size: 24),
                               onPressed: () {
                                 _toggleShuffleOnly();
                                 setModalState(() {});
@@ -2207,11 +2144,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                               },
                             ),
                             IconButton(
-                              icon: Icon(
-                                isRepeatOne ? Icons.repeat_one : Icons.repeat,
-                                color: (isRepeat || isRepeatOne) ? dynamicAccent : Colors.white.withOpacity(0.6),
-                                size: 24,
-                              ),
+                              icon: Icon(isRepeatOne ? Icons.repeat_one : Icons.repeat,
+                                  color: (isRepeat || isRepeatOne) ? dynamicAccent : Colors.white.withOpacity(0.6),
+                                  size: 24),
                               onPressed: () {
                                 _toggleRepeatOnly();
                                 setModalState(() {});
@@ -2220,9 +2155,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 12),
-
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                         child: Row(
@@ -2286,30 +2219,24 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
               const SizedBox(height: 10),
               ListTile(
                 leading: Icon(Icons.tune, color: AppTheme.accent),
-                title: Text('Audio Settings',
-                    style: TextStyle(color: AppTheme.text)),
-                subtitle: Text('Bass, EQ, Reverb & more',
-                    style: TextStyle(color: AppTheme.subText, fontSize: 11)),
+                title: Text('Audio Settings', style: TextStyle(color: AppTheme.text)),
+                subtitle: Text('Bass, EQ, Reverb & more', style: TextStyle(color: AppTheme.subText, fontSize: 11)),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AudioSettingsScreen(
-                        isDarkTheme: !AppTheme.isLightMode,
-                        accentColor: AppTheme.accent,
-                        gradientColors: AppTheme.primaryGradient,
-                      ),
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (context) => AudioSettingsScreen(
+                      isDarkTheme: !AppTheme.isLightMode,
+                      accentColor: AppTheme.accent,
+                      gradientColors: AppTheme.primaryGradient,
                     ),
-                  );
+                  ));
                 },
               ),
               ListTile(
                 leading: Icon(Icons.queue_music, color: AppTheme.accent),
                 title: Text('Queue', style: TextStyle(color: AppTheme.text)),
-                subtitle: Text('${_filteredSongs.length} songs',
-                    style: TextStyle(color: AppTheme.subText, fontSize: 11)),
+                subtitle: Text('${_filteredSongs.length} songs', style: TextStyle(color: AppTheme.subText, fontSize: 11)),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.pop(context);
@@ -2318,29 +2245,21 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.share, color: Colors.blue),
-                title: Text('Share Song',
-                    style: TextStyle(color: AppTheme.text)),
-                subtitle: Text('Send to friends',
-                    style: TextStyle(color: AppTheme.subText, fontSize: 11)),
+                title: Text('Share Song', style: TextStyle(color: AppTheme.text)),
+                subtitle: Text('Send to friends', style: TextStyle(color: AppTheme.subText, fontSize: 11)),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.pop(context);
-                  if (_currentSong != null) {
-                    _shareSong(_currentSong!);
-                  }
+                  if (_currentSong != null) _shareSong(_currentSong!);
                 },
               ),
               ListTile(
                 leading: Icon(
-                  _favorites.contains(_currentSong!.path)
-                      ? Icons.favorite
-                      : Icons.favorite_border,
+                  _favorites.contains(_currentSong!.path) ? Icons.favorite : Icons.favorite_border,
                   color: Colors.pinkAccent,
                 ),
                 title: Text(
-                  _favorites.contains(_currentSong!.path)
-                      ? 'Remove from Favorites'
-                      : 'Add to Favorites',
+                  _favorites.contains(_currentSong!.path) ? 'Remove from Favorites' : 'Add to Favorites',
                   style: TextStyle(color: AppTheme.text),
                 ),
                 onTap: () {
@@ -2406,51 +2325,35 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   children: [
                     _drawerItem(icon: Icons.library_music, iconColor: Colors.cyan, title: 'Pick Songs', subtitle: 'Select from storage', onTap: () { Navigator.pop(context); _pickSongs(); }),
                     _drawerItem(
-                      icon: Icons.bug_report,
-                      iconColor: Colors.red,
-                      title: 'Debug Permissions',
-                      subtitle: 'Check permission status',
+                      icon: Icons.bug_report, iconColor: Colors.red,
+                      title: 'Debug Permissions', subtitle: 'Check permission status',
                       onTap: () async {
                         Navigator.pop(context);
                         final manage = await Permission.manageExternalStorage.isGranted;
                         final storage = await Permission.storage.isGranted;
                         final audio = await Permission.audio.isGranted;
                         final video = await Permission.videos.isGranted;
-                        _showSnackBar(
-                          'Manage: $manage | Storage: $storage | Audio: $audio | Video: $video',
-                          manage ? Colors.green : Colors.red,
-                        );
+                        _showSnackBar('Manage: $manage | Storage: $storage | Audio: $audio | Video: $video',
+                            manage ? Colors.green : Colors.red);
                       },
                     ),
                     _drawerItem(icon: Icons.folder_open, iconColor: AppTheme.accent, title: 'Scan Music', subtitle: 'Auto scan folders', onTap: () { Navigator.pop(context); _scanDefaultFolder(); }),
                     _drawerItem(icon: Icons.favorite, iconColor: Colors.pinkAccent, title: 'Favorites', subtitle: '${_favorites.length} songs', onTap: () { Navigator.pop(context); setState(() { _selectedTab = 1; }); _applyFilter(); }),
                     _drawerItem(icon: Icons.history, iconColor: Colors.orangeAccent, title: 'Recent', subtitle: '${_recentSongs.length} songs', onTap: () { Navigator.pop(context); setState(() { _selectedTab = 2; }); _applyFilter(); }),
                     _drawerItem(icon: Icons.visibility_off, iconColor: Colors.orange, title: 'Hidden Folders', subtitle: '${_hiddenFolders.length} folder(s)', onTap: () { Navigator.pop(context); _showHiddenFolders(); }),
-                    _drawerItem(
-                      icon: Icons.share,
-                      iconColor: Colors.blue,
-                      title: 'Share App',
-                      subtitle: 'Send to friends',
-                      onTap: () {
-                        Navigator.pop(context);
-                        _shareTelegramLink();
-                      },
-                    ),
+                    _drawerItem(icon: Icons.share, iconColor: Colors.blue, title: 'Share App', subtitle: 'Send to friends', onTap: () { Navigator.pop(context); _shareTelegramLink(); }),
                     _drawerItem(
                       icon: Icons.tune, iconColor: Colors.deepPurpleAccent,
                       title: 'Audio Settings', subtitle: 'Bass, EQ, Reverb & more',
                       onTap: () {
                         Navigator.pop(context);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => AudioSettingsScreen(
-                              isDarkTheme: !AppTheme.isLightMode,
-                              accentColor: AppTheme.accent,
-                              gradientColors: AppTheme.primaryGradient,
-                            ),
+                        Navigator.push(context, MaterialPageRoute(
+                          builder: (context) => AudioSettingsScreen(
+                            isDarkTheme: !AppTheme.isLightMode,
+                            accentColor: AppTheme.accent,
+                            gradientColors: AppTheme.primaryGradient,
                           ),
-                        );
+                        ));
                       },
                     ),
                     Divider(color: AppTheme.subText.withOpacity(0.2), height: 1),
@@ -2487,7 +2390,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
               ),
               Padding(
                 padding: const EdgeInsets.all(20),
-                child: Text("Version 1.0.0\nMade with love by Bhai Bhai", textAlign: TextAlign.center, style: TextStyle(color: AppTheme.subText, fontSize: 11)),
+                child: Text("Version 1.0.0\nMade with love by Bhai Bhai",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppTheme.subText, fontSize: 11)),
               ),
             ],
           ),
@@ -2523,7 +2428,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 AlbumArtWidget(audioPath: _currentSong!.path, size: 40, isPlaying: isPlaying),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(getSongName(_currentSong!.path), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                  child: Text(getSongName(_currentSong!.path),
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
                 ),
                 IconButton(icon: const Icon(Icons.skip_previous, color: Colors.white, size: 24), onPressed: _playPrevious, padding: EdgeInsets.zero, constraints: const BoxConstraints()),
                 ValueListenableBuilder<bool>(
@@ -2606,18 +2513,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        _openedPlaylist!,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        '$count songs',
-                        style: const TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
+                      Text(_openedPlaylist!, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                      Text('$count songs', style: const TextStyle(color: Colors.white70, fontSize: 12)),
                     ],
                   ),
                 ),
@@ -2630,11 +2527,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 15),
                     itemCount: _filteredSongs.length,
-                    itemBuilder: (context, index) => _buildSongTile(
-                      _filteredSongs[index],
-                      index,
-                      isFromPlaylist: true,
-                    ),
+                    itemBuilder: (context, index) => _buildSongTile(_filteredSongs[index], index, isFromPlaylist: true),
                   ),
           ),
         ],
@@ -2646,10 +2539,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     return GridView.builder(
       padding: const EdgeInsets.all(15),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 1.1,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
+        crossAxisCount: 2, childAspectRatio: 1.1, crossAxisSpacing: 12, mainAxisSpacing: 12,
       ),
       itemCount: _playlists.length,
       itemBuilder: (context, index) {
@@ -2659,21 +2549,13 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
         return GestureDetector(
           onTap: () {
-            setState(() {
-              _openedPlaylist = playlistName;
-            });
+            setState(() { _openedPlaylist = playlistName; });
             _applyFilter();
           },
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4))],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(20),
@@ -2681,58 +2563,32 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 fit: StackFit.expand,
                 children: [
                   _buildPlaylistBackground(songs),
-
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.75),
-                        ],
+                        begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                        colors: [Colors.transparent, Colors.black.withOpacity(0.75)],
                         stops: const [0.4, 1.0],
                       ),
                     ),
                   ),
-
                   Positioned(
-                    left: 12,
-                    right: 12,
-                    bottom: 12,
+                    left: 12, right: 12, bottom: 12,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Row(
                           children: [
-                            Icon(
-                              Icons.playlist_play,
-                              color: Colors.white.withOpacity(0.9),
-                              size: 18,
-                            ),
+                            Icon(Icons.playlist_play, color: Colors.white.withOpacity(0.9), size: 18),
                             const SizedBox(width: 6),
-                            Text(
-                              '${songs.length}',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                            Text('${songs.length}', style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12, fontWeight: FontWeight.w600)),
                           ],
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          playlistName,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        Text(playlistName,
+                            maxLines: 2, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ),
@@ -2748,146 +2604,44 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   Widget _buildPlaylistBackground(List<String> songs) {
     if (songs.isEmpty) {
       return Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: AppTheme.primaryGradient.map((c) => c.withOpacity(0.3)).toList(),
-          ),
-        ),
-        child: Center(
-          child: Icon(
-            Icons.playlist_play,
-            color: Colors.white.withOpacity(0.7),
-            size: 50,
-          ),
-        ),
+        decoration: BoxDecoration(gradient: LinearGradient(colors: AppTheme.primaryGradient.map((c) => c.withOpacity(0.3)).toList())),
+        child: Center(child: Icon(Icons.playlist_play, color: Colors.white.withOpacity(0.7), size: 50)),
       );
     }
-
     if (songs.length == 1) {
-      return AlbumArtWidget(
-        audioPath: songs[0],
-        size: double.infinity,
-        isPlaying: false,
-        isCircle: false,
-      );
+      return AlbumArtWidget(audioPath: songs[0], size: double.infinity, isPlaying: false, isCircle: false);
     }
-
     if (songs.length == 2) {
-      return Row(
-        children: [
-          Expanded(
-            child: AlbumArtWidget(
-              audioPath: songs[0],
-              size: double.infinity,
-              isPlaying: false,
-              isCircle: false,
-            ),
-          ),
-          const SizedBox(width: 2),
-          Expanded(
-            child: AlbumArtWidget(
-              audioPath: songs[1],
-              size: double.infinity,
-              isPlaying: false,
-              isCircle: false,
-            ),
-          ),
-        ],
-      );
+      return Row(children: [
+        Expanded(child: AlbumArtWidget(audioPath: songs[0], size: double.infinity, isPlaying: false, isCircle: false)),
+        const SizedBox(width: 2),
+        Expanded(child: AlbumArtWidget(audioPath: songs[1], size: double.infinity, isPlaying: false, isCircle: false)),
+      ]);
     }
-
     if (songs.length == 3) {
-      return Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: AlbumArtWidget(
-              audioPath: songs[0],
-              size: double.infinity,
-              isPlaying: false,
-              isCircle: false,
-            ),
-          ),
-          const SizedBox(width: 2),
-          Expanded(
-            flex: 1,
-            child: Column(
-              children: [
-                Expanded(
-                  child: AlbumArtWidget(
-                    audioPath: songs[1],
-                    size: double.infinity,
-                    isPlaying: false,
-                    isCircle: false,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Expanded(
-                  child: AlbumArtWidget(
-                    audioPath: songs[2],
-                    size: double.infinity,
-                    isPlaying: false,
-                    isCircle: false,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      );
+      return Row(children: [
+        Expanded(flex: 2, child: AlbumArtWidget(audioPath: songs[0], size: double.infinity, isPlaying: false, isCircle: false)),
+        const SizedBox(width: 2),
+        Expanded(flex: 1, child: Column(children: [
+          Expanded(child: AlbumArtWidget(audioPath: songs[1], size: double.infinity, isPlaying: false, isCircle: false)),
+          const SizedBox(height: 2),
+          Expanded(child: AlbumArtWidget(audioPath: songs[2], size: double.infinity, isPlaying: false, isCircle: false)),
+        ])),
+      ]);
     }
-
-    return Column(
-      children: [
-        Expanded(
-          child: Row(
-            children: [
-              Expanded(
-                child: AlbumArtWidget(
-                  audioPath: songs[0],
-                  size: double.infinity,
-                  isPlaying: false,
-                  isCircle: false,
-                ),
-              ),
-              const SizedBox(width: 2),
-              Expanded(
-                child: AlbumArtWidget(
-                  audioPath: songs[1],
-                  size: double.infinity,
-                  isPlaying: false,
-                  isCircle: false,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 2),
-        Expanded(
-          child: Row(
-            children: [
-              Expanded(
-                child: AlbumArtWidget(
-                  audioPath: songs[2],
-                  size: double.infinity,
-                  isPlaying: false,
-                  isCircle: false,
-                ),
-              ),
-              const SizedBox(width: 2),
-              Expanded(
-                child: AlbumArtWidget(
-                  audioPath: songs[3],
-                  size: double.infinity,
-                  isPlaying: false,
-                  isCircle: false,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
+    return Column(children: [
+      Expanded(child: Row(children: [
+        Expanded(child: AlbumArtWidget(audioPath: songs[0], size: double.infinity, isPlaying: false, isCircle: false)),
+        const SizedBox(width: 2),
+        Expanded(child: AlbumArtWidget(audioPath: songs[1], size: double.infinity, isPlaying: false, isCircle: false)),
+      ])),
+      const SizedBox(height: 2),
+      Expanded(child: Row(children: [
+        Expanded(child: AlbumArtWidget(audioPath: songs[2], size: double.infinity, isPlaying: false, isCircle: false)),
+        const SizedBox(width: 2),
+        Expanded(child: AlbumArtWidget(audioPath: songs[3], size: double.infinity, isPlaying: false, isCircle: false)),
+      ])),
+    ]);
   }
 
   Widget _buildFoldersView() {
@@ -3094,12 +2848,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     final sizeMB = (video.lengthSync() / (1024 * 1024)).toStringAsFixed(1);
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => VideoPlayerScreen(videoFile: video, videoList: folderVideos, initialIndex: index),
-          ),
-        );
+        Navigator.push(context, MaterialPageRoute(
+          builder: (context) => VideoPlayerScreen(videoFile: video, videoList: folderVideos, initialIndex: index),
+        ));
       },
       onLongPress: () => _showVideoOptions(video, index, folderVideos),
       child: Container(
@@ -3112,8 +2863,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         child: Row(
           children: [
             Container(
-              width: 60,
-              height: 45,
+              width: 60, height: 45,
               decoration: BoxDecoration(gradient: LinearGradient(colors: AppTheme.primaryGradient), borderRadius: BorderRadius.circular(8)),
               child: const Icon(Icons.play_circle_fill, color: Colors.white, size: 30),
             ),
@@ -3130,10 +2880,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             ),
             GestureDetector(
               onTap: () => _showVideoOptions(video, index, folderVideos),
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: Icon(Icons.more_vert, color: AppTheme.subText, size: 20),
-              ),
+              child: Padding(padding: const EdgeInsets.all(6), child: Icon(Icons.more_vert, color: AppTheme.subText, size: 20)),
             ),
           ],
         ),
@@ -3155,24 +2902,14 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 15),
-              Container(
-                width: 50,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: AppTheme.subText,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
+              Container(width: 50, height: 5, decoration: BoxDecoration(color: AppTheme.subText, borderRadius: BorderRadius.circular(10))),
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: AppTheme.primaryGradient),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      decoration: BoxDecoration(gradient: LinearGradient(colors: AppTheme.primaryGradient), borderRadius: BorderRadius.circular(12)),
                       child: const Icon(Icons.video_library, color: Colors.white, size: 28),
                     ),
                     const SizedBox(width: 15),
@@ -3180,16 +2917,10 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            video.path.split('/').last,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: AppTheme.text, fontSize: 14, fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            '${(video.lengthSync() / (1024 * 1024)).toStringAsFixed(1)} MB',
-                            style: TextStyle(color: AppTheme.subText, fontSize: 11),
-                          ),
+                          Text(video.path.split('/').last, maxLines: 2, overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: AppTheme.text, fontSize: 14, fontWeight: FontWeight.bold)),
+                          Text('${(video.lengthSync() / (1024 * 1024)).toStringAsFixed(1)} MB',
+                              style: TextStyle(color: AppTheme.subText, fontSize: 11)),
                         ],
                       ),
                     ),
@@ -3201,29 +2932,20 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 title: Text('Play Video', style: TextStyle(color: AppTheme.text)),
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => VideoPlayerScreen(videoFile: video, videoList: folderVideos, initialIndex: index),
-                    ),
-                  );
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (context) => VideoPlayerScreen(videoFile: video, videoList: folderVideos, initialIndex: index),
+                  ));
                 },
               ),
               ListTile(
                 leading: const Icon(Icons.share, color: Colors.blue),
                 title: Text('Share Video', style: TextStyle(color: AppTheme.text)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _shareVideo(video);
-                },
+                onTap: () { Navigator.pop(context); _shareVideo(video); },
               ),
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
                 title: Text('Delete Video', style: TextStyle(color: Colors.redAccent)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _confirmDeleteVideo(video);
-                },
+                onTap: () { Navigator.pop(context); _confirmDeleteVideo(video); },
               ),
               const SizedBox(height: 20),
             ],
@@ -3244,7 +2966,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   Future<void> _shareTelegramLink() async {
     const String channelId = 'bhaibhaimusic';
     const String telegramUrl = 'https://t.me/$channelId';
-
     final String shareText =
         '🎵 Bhai Bhai Music\n\n'
         'High quality local music & video player with:\n'
@@ -3255,12 +2976,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         '📥 Download now:\n'
         '📢 Telegram: $telegramUrl\n\n'
         'Made with love by Bhai Bhai ❤️';
-
     try {
-      await Share.share(
-        shareText,
-        subject: 'Bhai Bhai Music - Download Now!',
-      );
+      await Share.share(shareText, subject: 'Bhai Bhai Music - Download Now!');
     } catch (e) {
       _showSnackBar('Error sharing: $e', Colors.red);
     }
@@ -3274,22 +2991,14 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         title: Text('Delete Video?', style: TextStyle(color: AppTheme.text)),
         content: Text('Delete "${video.path.split('/').last}"?', style: TextStyle(color: AppTheme.subText)),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () async {
               Navigator.pop(context);
               try {
-                if (await video.exists()) {
-                  await video.delete();
-                }
-                setState(() {
-                  _videos.remove(video);
-                  _buildVideoFolderMap();
-                });
+                if (await video.exists()) await video.delete();
+                setState(() { _videos.remove(video); _buildVideoFolderMap(); });
                 await _saveVideos();
                 _showSnackBar('Video deleted', Colors.green);
               } catch (e) {
@@ -3360,36 +3069,16 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(colors: AppTheme.primaryGradient),
                 shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppTheme.primaryGradient[0].withOpacity(0.3),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
+                boxShadow: [BoxShadow(color: AppTheme.primaryGradient[0].withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 8))],
               ),
               child: Icon(icon, size: 60, color: Colors.white),
             ),
             const SizedBox(height: 24),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppTheme.text,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            Text(title, textAlign: TextAlign.center,
+                style: TextStyle(color: AppTheme.text, fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppTheme.subText,
-                fontSize: 14,
-                height: 1.5,
-              ),
-            ),
+            Text(subtitle, textAlign: TextAlign.center,
+                style: TextStyle(color: AppTheme.subText, fontSize: 14, height: 1.5)),
             if (showScanButton) ...[
               const SizedBox(height: 30),
               GestureDetector(
@@ -3400,13 +3089,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(colors: AppTheme.primaryGradient),
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.primaryGradient[0].withOpacity(0.4),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
+                    boxShadow: [BoxShadow(color: AppTheme.primaryGradient[0].withOpacity(0.4), blurRadius: 16, offset: const Offset(0, 6))],
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -3416,21 +3099,10 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Scan Music',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            'Auto discover songs',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.85),
-                              fontSize: 11,
-                            ),
-                          ),
+                          const Text('Scan Music',
+                              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                          Text('Auto discover songs',
+                              style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 11)),
                         ],
                       ),
                     ],
@@ -3438,15 +3110,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              Text(
-                'Tip: Allow storage permission for best results',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppTheme.subText.withOpacity(0.7),
-                  fontSize: 11,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
+              Text('Tip: Allow storage permission for best results',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppTheme.subText.withOpacity(0.7), fontSize: 11, fontStyle: FontStyle.italic)),
             ],
           ],
         ),
@@ -3490,12 +3156,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                           child: _PlayingIndicator(color: isSelected ? Colors.white : AppTheme.accent),
                         ),
                       Expanded(
-                        child: Text(
-                          getSongName(song.path),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: isSelected ? Colors.white : AppTheme.text, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, fontSize: 14),
-                        ),
+                        child: Text(getSongName(song.path),
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: isSelected ? Colors.white : AppTheme.text, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, fontSize: 14)),
                       ),
                     ],
                   ),
@@ -3506,7 +3169,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         const Icon(Icons.favorite, color: Colors.pinkAccent, size: 11),
                         const SizedBox(width: 4),
                       ],
-                      Text(isSelected && isPlaying ? 'Now Playing' : 'Local Audio', style: TextStyle(color: isSelected ? Colors.white70 : AppTheme.subText, fontSize: 11)),
+                      Text(isSelected && isPlaying ? 'Now Playing' : 'Local Audio',
+                          style: TextStyle(color: isSelected ? Colors.white70 : AppTheme.subText, fontSize: 11)),
                     ],
                   ),
                 ],
@@ -3531,10 +3195,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     bool isFav = _favorites.contains(song.path);
     return GestureDetector(
       onTap: () {
-        setState(() {
-          _filteredSongs = folderSongs;
-          _currentIndex = index;
-        });
+        setState(() { _filteredSongs = folderSongs; _currentIndex = index; });
         _playSong(song, index);
       },
       onLongPress: () => _showMainSongOptions(song),
@@ -3562,12 +3223,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                           child: _PlayingIndicator(color: isSelected ? Colors.white : AppTheme.accent),
                         ),
                       Expanded(
-                        child: Text(
-                          getSongName(song.path),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: isSelected ? Colors.white : AppTheme.text, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, fontSize: 14),
-                        ),
+                        child: Text(getSongName(song.path),
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: isSelected ? Colors.white : AppTheme.text, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, fontSize: 14)),
                       ),
                     ],
                   ),
@@ -3578,7 +3236,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                         const Icon(Icons.favorite, color: Colors.pinkAccent, size: 11),
                         const SizedBox(width: 4),
                       ],
-                      Text(isSelected && isPlaying ? 'Now Playing' : 'Local Audio', style: TextStyle(color: isSelected ? Colors.white70 : AppTheme.subText, fontSize: 11)),
+                      Text(isSelected && isPlaying ? 'Now Playing' : 'Local Audio',
+                          style: TextStyle(color: isSelected ? Colors.white70 : AppTheme.subText, fontSize: 11)),
                     ],
                   ),
                 ],
@@ -3600,6 +3259,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _isPlayingNotifier.dispose();
     _searchController.dispose();
     _fallbackPlayer.dispose();
