@@ -213,12 +213,25 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     return false;
   }
 
+  // ✅ UPDATED: Sequential init — permission first, phir load
   @override
   void initState() {
     super.initState();
     AlbumArtService.init();
-    _requestNotificationPermission();
+    _initializeApp();
+  }
 
+  // ✅ NAYA: Sequential app initialization
+  Future<void> _initializeApp() async {
+    debugPrint('🚀 _initializeApp START');
+
+    // Step 1: Notification permission
+    await _requestNotificationPermission();
+
+    // Step 2: Storage/Media permissions — CRITICAL
+    await _checkPermission();
+
+    // Step 3: Player setup
     if (audioHandler == null) {
       _setupFallbackPlayer();
     } else {
@@ -245,19 +258,39 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       });
     }
 
-    _checkPermission();
-    _loadSavedData();
-    _loadVideos();
-    _loadTheme();
-    _loadHiddenFolders();
-    _loadSortMode();
-    _checkAppUpdate();
+    // Step 4: Baaki data load karo
+    if (mounted) {
+      await _loadSavedData();
+      await _loadVideos();
+      await _loadTheme();
+      await _loadHiddenFolders();
+      await _loadSortMode();
+
+      _checkAppUpdate();
+
+      // ✅ Step 5: Agar permission mila hai aur songs nahi hain toh auto-scan
+      if (_songs.isEmpty) {
+        final hasManage = await Permission.manageExternalStorage.isGranted;
+        final hasStorage = await Permission.storage.isGranted;
+
+        if (hasManage || hasStorage) {
+          debugPrint('🔐 Permission granted — auto-scan on first launch');
+          await _scanDefaultFolder();
+        }
+      }
+    }
+    debugPrint('✅ _initializeApp DONE');
   }
 
+  // ✅ UPDATED: Notification permission with try-catch
   Future<void> _requestNotificationPermission() async {
     if (Platform.isAndroid) {
-      if (await Permission.notification.isDenied) {
-        await Permission.notification.request();
+      try {
+        if (await Permission.notification.isDenied) {
+          await Permission.notification.request();
+        }
+      } catch (e) {
+        debugPrint('Notification permission error: $e');
       }
     }
   }
@@ -316,7 +349,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       isRepeatOne = repeatOne;
     });
 
-    // ✅ NAYA: App start pe modes apply karo
     if (audioHandler != null) {
       audioHandler!.applyShuffleMode(shuffle);
       if (repeatOne) {
@@ -528,24 +560,55 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     );
   }
 
-  // ✅ UPDATED: Android 13+ fix
+  // ✅ UPDATED: Sequential permission — Android 13+ fix + retries
   Future<void> _checkPermission() async {
-    if (Platform.isAndroid) {
-      // Android 13+ media permissions
+    if (!Platform.isAndroid) return;
+    try {
+      debugPrint('🔐 Permission check START');
+
+      // Step 1: Basic storage
+      if (await Permission.storage.isDenied) {
+        debugPrint('🔐 Requesting storage...');
+        await Permission.storage.request();
+      }
+
+      // Step 2: Android 13+ media
       if (await Permission.audio.isDenied) {
+        debugPrint('🔐 Requesting audio...');
         await Permission.audio.request();
       }
       if (await Permission.videos.isDenied) {
+        debugPrint('🔐 Requesting videos...');
         await Permission.videos.request();
       }
-      // Storage (sab versions)
-      if (await Permission.storage.isDenied) {
-        await Permission.storage.request();
-      }
-      // ✅ MOST IMPORTANT — Android 11+ ke liye
+
+      // Step 3: MANAGE_EXTERNAL_STORAGE — most important
       if (!await Permission.manageExternalStorage.isGranted) {
-        await Permission.manageExternalStorage.request();
+        debugPrint('🔐 Requesting manageExternalStorage...');
+        final status = await Permission.manageExternalStorage.request();
+        debugPrint('🔐 manageExternalStorage status: $status');
+
+        // Wait for dialog dismiss
+        await Future.delayed(const Duration(milliseconds: 500));
       }
+
+      // Final check
+      final hasManage = await Permission.manageExternalStorage.isGranted;
+      final hasStorage = await Permission.storage.isGranted;
+      final hasAudio = await Permission.audio.isGranted;
+
+      debugPrint('🔐 FINAL — Manage: $hasManage, Storage: $hasStorage, Audio: $hasAudio');
+
+      if (!hasManage && !hasStorage && !hasAudio) {
+        if (mounted) {
+          _showSnackBar(
+            'Please allow storage permission to scan music',
+            Colors.orange,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Permission error: $e');
     }
   }
 
@@ -950,143 +1013,135 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
   }
 
-Future<void> _scanDefaultFolder() async {
-  try {
-    setState(() {
-      _songs.clear();
-      _videos.clear();
-      _songsByFolder.clear();
-      _videosByFolder.clear();
-    });
+  Future<void> _scanDefaultFolder() async {
+    try {
+      setState(() {
+        _songs.clear();
+        _videos.clear();
+        _songsByFolder.clear();
+        _videosByFolder.clear();
+      });
 
-    List<File> allSongs = [];
-    List<File> allVideos = [];
+      List<File> allSongs = [];
+      List<File> allVideos = [];
 
-    // ✅ Multiple paths try karo
-    List<String> possiblePaths = [
-      '/storage/emulated/0/',
-      '/sdcard/',
-      '/mnt/sdcard/',
-      '/storage/self/primary/',
-    ];
+      List<String> possiblePaths = [
+        '/storage/emulated/0/',
+        '/sdcard/',
+        '/mnt/sdcard/',
+        '/storage/self/primary/',
+      ];
 
-    Directory? rootDir;
-    for (String path in possiblePaths) {
-      final dir = Directory(path);
-      if (dir.existsSync()) {
-        rootDir = dir;
-        debugPrint('✅ Using path: $path');
-        break;
-      }
-    }
-
-    if (rootDir == null || !rootDir.existsSync()) {
-      if (mounted) _showSnackBar('Storage path not found', Colors.red);
-      return;
-    }
-
-    // ✅ NAYA: Har folder ko individually scan karo — exception-safe
-    void scanDirectory(Directory dir, int depth) {
-      if (depth > 8) return; // recursion limit
-
-      try {
-        final entities = dir.listSync(followLinks: false);
-        for (var entity in entities) {
-          try {
-            if (entity is Directory) {
-              final dirPath = entity.path.toLowerCase();
-
-              // ❌ In folders ko skip karo — permission issue
-              if (dirPath.contains('/android/data/') ||
-                  dirPath.contains('/android/obb/') ||
-                  dirPath.contains('/android/media/') ||
-                  dirPath.contains('/.thumbnails/') ||
-                  dirPath.contains('/.cache/') ||
-                  dirPath.endsWith('/android')) {
-                continue;
-              }
-
-              scanDirectory(entity, depth + 1);
-            } else if (entity is File) {
-              final p = entity.path.toLowerCase();
-
-              // ❌ Call recordings / voice notes skip karo
-              if (p.contains('/call_rec/') ||
-                  p.contains('/callrec/') ||
-                  p.contains('/call recording/') ||
-                  p.contains('/callrecordings/') ||
-                  p.contains('/sound_recorder/') ||
-                  p.contains('/voicerecorder/') ||
-                  p.contains('/voice_recorder/') ||
-                  p.contains('/recordings/') ||
-                  p.contains('/voice notes/') ||
-                  p.contains('/whatsapp audio/')) {
-                continue;
-              }
-
-              // ✅ Audio files
-              bool isAudio = p.endsWith('.mp3') ||
-                  p.endsWith('.m4a') ||
-                  p.endsWith('.wav') ||
-                  p.endsWith('.aac') ||
-                  p.endsWith('.flac') ||
-                  p.endsWith('.wma') ||
-                  p.endsWith('.mp4a');
-
-              if (isAudio && !_isVoiceNoteFile(entity)) {
-                allSongs.add(entity);
-              }
-
-              // ✅ Video files
-              if (p.endsWith('.mp4') ||
-                  p.endsWith('.mkv') ||
-                  p.endsWith('.avi') ||
-                  p.endsWith('.mov') ||
-                  p.endsWith('.wmv') ||
-                  p.endsWith('.flv') ||
-                  p.endsWith('.webm') ||
-                  p.endsWith('.m4v') ||
-                  p.endsWith('.ts') ||
-                  p.endsWith('.mpg') ||
-                  p.endsWith('.mpeg')) {
-                allVideos.add(entity);
-              }
-            }
-          } catch (e) {
-            // ❌ Individual file/folder fail — skip karo, continue
-            debugPrint('Skip item: ${entity.path} — $e');
-          }
+      Directory? rootDir;
+      for (String path in possiblePaths) {
+        final dir = Directory(path);
+        if (dir.existsSync()) {
+          rootDir = dir;
+          debugPrint('✅ Using path: $path');
+          break;
         }
-      } catch (e) {
-        // ❌ Directory access fail — skip karo
-        debugPrint('Skip dir: ${dir.path} — $e');
       }
+
+      if (rootDir == null || !rootDir.existsSync()) {
+        if (mounted) _showSnackBar('Storage path not found', Colors.red);
+        return;
+      }
+
+      void scanDirectory(Directory dir, int depth) {
+        if (depth > 8) return;
+
+        try {
+          final entities = dir.listSync(followLinks: false);
+          for (var entity in entities) {
+            try {
+              if (entity is Directory) {
+                final dirPath = entity.path.toLowerCase();
+
+                if (dirPath.contains('/android/data/') ||
+                    dirPath.contains('/android/obb/') ||
+                    dirPath.contains('/android/media/') ||
+                    dirPath.contains('/.thumbnails/') ||
+                    dirPath.contains('/.cache/') ||
+                    dirPath.endsWith('/android')) {
+                  continue;
+                }
+
+                scanDirectory(entity, depth + 1);
+              } else if (entity is File) {
+                final p = entity.path.toLowerCase();
+
+                if (p.contains('/call_rec/') ||
+                    p.contains('/callrec/') ||
+                    p.contains('/call recording/') ||
+                    p.contains('/callrecordings/') ||
+                    p.contains('/sound_recorder/') ||
+                    p.contains('/voicerecorder/') ||
+                    p.contains('/voice_recorder/') ||
+                    p.contains('/recordings/') ||
+                    p.contains('/voice notes/') ||
+                    p.contains('/whatsapp audio/')) {
+                  continue;
+                }
+
+                bool isAudio = p.endsWith('.mp3') ||
+                    p.endsWith('.m4a') ||
+                    p.endsWith('.wav') ||
+                    p.endsWith('.aac') ||
+                    p.endsWith('.flac') ||
+                    p.endsWith('.wma') ||
+                    p.endsWith('.mp4a');
+
+                if (isAudio && !_isVoiceNoteFile(entity)) {
+                  allSongs.add(entity);
+                }
+
+                if (p.endsWith('.mp4') ||
+                    p.endsWith('.mkv') ||
+                    p.endsWith('.avi') ||
+                    p.endsWith('.mov') ||
+                    p.endsWith('.wmv') ||
+                    p.endsWith('.flv') ||
+                    p.endsWith('.webm') ||
+                    p.endsWith('.m4v') ||
+                    p.endsWith('.ts') ||
+                    p.endsWith('.mpg') ||
+                    p.endsWith('.mpeg')) {
+                  allVideos.add(entity);
+                }
+              }
+            } catch (e) {
+              debugPrint('Skip item: ${entity.path} — $e');
+            }
+          }
+        } catch (e) {
+          debugPrint('Skip dir: ${dir.path} — $e');
+        }
+      }
+
+      scanDirectory(rootDir, 0);
+
+      setState(() {
+        for (var song in allSongs) {
+          if (!_songs.any((f) => f.path == song.path)) _songs.add(song);
+        }
+        for (var video in allVideos) {
+          if (!_videos.any((f) => f.path == video.path)) _videos.add(video);
+        }
+        _buildFolderMap();
+        _buildVideoFolderMap();
+      });
+
+      await _saveSongs();
+      await _saveVideos();
+      await _applyFilter();
+      _showSnackBar(
+          '${allSongs.length} songs + ${allVideos.length} videos found!',
+          Colors.green);
+    } catch (e) {
+      debugPrint('❌ Scan error: $e');
+      _showSnackBar('Error: $e', Colors.red);
     }
-
-    scanDirectory(rootDir, 0);
-
-    setState(() {
-      for (var song in allSongs) {
-        if (!_songs.any((f) => f.path == song.path)) _songs.add(song);
-      }
-      for (var video in allVideos) {
-        if (!_videos.any((f) => f.path == video.path)) _videos.add(video);
-      }
-      _buildFolderMap();
-      _buildVideoFolderMap();
-    });
-
-    await _saveSongs();
-    await _saveVideos();
-    await _applyFilter();
-    _showSnackBar(
-        '${allSongs.length} songs + ${allVideos.length} videos found!',
-        Colors.green);
-  } catch (e) {
-    debugPrint('❌ Scan error: $e');
-    _showSnackBar('Error: $e', Colors.red);
   }
-}
 
   Future<void> _playSong(File song, int index) async {
     if (_currentSong == song) {
@@ -1128,7 +1183,6 @@ Future<void> _scanDefaultFolder() async {
     await audioHandler!.setQueue(paths, index);
     await audioHandler!.play();
 
-    // ✅ Playback modes apply karo
     audioHandler!.applyShuffleMode(isShuffle);
     if (isRepeatOne) {
       audioHandler!.applyRepeatMode('one');
@@ -1973,7 +2027,6 @@ Future<void> _scanDefaultFolder() async {
                 child: SafeArea(
                   child: Column(
                     children: [
-                      // TOP BAR
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         child: Row(
@@ -2018,7 +2071,6 @@ Future<void> _scanDefaultFolder() async {
 
                       const SizedBox(height: 8),
 
-                      // ALBUM ART
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: AspectRatio(
@@ -2037,7 +2089,6 @@ Future<void> _scanDefaultFolder() async {
 
                       const SizedBox(height: 20),
 
-                      // TITLE
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: Column(
@@ -2057,7 +2108,6 @@ Future<void> _scanDefaultFolder() async {
 
                       const SizedBox(height: 16),
 
-                      // PROGRESS BAR
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: StreamBuilder<Duration>(
@@ -2109,7 +2159,6 @@ Future<void> _scanDefaultFolder() async {
 
                       const SizedBox(height: 12),
 
-                      // PLAYBACK CONTROLS
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: Row(
@@ -2174,7 +2223,6 @@ Future<void> _scanDefaultFolder() async {
 
                       const SizedBox(height: 12),
 
-                      // BOTTOM ROW
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                         child: Row(
@@ -2358,22 +2406,22 @@ Future<void> _scanDefaultFolder() async {
                   children: [
                     _drawerItem(icon: Icons.library_music, iconColor: Colors.cyan, title: 'Pick Songs', subtitle: 'Select from storage', onTap: () { Navigator.pop(context); _pickSongs(); }),
                     _drawerItem(
-  icon: Icons.bug_report,
-  iconColor: Colors.red,
-  title: 'Debug Permissions',
-  subtitle: 'Check permission status',
-  onTap: () async {
-    Navigator.pop(context);
-    final manage = await Permission.manageExternalStorage.isGranted;
-    final storage = await Permission.storage.isGranted;
-    final audio = await Permission.audio.isGranted;
-    final video = await Permission.videos.isGranted;
-    _showSnackBar(
-      'Manage: $manage | Storage: $storage | Audio: $audio | Video: $video',
-      manage ? Colors.green : Colors.red,
-    );
-  },
-),
+                      icon: Icons.bug_report,
+                      iconColor: Colors.red,
+                      title: 'Debug Permissions',
+                      subtitle: 'Check permission status',
+                      onTap: () async {
+                        Navigator.pop(context);
+                        final manage = await Permission.manageExternalStorage.isGranted;
+                        final storage = await Permission.storage.isGranted;
+                        final audio = await Permission.audio.isGranted;
+                        final video = await Permission.videos.isGranted;
+                        _showSnackBar(
+                          'Manage: $manage | Storage: $storage | Audio: $audio | Video: $video',
+                          manage ? Colors.green : Colors.red,
+                        );
+                      },
+                    ),
                     _drawerItem(icon: Icons.folder_open, iconColor: AppTheme.accent, title: 'Scan Music', subtitle: 'Auto scan folders', onTap: () { Navigator.pop(context); _scanDefaultFolder(); }),
                     _drawerItem(icon: Icons.favorite, iconColor: Colors.pinkAccent, title: 'Favorites', subtitle: '${_favorites.length} songs', onTap: () { Navigator.pop(context); setState(() { _selectedTab = 1; }); _applyFilter(); }),
                     _drawerItem(icon: Icons.history, iconColor: Colors.orangeAccent, title: 'Recent', subtitle: '${_recentSongs.length} songs', onTap: () { Navigator.pop(context); setState(() { _selectedTab = 2; }); _applyFilter(); }),
