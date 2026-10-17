@@ -147,6 +147,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
   List<String> _favorites = [];
   List<String> _recentSongs = [];
   List<Map<String, dynamic>> _playlists = [];
+
+  // ✅ NAYA: Video tracking variables
+  List<String> _watchedVideos = [];
+  List<String> _newVideos = [];
+  String? _lastWatchedVideo;
+
   String? _openedPlaylist;
   File? _currentSong;
   bool isPlaying = false;
@@ -332,6 +338,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
       for (var video in result.videos) {
         if (!existingVideoPaths.contains(video.path)) {
           _videos.add(video);
+          // ✅ NAYA: Add to new videos array
+          _newVideos.add(video.path); 
           debugPrint('➕ New video: ${video.path.split('/').last}');
         }
       }
@@ -343,6 +351,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
         });
         await _saveSongs();
         await _saveVideos();
+        // ✅ NAYA: Save new videos badge
+        await _saveNewVideos(); 
         await _applyFilter();
       }
     } catch (e) {
@@ -993,9 +1003,30 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
     await prefs.setStringList('saved_videos', _videos.map((f) => f.path).toList());
   }
 
+  // ✅ NAYA: Save new videos badge
+  Future<void> _saveNewVideos() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('new_videos', _newVideos);
+  }
+
+  // ✅ NAYA: Save watched videos
+  Future<void> _saveWatchedVideos() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('watched_videos', _watchedVideos);
+    if (_lastWatchedVideo != null) {
+      await prefs.setString('last_watched_video', _lastWatchedVideo!);
+    }
+  }
+
   Future<void> _loadVideos() async {
     final prefs = await SharedPreferences.getInstance();
     List<String>? savedPaths = prefs.getStringList('saved_videos');
+    
+    // ✅ NAYA: Load badges
+    _watchedVideos = prefs.getStringList('watched_videos') ?? [];
+    _newVideos = prefs.getStringList('new_videos') ?? [];
+    _lastWatchedVideo = prefs.getString('last_watched_video');
+    
     if (savedPaths != null) {
       List<File> videos = savedPaths.map((path) => File(path)).where((f) => f.existsSync()).toList();
       setState(() {
@@ -1155,7 +1186,11 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
           if (!_songs.any((f) => f.path == song.path)) _songs.add(song);
         }
         for (var video in result.videos) {
-          if (!_videos.any((f) => f.path == video.path)) _videos.add(video);
+          if (!_videos.any((f) => f.path == video.path)) {
+            _videos.add(video);
+            // ✅ NAYA: Add to new videos array
+            _newVideos.add(video.path);
+          }
         }
         _buildFolderMap();
         _buildVideoFolderMap();
@@ -1163,6 +1198,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
 
       await _saveSongs();
       await _saveVideos();
+      // ✅ NAYA: Save badges
+      await _saveNewVideos();
       await _applyFilter();
       _showSnackBar(
           '${result.songs.length} songs + ${result.videos.length} videos found!',
@@ -2842,28 +2879,52 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
     );
   }
 
+  // ✅ NAYA: _buildVideoTile with Badges & Watched Highlight
   Widget _buildVideoTile(List<File> folderVideos, int index) {
     final video = folderVideos[index];
     final videoName = video.path.split('/').last;
     final sizeMB = (video.lengthSync() / (1024 * 1024)).toStringAsFixed(1);
+    
+    // ✅ NAYA: Check if new or last watched
+    bool isNew = _newVideos.contains(video.path);
+    bool isLastWatched = _lastWatchedVideo == video.path;
+
     return GestureDetector(
-      onTap: () {
-        Navigator.push(context, MaterialPageRoute(
-          builder: (context) => VideoPlayerScreen(videoFile: video, videoList: folderVideos, initialIndex: index),
-        ));
+      onTap: () async {
+        // ✅ NAYA: Mark as watched
+        if (!_watchedVideos.contains(video.path)) _watchedVideos.add(video.path);
+        _newVideos.remove(video.path);
+        _lastWatchedVideo = video.path;
+        await _saveWatchedVideos();
+        await _saveNewVideos();
+        if (mounted) setState(() {});
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VideoPlayerScreen(videoFile: video, videoList: folderVideos, initialIndex: index),
+          ),
+        );
       },
       onLongPress: () => _showVideoOptions(video, index, folderVideos),
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 5),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: AppTheme.isLightMode ? Colors.black.withOpacity(0.05) : Colors.white.withOpacity(0.05),
+          // ✅ NAYA: Highlight last watched
+          color: isLastWatched 
+              ? AppTheme.accent.withOpacity(0.15)
+              : (AppTheme.isLightMode ? Colors.black.withOpacity(0.05) : Colors.white.withOpacity(0.05)),
           borderRadius: BorderRadius.circular(15),
+          border: isLastWatched 
+              ? Border.all(color: AppTheme.accent.withOpacity(0.5), width: 1.5) 
+              : null,
         ),
         child: Row(
           children: [
             Container(
-              width: 60, height: 45,
+              width: 60,
+              height: 45,
               decoration: BoxDecoration(gradient: LinearGradient(colors: AppTheme.primaryGradient), borderRadius: BorderRadius.circular(8)),
               child: const Icon(Icons.play_circle_fill, color: Colors.white, size: 30),
             ),
@@ -2872,7 +2933,38 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(videoName, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: AppTheme.text, fontSize: 13)),
+                  Row(
+                    children: [
+                      // ✅ NAYA: NEW Badge
+                      if (isNew)
+                        Container(
+                          margin: const EdgeInsets.only(right: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(4)),
+                          child: const Text('NEW', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                        ),
+                      // ✅ NAYA: Last Watched Dot
+                      if (isLastWatched)
+                        Container(
+                          margin: const EdgeInsets.only(right: 6),
+                          width: 8, height: 8,
+                          decoration: const BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
+                        ),
+                      Expanded(
+                        child: Text(
+                          videoName,
+                          maxLines: 2, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: isNew 
+                                ? Colors.green 
+                                : (isLastWatched ? AppTheme.accent : AppTheme.text),
+                            fontSize: 13,
+                            fontWeight: (isNew || isLastWatched) ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 4),
                   Text('$sizeMB MB', style: TextStyle(color: AppTheme.subText, fontSize: 11)),
                 ],
@@ -2930,8 +3022,15 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
               ListTile(
                 leading: Icon(Icons.play_arrow, color: AppTheme.accent),
                 title: Text('Play Video', style: TextStyle(color: AppTheme.text)),
-                onTap: () {
+                onTap: () async {
                   Navigator.pop(context);
+                  if (!_watchedVideos.contains(video.path)) _watchedVideos.add(video.path);
+                  _newVideos.remove(video.path);
+                  _lastWatchedVideo = video.path;
+                  await _saveWatchedVideos();
+                  await _saveNewVideos();
+                  if (mounted) setState(() {});
+                  
                   Navigator.push(context, MaterialPageRoute(
                     builder: (context) => VideoPlayerScreen(videoFile: video, videoList: folderVideos, initialIndex: index),
                   ));
@@ -2998,8 +3097,16 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
               Navigator.pop(context);
               try {
                 if (await video.exists()) await video.delete();
-                setState(() { _videos.remove(video); _buildVideoFolderMap(); });
+                setState(() { 
+                  _videos.remove(video); 
+                  _buildVideoFolderMap(); 
+                  _newVideos.remove(video.path);
+                  _watchedVideos.remove(video.path);
+                  if (_lastWatchedVideo == video.path) _lastWatchedVideo = null;
+                });
                 await _saveVideos();
+                await _saveNewVideos();
+                await _saveWatchedVideos();
                 _showSnackBar('Video deleted', Colors.green);
               } catch (e) {
                 _showSnackBar('Error deleting: $e', Colors.red);
