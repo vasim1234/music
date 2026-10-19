@@ -116,11 +116,9 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
     await prefs.setString('custom_eq_presets', jsonEncode(_customPresets));
   }
 
-  // ✅ UPDATED: Poora state load karo (EQ + Reverb + Loudness + Bass)
   Future<void> _loadSavedState() async {
     final prefs = await SharedPreferences.getInstance();
     
-    // Load all saved values
     final savedBass = prefs.getDouble('bass_level') ?? 0.3;
     final savedImmersive = prefs.getDouble('immersive_level') ?? 0.3;
     final savedReverbEnabled = prefs.getBool('reverb_enabled') ?? false;
@@ -128,7 +126,6 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
     final savedLoudnessEnabled = prefs.getBool('loudness_enabled') ?? false;
     final savedLoudnessGain = prefs.getInt('loudness_gain') ?? 500;
     
-    // ✅ NAYA: EQ preset + bands load karo
     final savedPreset = prefs.getString('eq_preset') ?? 'Flat';
     final savedBands = prefs.getStringList('eq_bands');
     
@@ -146,17 +143,14 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
       }
     });
     
-    // Apply to audio handler
     if (audioHandler != null) {
       await audioHandler!.setBassBoost(_bassLevel > 0, (_bassLevel * 1000).round());
       await audioHandler!.setImmersive(_immersiveLevel > 0, (_immersiveLevel * 1000).round());
       
-      // ✅ NAYA: Apply EQ preset
       if (savedPreset != 'Flat' && savedPreset != 'Custom') {
         await audioHandler!.setEqualizerPreset(savedPreset);
       }
       
-      // ✅ NAYA: Apply individual bands
       if (savedBands != null) {
         for (int i = 0; i < savedBands.length; i++) {
           await audioHandler!.setEqualizerBand(i, int.tryParse(savedBands[i]) ?? 0);
@@ -172,7 +166,6 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
     }
   }
 
-  // ✅ UPDATED: Poora state save karo (EQ + Reverb + Loudness + Bass)
   Future<void> _saveState() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('bass_level', _bassLevel);
@@ -182,35 +175,23 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
     await prefs.setBool('loudness_enabled', _loudnessEnabled);
     await prefs.setInt('loudness_gain', _loudnessGain);
     
-    // ✅ NAYA: EQ preset + bands save karo
     await prefs.setString('eq_preset', _selectedPreset);
     await prefs.setStringList('eq_bands', _bandLevels.map((e) => e.toString()).toList());
   }
 
   Future<void> _applyBassImmersive() async {
-  if (audioHandler == null) return;
-  
-  // ✅ NAYA: Safe Bass Limit
-  double safeBass = _bassLevel;
-  if ((_selectedPreset == 'BassBoost' || _selectedPreset == 'Rock') && safeBass > 0.5) {
-    safeBass = 0.5; // Heavy EQ ke sath 50% se zyada bass nahi
-  }
-
-  await audioHandler!.setBassBoost(safeBass > 0, (safeBass * 1000).round());
-  await audioHandler!.setImmersive(_immersiveLevel > 0, (_immersiveLevel * 1000).round());
-  
-  // ✅ NAYA: EQ preset ko disturb mat karo (override na ho)
-  if (_selectedPreset != 'Custom' && _selectedPreset != 'Flat') {
-    await audioHandler!.setEqualizerPreset(_selectedPreset);
-  } else if (_bandLevels.any((level) => level != 0)) {
-    for (int i = 0; i < _bandLevels.length; i++) {
-      await audioHandler!.setEqualizerBand(i, _bandLevels[i]);
+    if (audioHandler == null) return;
+    
+    // ✅ SMART LIMIT: Distortion Fix
+    double safeBass = _bassLevel;
+    if ((_selectedPreset == 'BassBoost' || _selectedPreset == 'Rock') && safeBass > 0.5) {
+      safeBass = 0.5; 
     }
-  }
-  
-  await _saveState();
-  }
-    // ✅ NAYA: EQ preset ko disturb mat karo (override na ho)
+
+    await audioHandler!.setBassBoost(safeBass > 0, (safeBass * 1000).round());
+    await audioHandler!.setImmersive(_immersiveLevel > 0, (_immersiveLevel * 1000).round());
+    
+    // EQ ko override na hone do
     if (_selectedPreset != 'Custom' && _selectedPreset != 'Flat') {
       await audioHandler!.setEqualizerPreset(_selectedPreset);
     } else if (_bandLevels.any((level) => level != 0)) {
@@ -229,33 +210,29 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
     return '$hz';
   }
 
-  // ✅ UPDATED: Preset apply + save
   Future<void> _applyPreset(String presetName) async {
-  if (audioHandler == null) return;
-  
-  // ✅ NAYA: Smart Bass Logic (Distortion Fix)
-  // Agar user BassBoost ya Rock select karta hai, toh manual bass ko limit karo
-  double targetBass = _bassLevel;
-  if (presetName == 'BassBoost' && _bassLevel > 0.4) {
-    targetBass = 0.4; // BassBoost ke sath max 40% manual bass allowed
-  } else if (presetName == 'Rock' && _bassLevel > 0.5) {
-    targetBass = 0.5;
-  }
+    if (audioHandler == null) return;
+    
+    // ✅ SMART LIMIT: Preset change pe bass kam karo taaki khar-khar na ho
+    double targetBass = _bassLevel;
+    if (presetName == 'BassBoost' && _bassLevel > 0.4) {
+      targetBass = 0.4; 
+    } else if (presetName == 'Rock' && _bassLevel > 0.5) {
+      targetBass = 0.5;
+    }
 
-  setState(() {
-    _selectedPreset = presetName;
-    _bandLevels = _getPresetBands(presetName);
-    _bassLevel = targetBass; // UI slider ko update karo
-  });
-  
-  // Apply EQ
-  await audioHandler!.setEqualizerPreset(presetName);
-  
-  // Apply safe bass & immersive
-  await audioHandler!.setBassBoost(_bassLevel > 0, (_bassLevel * 1000).round());
-  await audioHandler!.setImmersive(_immersiveLevel > 0, (_immersiveLevel * 1000).round());
-  
-  await _saveState(); 
+    setState(() {
+      _selectedPreset = presetName;
+      _bandLevels = _getPresetBands(presetName);
+      _bassLevel = targetBass; 
+    });
+    
+    await audioHandler!.setEqualizerPreset(presetName);
+    
+    await audioHandler!.setBassBoost(_bassLevel > 0, (_bassLevel * 1000).round());
+    await audioHandler!.setImmersive(_immersiveLevel > 0, (_immersiveLevel * 1000).round());
+    
+    await _saveState(); 
   }
 
   Future<void> _applyCustomPreset(Map<String, dynamic> preset) async {
@@ -269,11 +246,10 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
       await audioHandler!.setEqualizerBand(i, levels[i]);
     }
     
-    // ✅ NAYA: Custom preset apply hone ke baad bass/immersive apply karo
     await audioHandler!.setBassBoost(_bassLevel > 0, (_bassLevel * 1000).round());
     await audioHandler!.setImmersive(_immersiveLevel > 0, (_immersiveLevel * 1000).round());
     
-    await _saveState();   // ✅ NAYA: Save karo
+    await _saveState(); 
   }
 
   List<int> _getPresetBands(String presetName) {
@@ -294,7 +270,6 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
     return levels;
   }
 
-  // ✅ UPDATED: Band change + save
   Future<void> _onBandChanged(int index, int newLevel) async {
     if (audioHandler == null) return;
     setState(() {
@@ -302,7 +277,7 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
       _selectedPreset = 'Custom';
     });
     await audioHandler!.setEqualizerBand(index, newLevel);
-    await _saveState();   // ✅ NAYA: Save karo
+    await _saveState();
   }
 
   Future<void> _onReverbChanged(String presetName) async {
@@ -399,7 +374,6 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Headphones hint
                   Row(
                     children: [
                       Icon(Icons.headphones, color: subText, size: 18),
@@ -414,7 +388,6 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
                   ),
                   const SizedBox(height: 25),
 
-                  // ✅ SECTION: ENHANCE SOUND
                   _buildSectionHeader('ENHANCE SOUND', subText),
                   const SizedBox(height: 12),
 
@@ -444,11 +417,9 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
                   ),
                   const SizedBox(height: 30),
 
-                  // ✅ SECTION: EQUALIZER
                   _buildSectionHeader('EQUALIZER', subText),
                   const SizedBox(height: 12),
 
-                  // Frequency Curve
                   Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
@@ -521,7 +492,6 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
 
                   const SizedBox(height: 24),
 
-                  // Presets
                   Row(
                     children: [
                       Text('PRESETS',
@@ -610,7 +580,6 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
 
                   const SizedBox(height: 24),
 
-                  // Bands
                   Row(
                     children: [
                       Text('BANDS',
@@ -684,7 +653,6 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
 
                   const SizedBox(height: 30),
 
-                  // ✅ SECTION: REVERB
                   Row(
                     children: [
                       Text('REVERB',
@@ -800,7 +768,6 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
 
                   const SizedBox(height: 30),
 
-                  // ✅ SECTION: LOUDNESS
                   _buildSectionHeader('LOUDNESS', subText),
                   const SizedBox(height: 12),
                   Container(
@@ -871,7 +838,6 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
 
                   const SizedBox(height: 30),
 
-                  // Reset Button
                   Center(
                     child: GestureDetector(
                       onTap: _resetAll,
