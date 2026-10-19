@@ -188,12 +188,28 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
   }
 
   Future<void> _applyBassImmersive() async {
-    if (audioHandler == null) return;
-    
-    // ✅ NAYA: Bass aur Immersive dono apply karo
-    await audioHandler!.setBassBoost(_bassLevel > 0, (_bassLevel * 1000).round());
-    await audioHandler!.setImmersive(_immersiveLevel > 0, (_immersiveLevel * 1000).round());
-    
+  if (audioHandler == null) return;
+  
+  // ✅ NAYA: Safe Bass Limit
+  double safeBass = _bassLevel;
+  if ((_selectedPreset == 'BassBoost' || _selectedPreset == 'Rock') && safeBass > 0.5) {
+    safeBass = 0.5; // Heavy EQ ke sath 50% se zyada bass nahi
+  }
+
+  await audioHandler!.setBassBoost(safeBass > 0, (safeBass * 1000).round());
+  await audioHandler!.setImmersive(_immersiveLevel > 0, (_immersiveLevel * 1000).round());
+  
+  // ✅ NAYA: EQ preset ko disturb mat karo (override na ho)
+  if (_selectedPreset != 'Custom' && _selectedPreset != 'Flat') {
+    await audioHandler!.setEqualizerPreset(_selectedPreset);
+  } else if (_bandLevels.any((level) => level != 0)) {
+    for (int i = 0; i < _bandLevels.length; i++) {
+      await audioHandler!.setEqualizerBand(i, _bandLevels[i]);
+    }
+  }
+  
+  await _saveState();
+  }
     // ✅ NAYA: EQ preset ko disturb mat karo (override na ho)
     if (_selectedPreset != 'Custom' && _selectedPreset != 'Flat') {
       await audioHandler!.setEqualizerPreset(_selectedPreset);
@@ -215,18 +231,31 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
 
   // ✅ UPDATED: Preset apply + save
   Future<void> _applyPreset(String presetName) async {
-    if (audioHandler == null) return;
-    setState(() {
-      _selectedPreset = presetName;
-      _bandLevels = _getPresetBands(presetName);
-    });
-    await audioHandler!.setEqualizerPreset(presetName);
-    
-    // ✅ NAYA: Preset apply hone ke baad, bass/immersive bhi turant apply karo
-    await audioHandler!.setBassBoost(_bassLevel > 0, (_bassLevel * 1000).round());
-    await audioHandler!.setImmersive(_immersiveLevel > 0, (_immersiveLevel * 1000).round());
-    
-    await _saveState();   // ✅ NAYA: Save karo
+  if (audioHandler == null) return;
+  
+  // ✅ NAYA: Smart Bass Logic (Distortion Fix)
+  // Agar user BassBoost ya Rock select karta hai, toh manual bass ko limit karo
+  double targetBass = _bassLevel;
+  if (presetName == 'BassBoost' && _bassLevel > 0.4) {
+    targetBass = 0.4; // BassBoost ke sath max 40% manual bass allowed
+  } else if (presetName == 'Rock' && _bassLevel > 0.5) {
+    targetBass = 0.5;
+  }
+
+  setState(() {
+    _selectedPreset = presetName;
+    _bandLevels = _getPresetBands(presetName);
+    _bassLevel = targetBass; // UI slider ko update karo
+  });
+  
+  // Apply EQ
+  await audioHandler!.setEqualizerPreset(presetName);
+  
+  // Apply safe bass & immersive
+  await audioHandler!.setBassBoost(_bassLevel > 0, (_bassLevel * 1000).round());
+  await audioHandler!.setImmersive(_immersiveLevel > 0, (_immersiveLevel * 1000).round());
+  
+  await _saveState(); 
   }
 
   Future<void> _applyCustomPreset(Map<String, dynamic> preset) async {
