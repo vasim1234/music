@@ -189,10 +189,20 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
 
   Future<void> _applyBassImmersive() async {
     if (audioHandler == null) return;
-    await audioHandler!
-        .setBassBoost(_bassLevel > 0, (_bassLevel * 1000).round());
-    await audioHandler!
-        .setImmersive(_immersiveLevel > 0, (_immersiveLevel * 1000).round());
+    
+    // ✅ NAYA: Bass aur Immersive dono apply karo
+    await audioHandler!.setBassBoost(_bassLevel > 0, (_bassLevel * 1000).round());
+    await audioHandler!.setImmersive(_immersiveLevel > 0, (_immersiveLevel * 1000).round());
+    
+    // ✅ NAYA: EQ preset ko disturb mat karo (override na ho)
+    if (_selectedPreset != 'Custom' && _selectedPreset != 'Flat') {
+      await audioHandler!.setEqualizerPreset(_selectedPreset);
+    } else if (_bandLevels.any((level) => level != 0)) {
+      for (int i = 0; i < _bandLevels.length; i++) {
+        await audioHandler!.setEqualizerBand(i, _bandLevels[i]);
+      }
+    }
+    
     await _saveState();
   }
 
@@ -211,6 +221,11 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
       _bandLevels = _getPresetBands(presetName);
     });
     await audioHandler!.setEqualizerPreset(presetName);
+    
+    // ✅ NAYA: Preset apply hone ke baad, bass/immersive bhi turant apply karo
+    await audioHandler!.setBassBoost(_bassLevel > 0, (_bassLevel * 1000).round());
+    await audioHandler!.setImmersive(_immersiveLevel > 0, (_immersiveLevel * 1000).round());
+    
     await _saveState();   // ✅ NAYA: Save karo
   }
 
@@ -224,6 +239,11 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
     for (int i = 0; i < levels.length; i++) {
       await audioHandler!.setEqualizerBand(i, levels[i]);
     }
+    
+    // ✅ NAYA: Custom preset apply hone ke baad bass/immersive apply karo
+    await audioHandler!.setBassBoost(_bassLevel > 0, (_bassLevel * 1000).round());
+    await audioHandler!.setImmersive(_immersiveLevel > 0, (_immersiveLevel * 1000).round());
+    
     await _saveState();   // ✅ NAYA: Save karo
   }
 
