@@ -3474,11 +3474,17 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen>
           ),
         ),
       ),
-      bottomNavigationBar: _currentSong != null ? _buildSlimMiniPlayer() : null,
+ 
+      // ✅ NAYA: SafeArea lagaya taaki 3 buttons wale mode mein bhi mini player chhupe nahi
+      bottomNavigationBar: _currentSong != null 
+          ? SafeArea(
+              bottom: true,
+              child: _buildSlimMiniPlayer(),
+            ) 
+          : null,
     );
   }
 }
-
 class _PlayingIndicator extends StatefulWidget {
   final Color color;
   const _PlayingIndicator({required this.color});
