@@ -22,9 +22,7 @@ class AudioSettingsScreen extends StatefulWidget {
 }
 
 class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
-  // Bass + Immersive
-  double _bassLevel = 0.3;
-  double _immersiveLevel = 0.3;
+  // ✅ NAYA: Bass aur Immersive variables hata diye gaye hain
 
   // Equalizer
   int _numBands = 5;
@@ -116,11 +114,10 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
     await prefs.setString('custom_eq_presets', jsonEncode(_customPresets));
   }
 
+  // ✅ UPDATED: State load karo (Bass hata diya)
   Future<void> _loadSavedState() async {
     final prefs = await SharedPreferences.getInstance();
     
-    final savedBass = prefs.getDouble('bass_level') ?? 0.3;
-    final savedImmersive = prefs.getDouble('immersive_level') ?? 0.3;
     final savedReverbEnabled = prefs.getBool('reverb_enabled') ?? false;
     final savedReverb = prefs.getString('reverb_preset') ?? 'None';
     final savedLoudnessEnabled = prefs.getBool('loudness_enabled') ?? false;
@@ -130,8 +127,6 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
     final savedBands = prefs.getStringList('eq_bands');
     
     setState(() {
-      _bassLevel = savedBass;
-      _immersiveLevel = savedImmersive;
       _reverbEnabled = savedReverbEnabled;
       _selectedReverb = savedReverb;
       _loudnessEnabled = savedLoudnessEnabled;
@@ -144,8 +139,9 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
     });
     
     if (audioHandler != null) {
-      await audioHandler!.setBassBoost(_bassLevel > 0, (_bassLevel * 1000).round());
-      await audioHandler!.setImmersive(_immersiveLevel > 0, (_immersiveLevel * 1000).round());
+      // ✅ NAYA: Bass hamesha OFF rahega
+      await audioHandler!.setBassBoost(false, 0);
+      await audioHandler!.setImmersive(false, 0);
       
       if (savedPreset != 'Flat' && savedPreset != 'Custom') {
         await audioHandler!.setEqualizerPreset(savedPreset);
@@ -166,10 +162,9 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
     }
   }
 
+  // ✅ UPDATED: State save karo (Bass hata diya)
   Future<void> _saveState() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble('bass_level', _bassLevel);
-    await prefs.setDouble('immersive_level', _immersiveLevel);
     await prefs.setBool('reverb_enabled', _reverbEnabled);
     await prefs.setString('reverb_preset', _selectedReverb);
     await prefs.setBool('loudness_enabled', _loudnessEnabled);
@@ -177,30 +172,6 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
     
     await prefs.setString('eq_preset', _selectedPreset);
     await prefs.setStringList('eq_bands', _bandLevels.map((e) => e.toString()).toList());
-  }
-
-  Future<void> _applyBassImmersive() async {
-    if (audioHandler == null) return;
-    
-    // ✅ SMART LIMIT: Distortion Fix
-    double safeBass = _bassLevel;
-    if ((_selectedPreset == 'BassBoost' || _selectedPreset == 'Rock') && safeBass > 0.5) {
-      safeBass = 0.5; 
-    }
-
-    await audioHandler!.setBassBoost(safeBass > 0, (safeBass * 1000).round());
-    await audioHandler!.setImmersive(_immersiveLevel > 0, (_immersiveLevel * 1000).round());
-    
-    // EQ ko override na hone do
-    if (_selectedPreset != 'Custom' && _selectedPreset != 'Flat') {
-      await audioHandler!.setEqualizerPreset(_selectedPreset);
-    } else if (_bandLevels.any((level) => level != 0)) {
-      for (int i = 0; i < _bandLevels.length; i++) {
-        await audioHandler!.setEqualizerBand(i, _bandLevels[i]);
-      }
-    }
-    
-    await _saveState();
   }
 
   String _formatFreq(int hz) {
@@ -212,27 +183,12 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
 
   Future<void> _applyPreset(String presetName) async {
     if (audioHandler == null) return;
-    
-    // ✅ SMART LIMIT: Preset change pe bass kam karo taaki khar-khar na ho
-    double targetBass = _bassLevel;
-    if (presetName == 'BassBoost' && _bassLevel > 0.4) {
-      targetBass = 0.4; 
-    } else if (presetName == 'Rock' && _bassLevel > 0.5) {
-      targetBass = 0.5;
-    }
-
     setState(() {
       _selectedPreset = presetName;
       _bandLevels = _getPresetBands(presetName);
-      _bassLevel = targetBass; 
     });
-    
     await audioHandler!.setEqualizerPreset(presetName);
-    
-    await audioHandler!.setBassBoost(_bassLevel > 0, (_bassLevel * 1000).round());
-    await audioHandler!.setImmersive(_immersiveLevel > 0, (_immersiveLevel * 1000).round());
-    
-    await _saveState(); 
+    await _saveState();
   }
 
   Future<void> _applyCustomPreset(Map<String, dynamic> preset) async {
@@ -245,11 +201,7 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
     for (int i = 0; i < levels.length; i++) {
       await audioHandler!.setEqualizerBand(i, levels[i]);
     }
-    
-    await audioHandler!.setBassBoost(_bassLevel > 0, (_bassLevel * 1000).round());
-    await audioHandler!.setImmersive(_immersiveLevel > 0, (_immersiveLevel * 1000).round());
-    
-    await _saveState(); 
+    await _saveState();
   }
 
   List<int> _getPresetBands(String presetName) {
@@ -310,8 +262,6 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
 
   void _resetAll() {
     setState(() {
-      _bassLevel = 0.3;
-      _immersiveLevel = 0.3;
       _selectedPreset = 'Flat';
       _bandLevels = List.filled(_numBands, 0);
       _selectedReverb = 'None';
@@ -319,7 +269,6 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
       _loudnessEnabled = false;
       _loudnessGain = 500;
     });
-    _applyBassImmersive();
     _applyPreset('Flat');
     _onReverbChanged('None');
     _onLoudnessToggle(false);
@@ -374,6 +323,7 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Headphones hint
                   Row(
                     children: [
                       Icon(Icons.headphones, color: subText, size: 18),
@@ -388,38 +338,13 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
                   ),
                   const SizedBox(height: 25),
 
-                  _buildSectionHeader('ENHANCE SOUND', subText),
-                  const SizedBox(height: 12),
+                  // ✅ ENHANCE SOUND SECTION HATA DIYA GAYA HAI
 
-                  _buildIntensitySlider(
-                    label: 'Bass Intensity',
-                    icon: Icons.graphic_eq,
-                    value: _bassLevel,
-                    isDark: isDark,
-                    color: widget.accentColor,
-                    onChanged: (value) {
-                      setState(() => _bassLevel = value);
-                      _applyBassImmersive();
-                    },
-                  ),
-                  const SizedBox(height: 12),
-
-                  _buildIntensitySlider(
-                    label: 'Immersive Intensity',
-                    icon: Icons.surround_sound,
-                    value: _immersiveLevel,
-                    isDark: isDark,
-                    color: widget.accentColor,
-                    onChanged: (value) {
-                      setState(() => _immersiveLevel = value);
-                      _applyBassImmersive();
-                    },
-                  ),
-                  const SizedBox(height: 30),
-
+                  // ✅ SECTION: EQUALIZER
                   _buildSectionHeader('EQUALIZER', subText),
                   const SizedBox(height: 12),
 
+                  // Frequency Curve
                   Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
@@ -492,6 +417,7 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
 
                   const SizedBox(height: 24),
 
+                  // Presets
                   Row(
                     children: [
                       Text('PRESETS',
@@ -580,6 +506,7 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
 
                   const SizedBox(height: 24),
 
+                  // Bands
                   Row(
                     children: [
                       Text('BANDS',
@@ -653,6 +580,7 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
 
                   const SizedBox(height: 30),
 
+                  // ✅ SECTION: REVERB
                   Row(
                     children: [
                       Text('REVERB',
@@ -768,6 +696,7 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
 
                   const SizedBox(height: 30),
 
+                  // ✅ SECTION: LOUDNESS
                   _buildSectionHeader('LOUDNESS', subText),
                   const SizedBox(height: 12),
                   Container(
@@ -838,6 +767,7 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
 
                   const SizedBox(height: 30),
 
+                  // Reset Button
                   Center(
                     child: GestureDetector(
                       onTap: _resetAll,
@@ -1087,74 +1017,6 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
     );
   }
 
-  Widget _buildIntensitySlider({
-    required String label,
-    required IconData icon,
-    required double value,
-    required bool isDark,
-    required Color color,
-    required Function(double) onChanged,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF181820) : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color, size: 18),
-              const SizedBox(width: 8),
-              Text(label,
-                  style: TextStyle(
-                      color: isDark ? Colors.white : Colors.black87,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600)),
-              const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '${(value * 100).toStringAsFixed(0)}%',
-                  style: TextStyle(
-                      color: color,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 5,
-              activeTrackColor: color,
-              inactiveTrackColor:
-                  isDark ? Colors.grey.shade800 : Colors.grey.shade300,
-              thumbColor: color,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9),
-              overlayColor: color.withOpacity(0.2),
-              overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
-            ),
-            child: Slider(
-              value: value.clamp(0.0, 1.0),
-              min: 0.0,
-              max: 1.0,
-              onChanged: onChanged,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildBand(
       int index, String label, Color activeColor, bool isDark, Color card) {
     final level = _bandLevels[index];
@@ -1173,8 +1035,7 @@ class _AudioSettingsScreenState extends State<AudioSettingsScreen> {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              level == 0
-                  ? '0'
+              level == 0                  ? '0'
                   : '${level > 0 ? '+' : ''}${(level / 100).toStringAsFixed(0)}',
               style: TextStyle(
                 color: level != 0 ? activeColor : Colors.grey.shade500,
